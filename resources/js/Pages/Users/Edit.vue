@@ -1,0 +1,104 @@
+<template>
+  <AppLayout>
+    <Head :title="`Edit ${user.name}`" />
+
+    <!-- Back link + header -->
+    <div class="mb-6">
+      <Link :href="`/users/${user.id}`" class="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">
+        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+        Back to User
+      </Link>
+      <h1 class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">Edit {{ user.name }}</h1>
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Update user information below.</p>
+    </div>
+
+    <form @submit.prevent="submit" class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 max-w-2xl dark:bg-gray-800 dark:border-gray-700">
+      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div class="sm:col-span-2">
+          <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Full Name *</label>
+          <input v-model="form.name" type="text"
+            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500" />
+          <p v-if="form.errors.name" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.name }}</p>
+        </div>
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Email *</label>
+          <input v-model="form.email" type="email"
+            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500" />
+          <p v-if="form.errors.email" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.email }}</p>
+        </div>
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">New Password <span class="text-gray-400 dark:text-gray-500">(leave blank to keep)</span></label>
+          <input v-model="form.password" type="password"
+            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500" />
+          <p v-if="form.errors.password" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.password }}</p>
+        </div>
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Confirm Password</label>
+          <input v-model="form.password_confirmation" type="password"
+            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500" />
+        </div>
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Phone</label>
+          <input v-model="form.phone" type="text"
+            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500" />
+          <p v-if="form.errors.phone" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.phone }}</p>
+        </div>
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Gender</label>
+          <select v-model="form.gender"
+            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500">
+            <option value="">Select</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Role *</label>
+          <select v-model="form.role"
+            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500">
+            <option value="">Select Role</option>
+            <option v-for="r in roles" :key="r.id" :value="r.name">{{ r.name }}</option>
+          </select>
+          <p v-if="form.errors.role" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.role }}</p>
+        </div>
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Profile Photo</label>
+          <img v-if="user.profile_photo_path" :src="`/storage/${user.profile_photo_path}`" class="h-16 w-16 rounded-full object-cover mb-2 ring-2 ring-gray-200 dark:ring-gray-600" />
+          <input type="file" accept="image/*" @change="form.profile_photo = $event.target.files[0]"
+            class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900 dark:file:text-indigo-300" />
+          <p v-if="form.errors.profile_photo" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.profile_photo }}</p>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end space-x-3">
+        <Link :href="`/users/${user.id}`"
+          class="text-gray-900 bg-white border border-gray-300 hover:bg-gray-100 focus:ring-4 focus:ring-gray-200 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:border-gray-600 dark:focus:ring-gray-700">Cancel</Link>
+        <button type="submit" :disabled="form.processing"
+          class="text-white bg-indigo-700 hover:bg-indigo-800 focus:ring-4 focus:ring-indigo-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-indigo-600 dark:hover:bg-indigo-700 focus:outline-none dark:focus:ring-indigo-800 disabled:opacity-50">Update</button>
+      </div>
+    </form>
+  </AppLayout>
+</template>
+
+<script setup>
+import { useForm } from '@inertiajs/vue3';
+import AppLayout from '@/Layouts/AppLayout.vue';
+
+const props = defineProps({ user: Object, roles: Array });
+
+const form = useForm({
+  _method: 'PUT',
+  name: props.user.name,
+  email: props.user.email,
+  password: '',
+  password_confirmation: '',
+  phone: props.user.phone || '',
+  gender: props.user.gender || '',
+  role: props.user.roles?.[0]?.name || '',
+  profile_photo: null,
+});
+
+const submit = () => {
+  form.post(`/users/${props.user.id}`, { forceFormData: true });
+};
+</script>

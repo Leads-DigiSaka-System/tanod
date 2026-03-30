@@ -1,0 +1,30 @@
+<?php
+
+return [
+    /*
+    |--------------------------------------------------------------------------
+    | Jimi TrackSolidPro API Configuration
+    |--------------------------------------------------------------------------
+    |
+    | All credentials sourced from .env — never hardcode.
+    |
+    */
+
+    'base_url' => env('JIMI_BASE_URL', 'https://hk-open.tracksolidpro.com/route/rest'),
+    'app_key' => env('JIMI_APP_KEY', ''),
+    'api_secret' => env('JIMI_API_SECRET', ''),
+    'user_id' => env('JIMI_USER_ID', ''),
+    'user_pwd_md5' => env('JIMI_USER_PWD_MD5', ''),
+
+    // Token refresh interval in seconds (default 2 hrs)
+    'token_ttl' => env('JIMI_TOKEN_TTL', 7200),
+
+    // Batch size for device queries (max 100 per JIMI, safe at 50)
+    'batch_size' => env('JIMI_BATCH_SIZE', 50),
+
+    // Cache TTL in minutes for location data (historical sync)
+    'location_cache_ttl' => env('JIMI_LOCATION_CACHE_TTL', 20),
+
+    // Cache TTL in minutes for device list
+    'device_cache_ttl' => env('JIMI_DEVICE_CACHE_TTL', 30),
+];

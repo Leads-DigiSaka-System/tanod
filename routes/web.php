@@ -1,0 +1,135 @@
+<?php
+
+use App\Http\Controllers\AlertController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BookingController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DeviceController;
+use App\Http\Controllers\DistributionController;
+use App\Http\Controllers\FeedbackController;
+use App\Http\Controllers\GeoFenceController;
+use App\Http\Controllers\GroupController;
+use App\Http\Controllers\LiveViewController;
+use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\TicketController;
+use App\Http\Controllers\TractorController;
+use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| Guest Routes
+|--------------------------------------------------------------------------
+*/
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AuthController::class, 'login']);
+});
+
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+
+/*
+|--------------------------------------------------------------------------
+| Public Share Routes (no auth required)
+|--------------------------------------------------------------------------
+*/
+Route::get('/share/{token}', [LiveViewController::class, 'showShare'])->name('share.show');
+Route::get('/share/{token}/data', [LiveViewController::class, 'shareData'])->name('share.data');
+
+/*
+|--------------------------------------------------------------------------
+| Authenticated Routes
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'active'])->group(function () {
+
+    Route::get('/', DashboardController::class)->name('dashboard');
+
+    // Profile
+    Route::get('/profile', [AuthController::class, 'profile'])->name('profile');
+    Route::put('/profile', [AuthController::class, 'updateProfile'])->name('profile.update');
+    Route::put('/profile/password', [AuthController::class, 'changePassword'])->name('profile.password');
+
+    // Tractors
+    Route::resource('tractors', TractorController::class);
+    Route::delete('tractors/{tractor}/images/{image}', [TractorController::class, 'deleteImage'])->name('tractors.images.destroy');
+    Route::post('tractors/distribute', [TractorController::class, 'distribute'])->name('tractors.distribute');
+    Route::post('tractor-distributions/{distribution}/return', [TractorController::class, 'returnDistribution'])->name('tractors.return-distribution');
+
+    // Devices
+    Route::get('devices', [DeviceController::class, 'index'])->name('devices.index');
+    Route::get('devices/{device}', [DeviceController::class, 'show'])->name('devices.show');
+    Route::post('devices/sync', [DeviceController::class, 'syncAll'])->name('devices.sync')->middleware('permission:devices.sync');
+    Route::post('devices/sync-locations', [DeviceController::class, 'syncLocations'])->name('devices.sync-locations')->middleware('permission:devices.sync');
+    Route::get('devices/{device}/history', [DeviceController::class, 'locationHistory'])->name('devices.history');
+
+    // Groups
+    Route::resource('groups', GroupController::class)->parameters(['groups' => 'group']);
+
+    // Bookings
+    Route::resource('bookings', BookingController::class)->only(['index', 'create', 'store', 'show']);
+    Route::post('bookings/{booking}/approve', [BookingController::class, 'approve'])->name('bookings.approve');
+    Route::post('bookings/{booking}/reject', [BookingController::class, 'reject'])->name('bookings.reject');
+    Route::post('bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
+
+    // Maintenance
+    Route::resource('maintenance', MaintenanceController::class);
+
+    // Distributions
+    Route::get('distributions', [DistributionController::class, 'index'])->name('distributions.index');
+    Route::get('distributions/create', [DistributionController::class, 'create'])->name('distributions.create');
+    Route::post('distributions', [DistributionController::class, 'store'])->name('distributions.store');
+    Route::get('distributions/{distribution}', [DistributionController::class, 'show'])->name('distributions.show');
+    Route::post('distributions/{distribution}/return', [DistributionController::class, 'returnTractor'])->name('distributions.return');
+    Route::delete('distributions/{distribution}', [DistributionController::class, 'destroy'])->name('distributions.destroy');
+
+    // Live View / Map
+    Route::get('live-view', [LiveViewController::class, 'index'])->name('live-view.index');
+    Route::get('live-view/locations', [LiveViewController::class, 'allLocations'])->name('live-view.locations');
+    Route::get('live-view/follow/{device}', [LiveViewController::class, 'followDevice'])->name('live-view.follow');
+    Route::get('live-view/track/{device}', [LiveViewController::class, 'trackDevice'])->name('live-view.track');
+    Route::get('live-view/track-data', [LiveViewController::class, 'getTrackData'])->name('live-view.track-data');
+    Route::post('live-view/share', [LiveViewController::class, 'createShare'])->name('live-view.share');
+
+    // Alerts
+    Route::get('alerts', [AlertController::class, 'index'])->name('alerts.index');
+    Route::post('alerts/{alert}/acknowledge', [AlertController::class, 'acknowledge'])->name('alerts.acknowledge');
+    Route::post('alerts/acknowledge-all', [AlertController::class, 'acknowledgeAll'])->name('alerts.acknowledge-all');
+    Route::delete('alerts/{alert}', [AlertController::class, 'destroy'])->name('alerts.destroy');
+
+    // Notifications
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('notifications/recent', [NotificationController::class, 'recent'])->name('notifications.recent');
+    Route::post('notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+    Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
+    Route::delete('notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+
+    // Geo-Fences
+    Route::resource('geofences', GeoFenceController::class)->only(['index', 'create', 'store', 'show', 'destroy'])->parameters(['geofences' => 'geoFence']);
+
+    // Tickets
+    Route::resource('tickets', TicketController::class)->only(['index', 'create', 'store', 'show']);
+    Route::post('tickets/{ticket}/comment', [TicketController::class, 'addComment'])->name('tickets.comment');
+    Route::put('tickets/{ticket}/status', [TicketController::class, 'updateStatus'])->name('tickets.status');
+    Route::put('tickets/{ticket}/assign', [TicketController::class, 'assign'])->name('tickets.assign');
+
+    // Feedback
+    Route::get('feedback', [FeedbackController::class, 'index'])->name('feedback.index');
+    Route::get('feedback/{feedback}', [FeedbackController::class, 'show'])->name('feedback.show');
+    Route::put('feedback/{feedback}/review', [FeedbackController::class, 'review'])->name('feedback.review');
+
+    // Reports
+    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('reports/tractor-usage', [ReportController::class, 'tractorUsage'])->name('reports.tractor-usage');
+    Route::get('reports/tractor-usage/export', [ReportController::class, 'exportTractorUsage'])->name('reports.tractor-usage.export');
+    Route::get('reports/maintenance-summary', [ReportController::class, 'maintenanceSummary'])->name('reports.maintenance-summary');
+    Route::get('reports/booking-summary', [ReportController::class, 'bookingSummary'])->name('reports.booking-summary');
+    Route::get('reports/device-status', [ReportController::class, 'deviceStatus'])->name('reports.device-status');
+    Route::get('reports/export', [ReportController::class, 'exportCsv'])->name('reports.export');
+
+    // Users (admin only)
+    Route::resource('users', UserController::class)->middleware('permission:users.view');
+    Route::post('users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggle-active')->middleware('permission:users.edit');
+});
