@@ -35,7 +35,7 @@ Schedule::job(new UpdateTractorDistances)->dailyAt('02:00');
 Schedule::job(new CheckMaintenanceDue)->dailyAt('06:00');
 
 // Full JIMI sync (devices + locations) every 20 minutes
-Schedule::command('jimi:sync-daily')->everyTwentyMinutes()->withoutOverlapping();
+Schedule::command('jimi:sync-daily')->cron('*/20 * * * *')->withoutOverlapping();
 
 // Warm the Jimi total machine hours cache every hour
 Schedule::call(function () {
