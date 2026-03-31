@@ -3,9 +3,9 @@
 namespace App\Services\Jimi;
 
 use App\Models\JimiSyncLog;
-use App\Models\User;
 use Exception;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -45,6 +45,7 @@ class JimiAuthService
     public function refreshToken(): string
     {
         Cache::forget('jimi_access_token');
+
         return $this->getAccessToken();
     }
 
@@ -71,7 +72,7 @@ class JimiAuthService
 
         $response = $this->makeApiCall($params);
 
-        if (!isset($response['result']['accessToken'])) {
+        if (! isset($response['result']['accessToken'])) {
             $msg = $response['message'] ?? 'Unknown error getting Jimi token';
             Log::error('Jimi auth failed', ['response' => $response]);
             throw new Exception("Jimi auth failed: {$msg}");
@@ -91,7 +92,7 @@ class JimiAuthService
         $signStr = $secret;
         foreach ($params as $key => $value) {
             if ($key !== 'sign') {
-                $signStr .= $key . $value;
+                $signStr .= $key.$value;
             }
         }
         $signStr .= $secret;
@@ -110,7 +111,7 @@ class JimiAuthService
 
         $body = json_decode($response->getBody()->getContents(), true);
 
-        if (!is_array($body)) {
+        if (! is_array($body)) {
             throw new Exception('Invalid JSON response from Jimi API');
         }
 
@@ -153,7 +154,7 @@ class JimiAuthService
 
             // Token expired — refresh and retry once
             if (isset($response['code']) && in_array((int) $response['code'], [1003, 1004, 1005])) {
-                Log::info("Jimi token expired, refreshing for method: {$method}");
+                Log::info("Jimi token expired (code {$response['code']}), refreshing for method: {$method}");
                 $this->refreshToken();
                 $params = $this->buildAuthenticatedParams($method, $extra);
                 $response = $this->makeApiCall($params);
@@ -173,6 +174,56 @@ class JimiAuthService
             ]);
 
             return $response;
+        } catch (ClientException $e) {
+            // Guzzle throws ClientException on HTTP 401 before we can read the JSON body.
+            // Refresh the token and retry once.
+            if ($e->getResponse() && $e->getResponse()->getStatusCode() === 401) {
+                Log::info("Jimi HTTP 401 received, refreshing token for method: {$method}");
+                $this->refreshToken();
+
+                try {
+                    $params = $this->buildAuthenticatedParams($method, $extra);
+                    $response = $this->makeApiCall($params);
+
+                    $durationMs = (int) ((microtime(true) - $startTime) * 1000);
+                    $recordCount = is_array($response['result'] ?? null) ? count($response['result']) : 0;
+
+                    JimiSyncLog::create([
+                        'method' => $method,
+                        'status' => ((int) ($response['code'] ?? -1)) === 0 ? 'success' : 'failed',
+                        'records_fetched' => $recordCount,
+                        'duration_ms' => $durationMs,
+                        'error_message' => ((int) ($response['code'] ?? -1)) !== 0
+                            ? ($response['message'] ?? 'Unknown')
+                            : null,
+                    ]);
+
+                    return $response;
+                } catch (Exception $retryException) {
+                    $durationMs = (int) ((microtime(true) - $startTime) * 1000);
+                    JimiSyncLog::create([
+                        'method' => $method,
+                        'status' => 'failed',
+                        'duration_ms' => $durationMs,
+                        'error_message' => 'Retry after 401 failed: '.$retryException->getMessage(),
+                    ]);
+
+                    Log::error("Jimi API retry failed [{$method}]", ['error' => $retryException->getMessage()]);
+                    throw $retryException;
+                }
+            }
+
+            // Non-401 client error — log and rethrow
+            $durationMs = (int) ((microtime(true) - $startTime) * 1000);
+            JimiSyncLog::create([
+                'method' => $method,
+                'status' => 'failed',
+                'duration_ms' => $durationMs,
+                'error_message' => $e->getMessage(),
+            ]);
+
+            Log::error("Jimi API client error [{$method}]", ['error' => $e->getMessage()]);
+            throw $e;
         } catch (Exception $e) {
             $durationMs = (int) ((microtime(true) - $startTime) * 1000);
             JimiSyncLog::create([

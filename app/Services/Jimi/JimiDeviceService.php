@@ -66,7 +66,9 @@ class JimiDeviceService
                 Tractor::create([
                     'imei' => $imei,
                     'device_id' => $device->id,
+                    'no_plate' => $deviceData['deviceName'] ?? $imei,
                     'brand' => $deviceData['deviceModel'] ?? null,
+                    'model' => $deviceData['deviceModel'] ?? null,
                     'is_active' => true,
                 ]);
             }
