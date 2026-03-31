@@ -4,6 +4,7 @@ namespace App\Services\Jimi;
 
 use App\Models\Device;
 use App\Models\DeviceLocation;
+use App\Models\Tractor;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -31,6 +32,7 @@ class JimiDeviceService
 
         if (((int) ($response['code'] ?? -1)) !== 0) {
             Log::warning('Jimi device list failed', ['response' => $response]);
+
             return 0;
         }
 
@@ -39,23 +41,36 @@ class JimiDeviceService
 
         foreach ($devices as $deviceData) {
             $imei = $deviceData['imei'] ?? null;
-            if (!$imei) continue;
+            if (! $imei) {
+                continue;
+            }
 
-            Device::updateOrCreate(
+            $device = Device::updateOrCreate(
                 ['imei' => $imei],
                 [
                     'device_name' => $deviceData['deviceName'] ?? null,
                     'device_model' => $deviceData['deviceModel'] ?? null,
                     'sim' => $deviceData['sim'] ?? null,
-                    'activation_time' => !empty($deviceData['activationTime'])
+                    'activation_time' => ! empty($deviceData['activationTime'])
                         ? \Carbon\Carbon::parse($deviceData['activationTime'])
                         : null,
-                    'expiration_date' => !empty($deviceData['expirationDate'])
+                    'expiration_date' => ! empty($deviceData['expirationDate'])
                         ? \Carbon\Carbon::parse($deviceData['expirationDate'])
                         : null,
                     'is_active' => true,
                 ]
             );
+
+            // Auto-create a tractor for new devices that don't have one yet
+            if (! Tractor::where('device_id', $device->id)->exists()) {
+                Tractor::create([
+                    'imei' => $imei,
+                    'device_id' => $device->id,
+                    'brand' => $deviceData['deviceModel'] ?? null,
+                    'is_active' => true,
+                ]);
+            }
+
             $synced++;
         }
 
@@ -66,7 +81,7 @@ class JimiDeviceService
      * Fetch live locations for all devices and store in DB.
      * Uses: jimi.user.device.location.list (API 3.1)
      *
-     * @param bool $forceRefresh Bypass cache
+     * @param  bool  $forceRefresh  Bypass cache
      * @return array<string, array> IMEI => location data
      */
     public function fetchAndStoreLocations(bool $forceRefresh = false): array
@@ -141,6 +156,7 @@ class JimiDeviceService
 
         if (((int) ($response['code'] ?? -1)) !== 0) {
             Log::warning('Jimi location list failed', ['response' => $response]);
+
             return [];
         }
 
@@ -149,10 +165,14 @@ class JimiDeviceService
 
         foreach ($results as $item) {
             $imei = $item['imei'] ?? null;
-            if (!$imei) continue;
+            if (! $imei) {
+                continue;
+            }
 
             $device = Device::where('imei', $imei)->first();
-            if (!$device) continue;
+            if (! $device) {
+                continue;
+            }
 
             DeviceLocation::create([
                 'device_id' => $device->id,
@@ -165,7 +185,7 @@ class JimiDeviceService
                 'acc_status' => (int) ($item['accStatus'] ?? 0),
                 'gps_num' => (int) ($item['gpsNum'] ?? 0),
                 'pos_type' => $item['posType'] ?? null,
-                'heartbeat_at' => !empty($item['hbTime'])
+                'heartbeat_at' => ! empty($item['hbTime'])
                     ? \Carbon\Carbon::parse($item['hbTime'])
                     : null,
                 'raw_data' => $item,
@@ -208,7 +228,7 @@ class JimiDeviceService
                     'acc_status' => (int) ($result['accStatus'] ?? 0),
                     'gps_num' => (int) ($result['gpsNum'] ?? 0),
                     'pos_type' => $result['posType'] ?? null,
-                    'heartbeat_at' => !empty($result['hbTime'])
+                    'heartbeat_at' => ! empty($result['hbTime'])
                         ? \Carbon\Carbon::parse($result['hbTime'])
                         : null,
                     'raw_data' => $result,
@@ -250,7 +270,7 @@ class JimiDeviceService
 
                 if ($imei && $groupId) {
                     $imeiGroup[$imei] = $groupName;
-                    if (!isset($groups[$groupId])) {
+                    if (! isset($groups[$groupId])) {
                         $groups[$groupId] = [
                             'id' => $groupId,
                             'name' => $groupName,
