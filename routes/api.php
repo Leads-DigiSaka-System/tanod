@@ -5,8 +5,12 @@ use App\Http\Controllers\Api\ApiAuthController;
 use App\Http\Controllers\Api\ApiBookingController;
 use App\Http\Controllers\Api\ApiDeviceController;
 use App\Http\Controllers\Api\ApiNotificationController;
-use App\Http\Controllers\Api\ApiTractorController;
 use App\Http\Controllers\Api\ApiTpsController;
+use App\Http\Controllers\Api\ApiTractorController;
+use App\Mail\FarmerWelcomeMail;
+use App\Models\User;
+use App\Services\M360SmsService;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -67,6 +71,87 @@ Route::prefix('v1')->group(function () {
                 ->select('id', 'name', 'email', 'phone')
                 ->orderBy('name')
                 ->get();
+        })->middleware('role:fca');
+
+        Route::post('my-farmers', function (Illuminate\Http\Request $request) {
+            $user = $request->user();
+            abort_unless($user->hasRole('fca'), 403);
+
+            $data = $request->validate([
+                'name' => 'required|string|max:255',
+                'phone' => 'required|string|max:20',
+                'email' => 'nullable|email|max:255|unique:users,email',
+            ]);
+
+            $defaultPassword = 'tanod2026';
+
+            $farmer = User::create([
+                'name' => $data['name'],
+                'phone' => $data['phone'],
+                'email' => $data['email'] ?? null,
+                'fca_id' => $user->id,
+                'password' => bcrypt($defaultPassword),
+                'is_active' => true,
+            ]);
+            $farmer->assignRole('farmer');
+
+            // Send SMS notification
+            $smsMessage = "Magandang araw, {$farmer->name}! "
+                ."Ikaw ay naidagdag na bilang farmer ni {$user->name} sa TanodTractor. "
+                .'Gamitin ang iyong numero para mag-login. '
+                ."Password: {$defaultPassword} "
+                .'Palitan agad ang password pagka-login. Salamat!';
+
+            app(M360SmsService::class)->send($farmer->phone, $smsMessage);
+
+            // Send email notification if email is provided
+            if ($farmer->email) {
+                Mail::to($farmer->email)->queue(
+                    new FarmerWelcomeMail(
+                        farmerName: $farmer->name,
+                        fcaName: $user->name,
+                        password: $defaultPassword,
+                    )
+                );
+            }
+
+            return response()->json([
+                'id' => $farmer->id,
+                'name' => $farmer->name,
+                'email' => $farmer->email,
+                'phone' => $farmer->phone,
+            ], 201);
+        })->middleware('role:fca');
+
+        Route::put('my-farmers/{farmer}', function (Illuminate\Http\Request $request, User $farmer) {
+            $user = $request->user();
+            abort_unless($user->hasRole('fca'), 403);
+            abort_unless($farmer->fca_id === $user->id, 403);
+
+            $data = $request->validate([
+                'name' => 'required|string|max:255',
+                'phone' => 'required|string|max:20',
+                'email' => 'nullable|email|max:255|unique:users,email,'.$farmer->id,
+            ]);
+
+            $farmer->update($data);
+
+            return response()->json([
+                'id' => $farmer->id,
+                'name' => $farmer->name,
+                'email' => $farmer->email,
+                'phone' => $farmer->phone,
+            ]);
+        })->middleware('role:fca');
+
+        Route::delete('my-farmers/{farmer}', function (Illuminate\Http\Request $request, User $farmer) {
+            $user = $request->user();
+            abort_unless($user->hasRole('fca'), 403);
+            abort_unless($farmer->fca_id === $user->id, 403);
+
+            $farmer->update(['is_active' => false]);
+
+            return response()->json(['message' => 'Farmer removed.']);
         })->middleware('role:fca');
 
         // Notifications

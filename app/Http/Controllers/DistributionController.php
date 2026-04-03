@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\DistributionCreated;
 use App\Http\Requests\StoreDistributionRequest;
+use App\Models\Tractor;
 use App\Models\TractorDistribution;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -13,7 +14,7 @@ class DistributionController extends Controller
 {
     public function index(Request $request)
     {
-        $distributions = TractorDistribution::with(['tractor', 'distributedToUser', 'distributedByUser'])
+        $distributions = TractorDistribution::with(['tractor', 'distributedToUser', 'distributedByUser', 'tpsUser'])
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->search, fn ($q, $s) => $q->whereHas('tractor', fn ($q) => $q->where('no_plate', 'like', "%{$s}%")))
             ->latest()
@@ -23,22 +24,27 @@ class DistributionController extends Controller
         return Inertia::render('Distributions/Index', [
             'distributions' => $distributions,
             'filters' => $request->only(['search', 'status']),
+            'tractors' => Tractor::with('device.latestLocation')->orderBy('no_plate')->get(['id', 'no_plate', 'brand', 'model', 'device_id']),
+            'fcaUsers' => User::role('fca')->where('is_active', true)->get(['id', 'name', 'email']),
+            'tpsUsers' => User::role('tps')->where('is_active', true)->get(['id', 'name', 'email']),
         ]);
     }
 
     public function create()
     {
-        return Inertia::render('Distributions/Create', [
-            'tractors' => \App\Models\Tractor::get(['id', 'no_plate', 'brand', 'model']),
-            'fcaUsers' => User::role('fca')->get(['id', 'name', 'email']),
-        ]);
+        return redirect()->route('distributions.index');
     }
 
     public function store(StoreDistributionRequest $request)
     {
         $data = $request->validated();
         $data['distributed_by'] = $request->user()->id;
-        $data['status'] = 'active';
+        $data['status'] = 'distributed';
+        $data['tractor_id'] = $data['tractor_ids'][0] ?? null;
+
+        if ($request->hasFile('proof_photo')) {
+            $data['proof_photo'] = $request->file('proof_photo')->store('distributions/proofs', 'public');
+        }
 
         $distribution = TractorDistribution::create($data);
 
