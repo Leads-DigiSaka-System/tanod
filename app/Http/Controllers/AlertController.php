@@ -26,7 +26,11 @@ class AlertController extends Controller
         $typeCounts = Alert::selectRaw('type, count(*) as total, sum(case when is_acknowledged = 0 then 1 else 0 end) as unacknowledged')
             ->groupBy('type')
             ->get()
-            ->keyBy('type');
+            ->keyBy('type')
+            ->map(fn ($item) => [
+                'total' => (int) $item->total,
+                'unacknowledged' => (int) $item->unacknowledged,
+            ]);
 
         return Inertia::render('Alerts/Index', [
             'alerts' => $alerts,
