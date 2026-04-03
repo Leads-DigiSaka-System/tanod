@@ -39,4 +39,9 @@ class TractorDistribution extends Model
     {
         return $this->belongsTo(User::class, 'distributed_by');
     }
+
+    public function distributor()
+    {
+        return $this->belongsTo(User::class, 'distributed_by');
+    }
 }
