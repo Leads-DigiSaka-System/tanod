@@ -11,7 +11,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasApiTokens, HasRoles, SoftDeletes;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -22,6 +22,7 @@ class User extends Authenticatable
         'gender',
         'profile_photo_path',
         'password',
+        'must_change_password',
         'fcm_token',
         'device_type',
         'is_active',
@@ -40,6 +41,7 @@ class User extends Authenticatable
             'phone_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'must_change_password' => 'boolean',
         ];
     }
 
@@ -58,7 +60,7 @@ class User extends Authenticatable
     public function groups()
     {
         return $this->belongsToMany(TractorGroup::class, 'group_user', 'user_id', 'tractor_group_id')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 
     public function assignedTractors()

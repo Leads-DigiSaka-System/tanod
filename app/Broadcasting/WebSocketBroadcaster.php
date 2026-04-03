@@ -3,6 +3,7 @@
 namespace App\Broadcasting;
 
 use Illuminate\Broadcasting\Broadcasters\Broadcaster;
+use Illuminate\Broadcasting\Broadcasters\UsePusherChannelConventions;
 use Illuminate\Broadcasting\BroadcastException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
@@ -11,6 +12,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class WebSocketBroadcaster extends Broadcaster
 {
+    use UsePusherChannelConventions;
+
     public function __construct(
         private string $appKey,
         private string $appSecret,

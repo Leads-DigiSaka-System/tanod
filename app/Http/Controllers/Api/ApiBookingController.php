@@ -20,17 +20,17 @@ class ApiBookingController extends Controller
         $user = $request->user();
 
         $bookings = Booking::with(['tractor', 'bookedBy', 'approvedBy', 'farmer'])
-            ->when(!$user->hasAnyRole(['super-admin', 'sub-admin', 'fca']), function ($q) use ($user) {
+            ->when(! $user->hasAnyRole(['super-admin', 'sub-admin', 'fca']), function ($q) use ($user) {
                 $q->where(function ($q2) use ($user) {
                     $q2->where('booked_by', $user->id)
-                       ->orWhere('farmer_id', $user->id);
+                        ->orWhere('farmer_id', $user->id);
                 });
             })
             ->when($user->hasRole('fca'), function ($q) use ($user) {
                 $farmerIds = $user->farmers()->pluck('id')->all();
                 $q->where(function ($q2) use ($user, $farmerIds) {
                     $q2->where('booked_by', $user->id)
-                       ->orWhereIn('farmer_id', $farmerIds);
+                        ->orWhereIn('farmer_id', $farmerIds);
                 });
             })
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
@@ -58,7 +58,7 @@ class ApiBookingController extends Controller
         ]);
 
         // FCA booking on behalf of a farmer — validate ownership
-        if (!empty($data['farmer_id'])) {
+        if (! empty($data['farmer_id'])) {
             abort_unless(
                 $user->hasRole('fca') && $user->farmers()->where('id', $data['farmer_id'])->exists(),
                 403,
@@ -83,11 +83,22 @@ class ApiBookingController extends Controller
             ->pluck('id')
             ->all();
 
-        // When FCA books on behalf of a farmer, notify the farmer too
-        if (!empty($data['farmer_id'])) {
-            $recipientIds[] = $data['farmer_id'];
+        $booking->loadMissing('tractor');
 
-            $booking->loadMissing('tractor');
+        // In-app notification for admins
+        foreach ($recipientIds as $adminId) {
+            Notification::create([
+                'user_id' => $adminId,
+                'type' => 'booking_created',
+                'title' => 'New Booking Request',
+                'body' => "{$user->name} booked tractor {$booking->tractor->no_plate} for {$booking->booking_date}.",
+                'data' => ['booking_id' => $booking->id],
+            ]);
+        }
+
+        // When FCA books on behalf of a farmer, notify the farmer too
+        if (! empty($data['farmer_id'])) {
+            $recipientIds[] = $data['farmer_id'];
 
             Notification::create([
                 'user_id' => $data['farmer_id'],

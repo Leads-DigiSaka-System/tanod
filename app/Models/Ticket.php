@@ -18,7 +18,20 @@ class Ticket extends Model
         'description',
         'priority',
         'status',
+        'category',
+        'photo_path',
+        'resolution_photo_path',
+        'resolution_notes',
+        'resolved_by',
+        'resolved_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'resolved_at' => 'datetime',
+        ];
+    }
 
     public function tractor()
     {
@@ -38,6 +51,16 @@ class Ticket extends Model
     public function assignee()
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function assignees()
+    {
+        return $this->belongsToMany(User::class, 'ticket_assignees')->withTimestamps();
+    }
+
+    public function resolver()
+    {
+        return $this->belongsTo(User::class, 'resolved_by');
     }
 
     public function comments()

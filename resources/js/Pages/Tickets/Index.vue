@@ -54,10 +54,15 @@
           <tr v-for="ticket in tickets.data" :key="ticket.id" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
             <td class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">{{ ticket.id }}</td>
             <td class="px-6 py-4 text-gray-900 dark:text-white max-w-xs truncate">{{ ticket.subject }}</td>
-            <td class="px-6 py-4">{{ ticket.reporter?.name || '—' }}</td>
+            <td class="px-6 py-4">{{ ticket.submitter?.name || '—' }}</td>
             <td class="px-6 py-4"><StatusBadge :status="ticket.priority" /></td>
             <td class="px-6 py-4"><StatusBadge :status="ticket.status" /></td>
-            <td class="px-6 py-4">{{ ticket.assignee?.name || 'Unassigned' }}</td>
+            <td class="px-6 py-4">
+              <span v-if="ticket.assignees?.length">
+                {{ ticket.assignees.map(a => a.name).join(', ') }}
+              </span>
+              <span v-else class="text-gray-400">Unassigned</span>
+            </td>
             <td class="px-6 py-4">{{ formatDate(ticket.created_at) }}</td>
             <td class="px-6 py-4">
               <div class="flex items-center justify-end">

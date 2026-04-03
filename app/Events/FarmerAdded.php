@@ -2,7 +2,7 @@
 
 namespace App\Events;
 
-use App\Models\Ticket;
+use App\Models\User;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -10,13 +10,16 @@ use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class TicketStatusUpdated implements ShouldBroadcastNow, ShouldDispatchAfterCommit
+class FarmerAdded implements ShouldBroadcastNow, ShouldDispatchAfterCommit
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    /**
+     * @param  array<int>  $recipientIds  Admin user IDs who should be notified.
+     */
     public function __construct(
-        public Ticket $ticket,
-        public string $newStatus,
+        public User $farmer,
+        public User $fca,
         public array $recipientIds,
     ) {}
 
@@ -36,12 +39,16 @@ class TicketStatusUpdated implements ShouldBroadcastNow, ShouldDispatchAfterComm
     public function broadcastWith(): array
     {
         return [
-            'type' => 'ticket_status_updated',
-            'ticket' => [
-                'id' => $this->ticket->id,
-                'subject' => $this->ticket->subject,
-                'status' => $this->newStatus,
-                'created_at' => $this->ticket->created_at?->toIso8601String(),
+            'type' => 'farmer_added',
+            'farmer' => [
+                'id' => $this->farmer->id,
+                'name' => $this->farmer->name,
+                'phone' => $this->farmer->phone,
+                'email' => $this->farmer->email,
+            ],
+            'fca' => [
+                'id' => $this->fca->id,
+                'name' => $this->fca->name,
             ],
         ];
     }

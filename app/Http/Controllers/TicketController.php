@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TicketCommentAdded;
 use App\Events\TicketCreated;
 use App\Events\TicketStatusUpdated;
 use App\Http\Requests\StoreTicketRequest;
+use App\Models\Notification;
 use App\Models\Ticket;
 use App\Models\TicketComment;
 use App\Models\User;
+use App\Services\M360SmsService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class TicketController extends Controller
@@ -17,8 +21,8 @@ class TicketController extends Controller
     {
         $user = $request->user();
 
-        $tickets = Ticket::with(['submittedBy', 'assignedTo', 'tractor'])
-            ->when(!$user->hasAnyRole(['super-admin', 'sub-admin']), fn ($q) => $q->where('submitted_by', $user->id))
+        $tickets = Ticket::with(['submitter', 'assignees', 'tractor'])
+            ->when(! $user->hasAnyRole(['super-admin', 'sub-admin']), fn ($q) => $q->where('submitted_by', $user->id))
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->priority, fn ($q, $p) => $q->where('priority', $p))
             ->when($request->search, fn ($q, $s) => $q->where('subject', 'like', "%{$s}%"))
@@ -60,22 +64,79 @@ class TicketController extends Controller
 
     public function show(Ticket $ticket)
     {
-        $ticket->load(['submittedBy', 'assignedTo', 'tractor', 'comments.user']);
+        $ticket->load(['submitter', 'assignees', 'tractor', 'resolver', 'comments.user']);
+
+        $tpsUsers = User::role('tps')
+            ->where('is_active', true)
+            ->get(['id', 'name', 'phone']);
 
         return Inertia::render('Tickets/Show', [
-            'ticket' => $ticket,
+            'ticket' => [
+                'id' => $ticket->id,
+                'subject' => $ticket->subject,
+                'description' => $ticket->description,
+                'priority' => $ticket->priority,
+                'status' => $ticket->status,
+                'category' => $ticket->category,
+                'photo_url' => $ticket->photo_path ? Storage::disk('public')->url($ticket->photo_path) : null,
+                'resolution_notes' => $ticket->resolution_notes,
+                'resolution_photo_url' => $ticket->resolution_photo_path
+                    ? Storage::disk('public')->url($ticket->resolution_photo_path)
+                    : null,
+                'resolved_at' => $ticket->resolved_at?->toIso8601String(),
+                'created_at' => $ticket->created_at?->toIso8601String(),
+                'submitter' => $ticket->submitter ? [
+                    'id' => $ticket->submitter->id,
+                    'name' => $ticket->submitter->name,
+                ] : null,
+                'resolver' => $ticket->resolver ? [
+                    'id' => $ticket->resolver->id,
+                    'name' => $ticket->resolver->name,
+                ] : null,
+                'tractor' => $ticket->tractor ? [
+                    'id' => $ticket->tractor->id,
+                    'no_plate' => $ticket->tractor->no_plate,
+                    'brand' => $ticket->tractor->brand,
+                    'model' => $ticket->tractor->model,
+                ] : null,
+                'assignees' => $ticket->assignees->map(fn ($u) => [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                ])->values()->all(),
+                'comments' => $ticket->comments->map(fn ($c) => [
+                    'id' => $c->id,
+                    'body' => $c->body,
+                    'attachment_url' => $c->attachment_path ? Storage::disk('public')->url($c->attachment_path) : null,
+                    'user' => $c->user ? ['id' => $c->user->id, 'name' => $c->user->name] : null,
+                    'created_at' => $c->created_at?->toIso8601String(),
+                ])->all(),
+            ],
+            'tpsUsers' => $tpsUsers->map(fn ($u) => ['id' => $u->id, 'name' => $u->name])->values()->all(),
         ]);
     }
 
     public function addComment(Request $request, Ticket $ticket)
     {
-        $request->validate(['body' => 'required|string|max:5000']);
+        $request->validate([
+            'body' => 'required_without:attachment|nullable|string|max:5000',
+            'attachment' => 'required_without:body|nullable|file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf',
+        ]);
 
-        TicketComment::create([
+        $attachmentPath = null;
+        if ($request->hasFile('attachment')) {
+            $attachmentPath = $request->file('attachment')->store('ticket-attachments', 'public');
+        }
+
+        $comment = TicketComment::create([
             'ticket_id' => $ticket->id,
             'user_id' => $request->user()->id,
-            'body' => $request->body,
+            'body' => $request->input('body', ''),
+            'attachment_path' => $attachmentPath,
         ]);
+
+        $comment->load('user');
+
+        TicketCommentAdded::dispatch($comment);
 
         return back()->with('success', 'Comment added.');
     }
@@ -87,7 +148,7 @@ class TicketController extends Controller
         $ticket->update(['status' => $request->status]);
 
         if ($ticket->submitted_by !== $request->user()->id) {
-            \App\Models\Notification::create([
+            Notification::create([
                 'user_id' => $ticket->submitted_by,
                 'type' => 'ticket_status_updated',
                 'title' => 'Ticket Updated',
@@ -103,10 +164,42 @@ class TicketController extends Controller
 
     public function assign(Request $request, Ticket $ticket)
     {
-        $request->validate(['assigned_to' => 'required|exists:users,id']);
+        $request->validate([
+            'assignee_ids' => 'required|array|min:1',
+            'assignee_ids.*' => 'exists:users,id',
+        ]);
 
-        $ticket->update(['assigned_to' => $request->assigned_to]);
+        $newIds = collect($request->assignee_ids)->map(fn ($id) => (int) $id);
+        $existingIds = $ticket->assignees()->pluck('users.id');
+        $addedIds = $newIds->diff($existingIds);
 
-        return back()->with('success', 'Ticket assigned.');
+        $ticket->assignees()->sync($newIds->all());
+
+        // Also keep the first one in the legacy assigned_to column
+        $ticket->update(['assigned_to' => $newIds->first()]);
+
+        // Notify newly assigned TPS users
+        if ($addedIds->isNotEmpty()) {
+            $newAssignees = User::whereIn('id', $addedIds->all())->get();
+            $sms = app(M360SmsService::class);
+
+            foreach ($newAssignees as $tps) {
+                Notification::create([
+                    'user_id' => $tps->id,
+                    'type' => 'ticket_assigned',
+                    'title' => 'Ticket Assigned',
+                    'body' => "You have been assigned to ticket \"{$ticket->subject}\".",
+                    'data' => ['ticket_id' => $ticket->id],
+                ]);
+
+                TicketStatusUpdated::dispatch($ticket, 'assigned', [$tps->id]);
+
+                if ($tps->phone) {
+                    $sms->send($tps->phone, "TANOD: You have been assigned to ticket \"{$ticket->subject}\". Please check the app for details.");
+                }
+            }
+        }
+
+        return back()->with('success', 'Ticket assignees updated.');
     }
 }

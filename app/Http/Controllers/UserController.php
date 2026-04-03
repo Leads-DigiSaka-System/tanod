@@ -68,6 +68,7 @@ class UserController extends Controller
         }
 
         $data['password'] = Hash::make($data['password']);
+        $data['must_change_password'] = true;
         unset($data['profile_photo']);
         $role = $data['role'];
         unset($data['role']);
@@ -116,7 +117,7 @@ class UserController extends Controller
             $data['profile_photo_path'] = $request->file('profile_photo')->store('profiles', 'public');
         }
 
-        if (!empty($data['password'])) {
+        if (! empty($data['password'])) {
             $data['password'] = Hash::make($data['password']);
         } else {
             unset($data['password']);
@@ -135,7 +136,7 @@ class UserController extends Controller
 
     public function toggleActive(User $user)
     {
-        $user->update(['is_active' => !$user->is_active]);
+        $user->update(['is_active' => ! $user->is_active]);
 
         $status = $user->is_active ? 'activated' : 'deactivated';
 

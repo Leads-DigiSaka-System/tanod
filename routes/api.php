@@ -1,13 +1,16 @@
 <?php
 
+use App\Events\FarmerAdded;
 use App\Http\Controllers\Api\ApiAlertController;
 use App\Http\Controllers\Api\ApiAuthController;
 use App\Http\Controllers\Api\ApiBookingController;
 use App\Http\Controllers\Api\ApiDeviceController;
 use App\Http\Controllers\Api\ApiNotificationController;
+use App\Http\Controllers\Api\ApiTicketController;
 use App\Http\Controllers\Api\ApiTpsController;
 use App\Http\Controllers\Api\ApiTractorController;
 use App\Mail\FarmerWelcomeMail;
+use App\Models\Notification;
 use App\Models\User;
 use App\Services\M360SmsService;
 use Illuminate\Support\Facades\Mail;
@@ -37,6 +40,10 @@ Route::prefix('v1')->group(function () {
         Route::put('profile', [ApiAuthController::class, 'updateProfile']);
         Route::put('password', [ApiAuthController::class, 'changePassword']);
         Route::put('fcm-token', [ApiAuthController::class, 'updateFcmToken']);
+
+        // Phone Verification
+        Route::post('phone/send-code', [ApiAuthController::class, 'sendPhoneVerification'])->middleware('throttle:5,1');
+        Route::post('phone/verify', [ApiAuthController::class, 'verifyPhone'])->middleware('throttle:10,1');
 
         // Tractors
         Route::get('tractors', [ApiTractorController::class, 'index']);
@@ -92,14 +99,17 @@ Route::prefix('v1')->group(function () {
                 'fca_id' => $user->id,
                 'password' => bcrypt($defaultPassword),
                 'is_active' => true,
+                'must_change_password' => true,
             ]);
             $farmer->assignRole('farmer');
 
             // Send SMS notification
-            $smsMessage = "Magandang araw, {$farmer->name}! "
-                ."Ikaw ay naidagdag na bilang farmer ni {$user->name} sa TanodTractor. "
-                .'Gamitin ang iyong numero para mag-login. '
-                ."Password: {$defaultPassword} "
+            $smsMessage = "Magandang araw, {$farmer->name}!\n\n"
+                ."Ikaw ay naidagdag na bilang farmer ni {$user->name} sa TanodTractor.\n\n"
+                ."Gamitin ang iyong numero para mag-login.\n\n"
+                ."-------------------\n"
+                ."PASSWORD: {$defaultPassword}\n"
+                ."-------------------\n\n"
                 .'Palitan agad ang password pagka-login. Salamat!';
 
             app(M360SmsService::class)->send($farmer->phone, $smsMessage);
@@ -114,6 +124,27 @@ Route::prefix('v1')->group(function () {
                     )
                 );
             }
+
+            // Notify admins
+            $adminIds = User::role(['super-admin', 'sub-admin'])
+                ->where('is_active', true)
+                ->pluck('id')
+                ->all();
+
+            foreach ($adminIds as $adminId) {
+                Notification::create([
+                    'user_id' => $adminId,
+                    'type' => 'farmer_added',
+                    'title' => 'New Farmer Added',
+                    'body' => "{$user->name} added a new farmer: {$farmer->name}.",
+                    'data' => [
+                        'farmer_id' => $farmer->id,
+                        'fca_id' => $user->id,
+                    ],
+                ]);
+            }
+
+            FarmerAdded::dispatch($farmer, $user, $adminIds);
 
             return response()->json([
                 'id' => $farmer->id,
@@ -164,6 +195,13 @@ Route::prefix('v1')->group(function () {
         Route::get('alerts', [ApiAlertController::class, 'index']);
         Route::get('alerts/unacknowledged-count', [ApiAlertController::class, 'unacknowledgedCount']);
         Route::post('alerts/{alert}/acknowledge', [ApiAlertController::class, 'acknowledge']);
+
+        // Tickets
+        Route::get('tickets', [ApiTicketController::class, 'index']);
+        Route::post('tickets', [ApiTicketController::class, 'store']);
+        Route::get('tickets/{ticket}', [ApiTicketController::class, 'show']);
+        Route::post('tickets/{ticket}/comment', [ApiTicketController::class, 'addComment']);
+        Route::post('tickets/{ticket}/resolve', [ApiTicketController::class, 'resolve']);
 
         // TPS Dashboard
         Route::prefix('tps')->middleware('role:tps')->group(function () {

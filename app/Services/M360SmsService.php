@@ -19,7 +19,7 @@ class M360SmsService
                 'from' => config('m360.sender_name'),
                 'to' => [$phone],
                 'dcs' => 0,
-                'request_id' => Str::uuid()->toString(),
+                'request_id' => str_replace('-', '', Str::uuid()->toString()),
                 'content' => [
                     'text' => $message,
                 ],
