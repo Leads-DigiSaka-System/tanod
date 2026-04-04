@@ -134,7 +134,7 @@ class TicketController extends Controller
             'attachment_path' => $attachmentPath,
         ]);
 
-        $comment->load('user');
+        $comment->load(['user', 'ticket.assignees']);
 
         TicketCommentAdded::dispatch($comment);
 

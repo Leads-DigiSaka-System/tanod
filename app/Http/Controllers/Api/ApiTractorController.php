@@ -15,6 +15,8 @@ class ApiTractorController extends Controller
         $user = $request->user();
 
         $tractors = Tractor::with(['device.latestLocation', 'groups', 'assignee', 'images'])
+            ->withSum('trackRecords', 'mileage')
+            ->withSum('trackRecords', 'run_time_seconds')
             ->when(! $user->hasAnyRole(['super-admin', 'sub-admin']), function ($q) use ($user) {
                 if ($user->hasRole('tps')) {
                     $q->whereHas('groups.users', fn ($q) => $q->where('users.id', $user->id));
@@ -40,6 +42,8 @@ class ApiTractorController extends Controller
 
     public function show(Tractor $tractor)
     {
+        $tractor->loadSum('trackRecords', 'mileage');
+        $tractor->loadSum('trackRecords', 'run_time_seconds');
         $tractor->load([
             'device.latestLocation',
             'groups',

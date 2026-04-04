@@ -84,7 +84,7 @@ class Tractor extends Model
     public function groups()
     {
         return $this->belongsToMany(TractorGroup::class, 'group_tractor', 'tractor_id', 'tractor_group_id')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 
     public function bookings()
@@ -112,21 +112,108 @@ class Tractor extends Model
         return $this->hasMany(FarmAsset::class);
     }
 
+    public function trackRecords()
+    {
+        return $this->hasManyThrough(
+            DeviceTrackRecord::class,
+            Device::class,
+            'id',        // devices.id
+            'device_id', // device_track_records.device_id
+            'device_id', // tractors.device_id
+            'id'         // devices.id
+        );
+    }
+
+    /* ── Computed Accessors ── */
+
+    /**
+     * Prefer device-tracked running hours over the manual DB value.
+     */
+    public function getEffectiveRunningHoursAttribute(): float
+    {
+        if (isset($this->attributes['track_records_sum_run_time_seconds'])
+            && $this->attributes['track_records_sum_run_time_seconds'] > 0) {
+            return round($this->attributes['track_records_sum_run_time_seconds'] / 3600, 2);
+        }
+
+        return (float) ($this->running_hours ?? 0);
+    }
+
+    /**
+     * Use the higher of manual total_distance or device-tracked mileage.
+     */
+    public function getEffectiveTotalDistanceAttribute(): float
+    {
+        $manual = (float) ($this->total_distance ?? 0);
+        $computed = isset($this->attributes['track_records_sum_mileage'])
+            ? round((float) $this->attributes['track_records_sum_mileage'], 2)
+            : 0.0;
+
+        return max($manual, $computed);
+    }
+
     /* ── Helpers ── */
 
     public function isMaintenanceDue(): bool
     {
-        if ($this->maintenance_km && $this->total_distance >= $this->maintenance_km) {
+        $distance = $this->effective_total_distance;
+
+        if ($this->maintenance_km && $distance >= $this->maintenance_km) {
             $lastMaintenance = $this->maintenances()
                 ->where('status', 'completed')
                 ->latest('maintenance_date')
                 ->first();
 
-            if (!$lastMaintenance || $this->total_distance - ($lastMaintenance->km_at_maintenance ?? 0) >= $this->maintenance_km) {
+            if (! $lastMaintenance || $distance - ($lastMaintenance->km_at_maintenance ?? 0) >= $this->maintenance_km) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * PMS milestones in hours: 50, 100, 200, 300, then every 300 hours.
+     */
+    public function nextPmsHours(): ?float
+    {
+        $milestones = [50, 100, 200, 300];
+        $hours = $this->effective_running_hours;
+
+        foreach ($milestones as $m) {
+            if ($hours < $m) {
+                return $m;
+            }
+        }
+
+        // After 300h, every 300h interval
+        $interval = 300;
+        $next = $interval * (floor($hours / $interval) + 1);
+
+        return $next;
+    }
+
+    /**
+     * PMS status: 'due', 'upcoming', or 'ok'.
+     * Due = hours >= next milestone, Upcoming = within 10h of next milestone.
+     */
+    public function pmsStatus(): string
+    {
+        $next = $this->nextPmsHours();
+        if ($next === null) {
+            return 'ok';
+        }
+
+        $hours = $this->effective_running_hours;
+
+        if ($hours >= $next) {
+            return 'due';
+        }
+
+        if ($next - $hours <= 10) {
+            return 'upcoming';
+        }
+
+        return 'ok';
     }
 }

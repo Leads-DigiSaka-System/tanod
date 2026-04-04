@@ -25,8 +25,10 @@ class TractorResource extends JsonResource
             'max_speed' => $this->max_speed,
             'maintenance_km' => $this->maintenance_km,
             'maintenance_hours' => $this->maintenance_hours,
-            'total_distance' => $this->total_distance,
-            'total_running_hours' => $this->total_running_hours,
+            'total_distance' => $this->effective_total_distance,
+            'total_running_hours' => $this->effective_running_hours,
+            'next_pms_hours' => $this->nextPmsHours(),
+            'pms_status' => $this->pmsStatus(),
             'is_maintenance_due' => $this->isMaintenanceDue(),
             'device' => new DeviceResource($this->whenLoaded('device')),
             'groups' => $this->whenLoaded('groups', fn () => $this->groups->map(fn ($g) => [
@@ -36,7 +38,7 @@ class TractorResource extends JsonResource
             'assignee' => new UserResource($this->whenLoaded('assignee')),
             'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($img) => [
                 'id' => $img->id,
-                'url' => asset('storage/' . $img->path),
+                'url' => asset('storage/'.$img->path),
                 'sort_order' => $img->sort_order,
             ])),
             'maintenances' => TractorResource::collection($this->whenLoaded('maintenances')),

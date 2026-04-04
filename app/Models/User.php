@@ -27,6 +27,8 @@ class User extends Authenticatable
         'device_type',
         'is_active',
         'fca_id',
+        'deletion_requested_at',
+        'deletion_scheduled_for',
     ];
 
     protected $hidden = [
@@ -42,6 +44,8 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'must_change_password' => 'boolean',
+            'deletion_requested_at' => 'datetime',
+            'deletion_scheduled_for' => 'datetime',
         ];
     }
 

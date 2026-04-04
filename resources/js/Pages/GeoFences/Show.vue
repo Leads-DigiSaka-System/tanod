@@ -53,6 +53,10 @@
             <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Created</dt>
             <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatDate(geofence.created_at) }}</dd>
           </div>
+          <div v-if="geofence.creator">
+            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Created By</dt>
+            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ geofence.creator.name }}</dd>
+          </div>
         </dl>
       </div>
 

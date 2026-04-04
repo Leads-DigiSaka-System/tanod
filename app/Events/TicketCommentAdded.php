@@ -23,9 +23,24 @@ class TicketCommentAdded implements ShouldBroadcastNow, ShouldDispatchAfterCommi
      */
     public function broadcastOn(): array
     {
-        return [
+        $channels = [
             new PrivateChannel("ticket.{$this->comment->ticket_id}"),
         ];
+
+        // Also notify all participants (assignees + submitter) except the commenter.
+        $ticket = $this->comment->ticket;
+
+        $recipientIds = $ticket->assignees()->pluck('users.id')
+            ->merge([$ticket->submitted_by])
+            ->filter()
+            ->unique()
+            ->reject(fn ($id) => $id === $this->comment->user_id);
+
+        foreach ($recipientIds as $userId) {
+            $channels[] = new PrivateChannel("notifications.{$userId}");
+        }
+
+        return $channels;
     }
 
     /**
@@ -40,6 +55,7 @@ class TicketCommentAdded implements ShouldBroadcastNow, ShouldDispatchAfterCommi
         return [
             'comment' => [
                 'id' => $this->comment->id,
+                'ticket_id' => $this->comment->ticket_id,
                 'body' => $this->comment->body,
                 'attachment_path' => $this->comment->attachment_path,
                 'attachment_url' => $attachmentUrl,

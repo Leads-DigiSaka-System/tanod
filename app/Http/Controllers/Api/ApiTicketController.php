@@ -179,7 +179,7 @@ class ApiTicketController extends Controller
             'attachment_path' => $attachmentPath,
         ]);
 
-        $comment->load('user:id,name');
+        $comment->load(['user:id,name', 'ticket.assignees']);
 
         TicketCommentAdded::dispatch($comment);
 

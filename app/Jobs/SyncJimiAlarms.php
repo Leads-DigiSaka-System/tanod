@@ -9,6 +9,7 @@ use App\Models\DeviceLocation;
 use App\Models\Notification;
 use App\Models\User;
 use App\Services\Jimi\JimiGeoFenceService;
+use App\Services\M360SmsService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -105,13 +106,13 @@ class SyncJimiAlarms implements ShouldQueue
                     $isEnter = $alarmCode === 1006;
 
                     $title = match ($type) {
-                        'geofence_breach' => ($isEnter ? 'Geofence Enter' : 'Geofence Exit') . ": {$label}",
+                        'geofence_breach' => ($isEnter ? 'Geofence Enter' : 'Geofence Exit').": {$label}",
                         'speed' => "Over-speed: {$label}",
                         default => "Alarm: {$label}",
                     };
 
                     $message = match ($type) {
-                        'geofence_breach' => "{$label} " . ($isEnter ? 'entered' : 'exited') . " a geofence at {$alarmTime}.",
+                        'geofence_breach' => "{$label} ".($isEnter ? 'entered' : 'exited')." a geofence at {$alarmTime}.",
                         'speed' => "{$label} exceeded speed limit at {$alarmTime}.",
                         default => "Alarm {$alarmCode} for {$label} at {$alarmTime}.",
                     };
@@ -283,7 +284,7 @@ class SyncJimiAlarms implements ShouldQueue
 
             $label = $this->deviceLabel($device);
             $title = "Idle Alert: {$label}";
-            $message = "{$label} has been idle for over " . self::IDLE_MINUTES . ' minutes.';
+            $message = "{$label} has been idle for over ".self::IDLE_MINUTES.' minutes.';
 
             $this->createAlertWithNotifications($device, 'idle', $title, $message, [
                 'idle_since' => $idleThreshold->toDateTimeString(),
@@ -348,6 +349,11 @@ class SyncJimiAlarms implements ShouldQueue
             'alert_type' => $type,
             'tractor_id' => (string) ($device->tractor?->id ?? ''),
         ]);
+
+        // Send SMS to FCA users for geofence breaches
+        if ($type === 'geofence_breach') {
+            $this->sendGeofenceBreachSms($recipients, $title, $message);
+        }
 
         AlertCreated::dispatch($alert, $recipients->pluck('id')->all());
     }
@@ -421,6 +427,26 @@ class SyncJimiAlarms implements ShouldQueue
             ]);
         } catch (\Exception $e) {
             Log::warning("SyncJimiAlarms FCM push failed: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * Send SMS to FCA users when a geofence breach is detected.
+     *
+     * @param  \Illuminate\Support\Collection<int, User>  $users
+     */
+    private function sendGeofenceBreachSms(\Illuminate\Support\Collection $users, string $title, string $message): void
+    {
+        $smsService = app(M360SmsService::class);
+
+        $fcaUsers = $users->filter(fn (User $u) => $u->hasRole('fca') && $u->phone);
+
+        foreach ($fcaUsers as $user) {
+            try {
+                $smsService->send($user->phone, "[TanodTractor] {$title}\n{$message}");
+            } catch (\Exception $e) {
+                Log::warning("SyncJimiAlarms SMS failed for user {$user->id}: {$e->getMessage()}");
+            }
         }
     }
 }

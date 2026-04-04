@@ -12,7 +12,7 @@ class GeoFenceController extends Controller
 {
     public function index(Request $request)
     {
-        $geoFences = GeoFence::with('devices.tractor')
+        $geoFences = GeoFence::with(['devices.tractor', 'creator:id,name'])
             ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%"))
             ->latest()
             ->paginate(15)
@@ -64,7 +64,7 @@ class GeoFenceController extends Controller
                 }
                 $jimiService->createGeoFence($device->imei, $params);
             } catch (\Exception $e) {
-                logger()->warning('Failed to sync geofence to JIMI for device ' . $device->imei, ['error' => $e->getMessage()]);
+                logger()->warning('Failed to sync geofence to JIMI for device '.$device->imei, ['error' => $e->getMessage()]);
             }
         }
 
@@ -74,7 +74,7 @@ class GeoFenceController extends Controller
 
     public function show(GeoFence $geoFence)
     {
-        $geoFence->load(['devices.tractor', 'alerts' => fn ($q) => $q->latest()->take(10)]);
+        $geoFence->load(['devices.tractor', 'creator:id,name', 'alerts' => fn ($q) => $q->latest()->take(10)]);
 
         return Inertia::render('GeoFences/Show', [
             'geoFence' => $geoFence,
@@ -88,7 +88,7 @@ class GeoFenceController extends Controller
             try {
                 $jimiService->deleteGeoFence($device->imei, $geoFence->name);
             } catch (\Exception $e) {
-                logger()->warning('Failed to delete geofence from JIMI for device ' . $device->imei, ['error' => $e->getMessage()]);
+                logger()->warning('Failed to delete geofence from JIMI for device '.$device->imei, ['error' => $e->getMessage()]);
             }
         }
 

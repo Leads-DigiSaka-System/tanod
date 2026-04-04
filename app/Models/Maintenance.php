@@ -24,9 +24,12 @@ class Maintenance extends Model
         'cost',
         'km_at_maintenance',
         'hours_at_maintenance',
+        'pms_checklist',
         'status',
         'performed_by',
         'created_by',
+        'requested_by',
+        'request_notes',
     ];
 
     protected function casts(): array
@@ -36,6 +39,7 @@ class Maintenance extends Model
             'cost' => 'float',
             'km_at_maintenance' => 'float',
             'hours_at_maintenance' => 'float',
+            'pms_checklist' => 'array',
         ];
     }
 
@@ -59,6 +63,11 @@ class Maintenance extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function requester()
+    {
+        return $this->belongsTo(User::class, 'requested_by');
     }
 
     public function images()

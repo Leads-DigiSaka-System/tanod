@@ -20,7 +20,21 @@ class ApiBookingController extends Controller
         $user = $request->user();
 
         $bookings = Booking::with(['tractor', 'bookedBy', 'approvedBy', 'farmer'])
-            ->when(! $user->hasAnyRole(['super-admin', 'sub-admin', 'fca']), function ($q) use ($user) {
+            ->when(! $user->hasAnyRole(['super-admin', 'sub-admin', 'fca', 'farmer']), function ($q) use ($user) {
+                $q->where(function ($q2) use ($user) {
+                    $q2->where('booked_by', $user->id)
+                        ->orWhere('farmer_id', $user->id);
+                });
+            })
+            ->when($user->hasRole('farmer') && $user->fca_id, function ($q) use ($user) {
+                $fca = User::find($user->fca_id);
+                $farmerIds = $fca ? $fca->farmers()->pluck('id')->all() : [$user->id];
+                $q->where(function ($q2) use ($user, $farmerIds) {
+                    $q2->where('booked_by', $user->fca_id)
+                        ->orWhereIn('farmer_id', $farmerIds);
+                });
+            })
+            ->when($user->hasRole('farmer') && ! $user->fca_id, function ($q) use ($user) {
                 $q->where(function ($q2) use ($user) {
                     $q2->where('booked_by', $user->id)
                         ->orWhere('farmer_id', $user->id);

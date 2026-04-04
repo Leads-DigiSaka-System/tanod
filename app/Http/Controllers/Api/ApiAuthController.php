@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterApiUserRequest;
 use App\Http\Resources\UserResource;
+use App\Mail\AccountDeletionRequestedMail;
 use App\Models\User;
 use App\Services\M360SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 
@@ -262,6 +264,85 @@ class ApiAuthController extends Controller
         $user->update(['phone_verified_at' => now()]);
 
         return new UserResource($user->load('roles'));
+    }
+
+    public function requestAccountDeletion(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        $user = $request->user();
+
+        if (! Hash::check($request->password, $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => ['The password is incorrect.'],
+            ]);
+        }
+
+        if ($user->deletion_requested_at) {
+            return response()->json([
+                'message' => 'Account deletion has already been requested.',
+                'deletion_scheduled_for' => $user->deletion_scheduled_for,
+            ], 409);
+        }
+
+        $scheduledFor = now()->addDays(7);
+
+        $user->update([
+            'deletion_requested_at' => now(),
+            'deletion_scheduled_for' => $scheduledFor,
+        ]);
+
+        // Send email notification
+        Mail::to($user->email)->send(new AccountDeletionRequestedMail(
+            userName: $user->name,
+            scheduledDate: $scheduledFor->format('F j, Y'),
+        ));
+
+        // Send SMS if phone number exists
+        if ($user->phone) {
+            $message = "TanodTractor: Your account deletion has been scheduled for {$scheduledFor->format('M j, Y')}. "
+                .'Log in and go to Account > Delete Account to cancel.';
+
+            app(M360SmsService::class)->send($user->phone, $message);
+        }
+
+        return response()->json([
+            'message' => 'Account deletion scheduled. You have 7 days to cancel.',
+            'deletion_scheduled_for' => $scheduledFor,
+        ]);
+    }
+
+    public function cancelAccountDeletion(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user->deletion_requested_at) {
+            return response()->json([
+                'message' => 'No deletion request found.',
+            ], 404);
+        }
+
+        $user->update([
+            'deletion_requested_at' => null,
+            'deletion_scheduled_for' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Account deletion has been cancelled.',
+        ]);
+    }
+
+    public function accountDeletionStatus(Request $request)
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'deletion_requested' => $user->deletion_requested_at !== null,
+            'deletion_requested_at' => $user->deletion_requested_at,
+            'deletion_scheduled_for' => $user->deletion_scheduled_for,
+        ]);
     }
 
     private function resolveDeviceName(?string $deviceName): string

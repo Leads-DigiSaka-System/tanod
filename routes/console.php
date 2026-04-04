@@ -41,3 +41,6 @@ Schedule::command('jimi:sync-daily')->cron('*/20 * * * *')->withoutOverlapping()
 Schedule::call(function () {
     app(\App\Services\Jimi\JimiTrackingService::class)->getTotalMachineHours(forceRefresh: true);
 })->hourly()->name('warm-jimi-machine-hours')->withoutOverlapping();
+
+// Process expired account deletion requests daily at 3 AM
+Schedule::command('accounts:process-deletions')->dailyAt('03:00');

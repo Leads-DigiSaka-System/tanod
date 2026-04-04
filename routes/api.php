@@ -5,7 +5,11 @@ use App\Http\Controllers\Api\ApiAlertController;
 use App\Http\Controllers\Api\ApiAuthController;
 use App\Http\Controllers\Api\ApiBookingController;
 use App\Http\Controllers\Api\ApiDeviceController;
+use App\Http\Controllers\Api\ApiFeedbackController;
+use App\Http\Controllers\Api\ApiGeoFenceController;
+use App\Http\Controllers\Api\ApiMaintenanceController;
 use App\Http\Controllers\Api\ApiNotificationController;
+use App\Http\Controllers\Api\ApiReportController;
 use App\Http\Controllers\Api\ApiTicketController;
 use App\Http\Controllers\Api\ApiTpsController;
 use App\Http\Controllers\Api\ApiTractorController;
@@ -44,6 +48,11 @@ Route::prefix('v1')->group(function () {
         // Phone Verification
         Route::post('phone/send-code', [ApiAuthController::class, 'sendPhoneVerification'])->middleware('throttle:5,1');
         Route::post('phone/verify', [ApiAuthController::class, 'verifyPhone'])->middleware('throttle:10,1');
+
+        // Account Deletion
+        Route::post('account/request-deletion', [ApiAuthController::class, 'requestAccountDeletion']);
+        Route::post('account/cancel-deletion', [ApiAuthController::class, 'cancelAccountDeletion']);
+        Route::get('account/deletion-status', [ApiAuthController::class, 'accountDeletionStatus']);
 
         // Tractors
         Route::get('tractors', [ApiTractorController::class, 'index']);
@@ -203,6 +212,29 @@ Route::prefix('v1')->group(function () {
         Route::post('tickets/{ticket}/comment', [ApiTicketController::class, 'addComment']);
         Route::post('tickets/{ticket}/resolve', [ApiTicketController::class, 'resolve']);
 
+        // PMS / Maintenance
+        Route::get('maintenances/checklist-items', [ApiMaintenanceController::class, 'checklistItems']);
+        Route::get('maintenances', [ApiMaintenanceController::class, 'index']);
+        Route::post('maintenances', [ApiMaintenanceController::class, 'store']);
+        Route::get('maintenances/{maintenance}', [ApiMaintenanceController::class, 'show']);
+        Route::post('maintenances/{maintenance}/complete', [ApiMaintenanceController::class, 'complete']);
+
+        // Geofences
+        Route::get('geofences', [ApiGeoFenceController::class, 'index']);
+        Route::post('geofences', [ApiGeoFenceController::class, 'store']);
+        Route::get('geofences/devices', [ApiGeoFenceController::class, 'devices']);
+        Route::get('geofences/{geoFence}', [ApiGeoFenceController::class, 'show']);
+        Route::put('geofences/{geoFence}', [ApiGeoFenceController::class, 'update']);
+        Route::delete('geofences/{geoFence}', [ApiGeoFenceController::class, 'destroy']);
+
+        // Feedback
+        Route::get('feedbacks', [ApiFeedbackController::class, 'index']);
+        Route::post('feedbacks', [ApiFeedbackController::class, 'store']);
+        Route::get('feedbacks/tractors', [ApiFeedbackController::class, 'tractors']);
+
+        // Reports
+        Route::get('reports', [ApiReportController::class, 'index']);
+
         // TPS Dashboard
         Route::prefix('tps')->middleware('role:tps')->group(function () {
             Route::get('dashboard', [ApiTpsController::class, 'dashboard']);
@@ -217,5 +249,66 @@ Route::prefix('v1')->group(function () {
         Route::get('booking-slots', fn () => response()->json(
             \App\Models\BookingSlot::where('is_active', true)->get(['id', 'name', 'start_time', 'end_time'])
         ));
+
+        // Help Center Contacts
+        Route::get('help-center', function (Illuminate\Http\Request $request) {
+            /** @var \App\Models\User $user */
+            $user = $request->user();
+
+            $contacts = [];
+
+            // Farmer → show their FCA + TPS assigned to tractors
+            if ($user->hasRole('farmer') && $user->fca_id) {
+                $fca = User::select('id', 'name', 'email', 'phone', 'profile_photo_path')
+                    ->find($user->fca_id);
+
+                if ($fca) {
+                    $contacts[] = [
+                        'type' => 'fca',
+                        'name' => $fca->name,
+                        'email' => $fca->email,
+                        'phone' => $fca->phone,
+                        'profile_photo_url' => $fca->profile_photo_path
+                            ? asset('storage/'.$fca->profile_photo_path)
+                            : null,
+                    ];
+                }
+
+                // TPS users assigned to the FCA's distributed tractors
+                $tpsIds = \App\Models\TractorDistribution::where('distributed_to', $user->fca_id)
+                    ->where('status', 'distributed')
+                    ->whereNotNull('tps_id')
+                    ->pluck('tps_id')
+                    ->unique();
+
+                $tpsUsers = User::select('id', 'name', 'email', 'phone', 'profile_photo_path')
+                    ->whereIn('id', $tpsIds)
+                    ->where('is_active', true)
+                    ->get();
+
+                foreach ($tpsUsers as $tps) {
+                    $contacts[] = [
+                        'type' => 'tps',
+                        'name' => $tps->name,
+                        'email' => $tps->email,
+                        'phone' => $tps->phone,
+                        'profile_photo_url' => $tps->profile_photo_path
+                            ? asset('storage/'.$tps->profile_photo_path)
+                            : null,
+                    ];
+                }
+            }
+
+            // System administrator — static placeholder
+            $contacts[] = [
+                'type' => 'admin',
+                'name' => 'TanodTractor Support',
+                'email' => 'support@tanodtractor.com',
+                'phone' => '+63 912 345 6789',
+                'profile_photo_url' => null,
+            ];
+
+            return response()->json(['contacts' => $contacts]);
+        });
     });
 });
