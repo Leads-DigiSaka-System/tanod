@@ -211,6 +211,7 @@ Route::prefix('v1')->group(function () {
         Route::get('tickets/{ticket}', [ApiTicketController::class, 'show']);
         Route::post('tickets/{ticket}/comment', [ApiTicketController::class, 'addComment']);
         Route::post('tickets/{ticket}/resolve', [ApiTicketController::class, 'resolve']);
+        Route::post('tickets/{ticket}/close', [ApiTicketController::class, 'close']);
 
         // PMS / Maintenance
         Route::get('maintenances/checklist-items', [ApiMaintenanceController::class, 'checklistItems']);
@@ -239,10 +240,15 @@ Route::prefix('v1')->group(function () {
         Route::prefix('tps')->middleware('role:tps')->group(function () {
             Route::get('dashboard', [ApiTpsController::class, 'dashboard']);
             Route::get('tickets', [ApiTpsController::class, 'tickets']);
+            Route::get('tickets/form-data', [ApiTpsController::class, 'ticketFormData']);
+            Route::get('tickets/{ticket}', [ApiTpsController::class, 'ticketDetail']);
+            Route::post('tickets/{ticket}/request-assistance', [ApiTpsController::class, 'requestAssistance']);
             Route::get('maintenances', [ApiTpsController::class, 'maintenances']);
             Route::get('feedbacks', [ApiTpsController::class, 'feedbacks']);
             Route::get('tractors', [ApiTpsController::class, 'tractors']);
             Route::get('distributions', [ApiTpsController::class, 'distributions']);
+            Route::get('distributions/form-data', [ApiTpsController::class, 'distributionFormData']);
+            Route::post('distributions', [ApiTpsController::class, 'storeDistribution']);
         });
 
         // Booking Slots

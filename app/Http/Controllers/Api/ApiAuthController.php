@@ -65,7 +65,7 @@ class ApiAuthController extends Controller
         if ($request->fcm_token) {
             $user->update([
                 'fcm_token' => $request->fcm_token,
-                'device_type' => $request->device_type ?? 'unknown',
+                'device_type' => $request->device_type === 'ios' ? 1 : 0,
             ]);
         }
 
@@ -140,7 +140,7 @@ class ApiAuthController extends Controller
 
         $request->user()->update([
             'fcm_token' => $request->fcm_token,
-            'device_type' => $request->device_type,
+            'device_type' => $request->device_type === 'ios' ? 1 : 0,
         ]);
 
         return response()->json(['message' => 'FCM token updated.']);

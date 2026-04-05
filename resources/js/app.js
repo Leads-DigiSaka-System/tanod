@@ -48,6 +48,11 @@ createInertiaApp({
                         e.ticket?.subject ?? 'A new ticket has been submitted.',
                     );
                 })
+                .listen('TicketCommentAdded', (e) => {
+                    const sender = e.comment?.user?.name ?? 'Someone';
+                    const body = e.comment?.body || 'Sent an attachment';
+                    showNotification(`${sender} replied on a ticket`, body);
+                })
                 .listen('TicketStatusUpdated', (e) => {
                     showNotification(
                         'Ticket Updated',

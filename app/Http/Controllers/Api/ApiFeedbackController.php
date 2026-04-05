@@ -37,7 +37,17 @@ class ApiFeedbackController extends Controller
             $query->whereHas('tractor.distributions', fn (Builder $q) => $q->where('distributed_to', $user->id)
                 ->where('status', 'distributed'));
         } elseif ($user->hasRole('tps')) {
-            $query->whereHas('tractor.groups.users', fn (Builder $q) => $q->where('users.id', $user->id));
+            $tractorIds = Tractor::whereHas('groups.users', fn (Builder $q) => $q->where('users.id', $user->id))
+                ->pluck('id')
+                ->merge(
+                    \App\Models\TractorDistribution::where('tps_id', $user->id)
+                        ->where('status', 'distributed')
+                        ->pluck('tractor_id')
+                )
+                ->unique()
+                ->values()
+                ->all();
+            $query->whereIn('tractor_id', $tractorIds);
         } else {
             $query->whereRaw('0 = 1');
         }

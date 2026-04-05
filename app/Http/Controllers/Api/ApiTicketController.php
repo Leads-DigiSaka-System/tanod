@@ -238,6 +238,54 @@ class ApiTicketController extends Controller
         return response()->json(['data' => $this->formatTicket($ticket, full: true)]);
     }
 
+    /**
+     * Close a resolved ticket.
+     */
+    public function close(Request $request, Ticket $ticket)
+    {
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+
+        $tractorIds = $this->accessibleTractorIds($user);
+        abort_unless(
+            in_array($ticket->tractor_id, $tractorIds) || $ticket->submitted_by === $user->id,
+            403,
+            'You do not have access to this ticket.'
+        );
+
+        abort_unless(
+            in_array($ticket->status, ['open', 'in_progress', 'resolved']),
+            422,
+            'This ticket cannot be closed.'
+        );
+
+        $ticket->update(['status' => 'closed']);
+
+        $ticket->load(['tractor:id,no_plate,brand,model', 'submitter:id,name', 'assignees:id,name', 'resolver:id,name', 'comments.user:id,name']);
+
+        // Notify relevant users
+        $recipientIds = collect([$ticket->submitted_by])
+            ->merge(User::role(['super-admin', 'sub-admin'])->where('is_active', true)->pluck('id'))
+            ->unique()
+            ->filter(fn ($id) => $id !== $user->id)
+            ->values()
+            ->all();
+
+        foreach ($recipientIds as $recipientId) {
+            Notification::create([
+                'user_id' => $recipientId,
+                'type' => 'ticket_closed',
+                'title' => 'Ticket Closed',
+                'body' => "{$user->name} closed ticket: \"{$ticket->subject}\".",
+                'data' => ['ticket_id' => $ticket->id],
+            ]);
+        }
+
+        \App\Events\TicketStatusUpdated::dispatch($ticket, 'closed', $recipientIds);
+
+        return response()->json(['data' => $this->formatTicket($ticket, full: true)]);
+    }
+
     // ─── Helpers ─────────────────────────────────
 
     /**
@@ -245,21 +293,32 @@ class ApiTicketController extends Controller
      */
     private function accessibleTractorIds(\App\Models\User $user): array
     {
-        $query = Tractor::query();
-
-        if (! $user->hasAnyRole(['super-admin', 'sub-admin'])) {
-            if ($user->hasRole('tps')) {
-                $query->whereHas('groups.users', fn ($q) => $q->where('users.id', $user->id));
-            } elseif ($user->hasRole('fca')) {
-                $query->whereHas('distributions', fn ($q) => $q->where('distributed_to', $user->id)->where('status', 'distributed'));
-            } elseif ($user->hasRole('farmer')) {
-                $query->whereHas('distributions', fn ($q) => $q->where('distributed_to', $user->fca_id)->where('status', 'distributed'));
-            } else {
-                return [];
-            }
+        if ($user->hasAnyRole(['super-admin', 'sub-admin'])) {
+            return Tractor::pluck('id')->map(fn ($id) => (int) $id)->all();
         }
 
-        return $query->pluck('id')->map(fn ($id) => (int) $id)->all();
+        if ($user->hasRole('tps')) {
+            $groupIds = Tractor::whereHas('groups.users', fn ($q) => $q->where('users.id', $user->id))
+                ->pluck('id');
+
+            $distributionIds = \App\Models\TractorDistribution::where('tps_id', $user->id)
+                ->where('status', 'distributed')
+                ->pluck('tractor_id');
+
+            return $groupIds->merge($distributionIds)->unique()->values()->map(fn ($id) => (int) $id)->all();
+        }
+
+        if ($user->hasRole('fca')) {
+            return Tractor::whereHas('distributions', fn ($q) => $q->where('distributed_to', $user->id)->where('status', 'distributed'))
+                ->pluck('id')->map(fn ($id) => (int) $id)->all();
+        }
+
+        if ($user->hasRole('farmer')) {
+            return Tractor::whereHas('distributions', fn ($q) => $q->where('distributed_to', $user->fca_id)->where('status', 'distributed'))
+                ->pluck('id')->map(fn ($id) => (int) $id)->all();
+        }
+
+        return [];
     }
 
     /**

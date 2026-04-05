@@ -145,7 +145,7 @@ const filteredNotifications = computed(() => {
 function normalizeType(type) {
   if (!type) return 'general';
   if (type.includes('booking')) return 'booking';
-  if (type.includes('ticket')) return 'ticket';
+  if (type.includes('ticket') || type.includes('assistance')) return 'ticket';
   if (type.includes('alert') || type.includes('geofence') || type.includes('speed') || type.includes('offline') || type.includes('idle')) return 'alert';
   if (type.includes('distribution')) return 'general';
   return 'general';
@@ -225,6 +225,20 @@ function handleNotifClick(notif) {
       notif.is_read = true;
       unreadCount.value = Math.max(0, unreadCount.value - 1);
     });
+  }
+
+  const data = notif.data || {};
+  let url = null;
+
+  if (data.ticket_id && normalizeType(notif.type) === 'ticket') {
+    url = `/tickets/${data.ticket_id}`;
+  } else if (data.booking_id && normalizeType(notif.type) === 'booking') {
+    url = `/bookings/${data.booking_id}`;
+  }
+
+  if (url) {
+    open.value = false;
+    router.visit(url);
   }
 }
 

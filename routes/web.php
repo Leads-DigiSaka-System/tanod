@@ -82,6 +82,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('distributions/create', [DistributionController::class, 'create'])->name('distributions.create');
     Route::post('distributions', [DistributionController::class, 'store'])->name('distributions.store');
     Route::get('distributions/{distribution}', [DistributionController::class, 'show'])->name('distributions.show');
+    Route::get('distributions/{distribution}/edit', [DistributionController::class, 'edit'])->name('distributions.edit');
+    Route::put('distributions/{distribution}', [DistributionController::class, 'update'])->name('distributions.update');
     Route::post('distributions/{distribution}/return', [DistributionController::class, 'returnTractor'])->name('distributions.return');
     Route::delete('distributions/{distribution}', [DistributionController::class, 'destroy'])->name('distributions.destroy');
 

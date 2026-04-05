@@ -57,6 +57,9 @@
                 <Link :href="`/distributions/${dist.id}`" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View">
                   <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                 </Link>
+                <button v-if="dist.status === 'distributed'" @click="openEditSlideOver(dist)" class="p-1.5 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:text-gray-400 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 transition-colors" title="Edit">
+                  <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                </button>
                 <Link v-if="dist.status === 'distributed'" :href="`/distributions/${dist.id}/return`" method="post" as="button" class="p-1.5 rounded-lg text-gray-500 hover:text-amber-600 hover:bg-amber-50 dark:text-gray-400 dark:hover:text-amber-400 dark:hover:bg-amber-900/20 transition-colors" title="Return">
                   <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
                 </Link>
@@ -73,7 +76,7 @@
     <Pagination :links="distributions.links" class="mt-6" />
 
     <!-- Slide-over: New Distribution -->
-    <SlideOver :show="showSlideOver" max-width="2xl" title="New Distribution" subtitle="Record a new tractor distribution" @close="closeSlideOver">
+    <SlideOver :show="showSlideOver" max-width="2xl" :title="editingDistribution ? 'Edit Distribution' : 'New Distribution'" :subtitle="editingDistribution ? 'Update tractor distribution details' : 'Record a new tractor distribution'" @close="closeSlideOver">
       <form @submit.prevent="submitForm" class="flex-1 overflow-y-auto">
         <div class="p-6 space-y-5">
           <!-- Tractor multi-select -->
@@ -192,7 +195,7 @@
             @mouseenter="!form.processing && ($event.target.style.backgroundColor='#006631')"
             @mouseleave="!form.processing && ($event.target.style.backgroundColor='#007f3d')">
             <svg v-if="form.processing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-            {{ form.processing ? 'Saving...' : 'Distribute' }}
+            {{ form.processing ? 'Saving...' : (editingDistribution ? 'Update' : 'Distribute') }}
           </button>
         </div>
       </form>
@@ -215,6 +218,7 @@ const props = defineProps({
   tractors: Array,
   fcaUsers: Array,
   tpsUsers: Array,
+  editDistribution: { type: Object, default: null },
 });
 
 // --- Filters ---
@@ -244,6 +248,7 @@ const photoPreview = ref(null);
 const photoInput = ref(null);
 const geoLoading = ref(false);
 const geoError = ref('');
+const editingDistribution = ref(null);
 
 const filteredTractors = computed(() => {
   const q = tractorSearch.value.toLowerCase().trim();
@@ -272,6 +277,7 @@ const form = useForm({
 });
 
 const openSlideOver = () => {
+  editingDistribution.value = null;
   form.reset();
   form.clearErrors();
   form.distribution_date = new Date().toISOString().slice(0, 10);
@@ -281,8 +287,27 @@ const openSlideOver = () => {
   showSlideOver.value = true;
 };
 
+const openEditSlideOver = (dist) => {
+  editingDistribution.value = dist;
+  form.clearErrors();
+  form.tractor_ids = dist.tractor_ids ?? (dist.tractor_id ? [dist.tractor_id] : []);
+  form.distributed_to = dist.distributed_to ?? '';
+  form.tps_id = dist.tps_id ?? '';
+  form.distribution_date = dist.distribution_date ? dist.distribution_date.slice(0, 10) : '';
+  form.area = dist.area ?? '';
+  form.notes = dist.notes ?? '';
+  form.proof_photo = null;
+  form.latitude = dist.latitude ?? null;
+  form.longitude = dist.longitude ?? null;
+  photoPreview.value = dist.proof_photo ? `/storage/${dist.proof_photo}` : null;
+  tractorSearch.value = '';
+  geoError.value = '';
+  showSlideOver.value = true;
+};
+
 const closeSlideOver = () => {
   showSlideOver.value = false;
+  editingDistribution.value = null;
 };
 
 const handlePhotoChange = (e) => {
@@ -315,9 +340,22 @@ const captureLocation = () => {
 };
 
 const submitForm = () => {
-  form.post('/distributions', {
-    forceFormData: true,
-    onSuccess: () => closeSlideOver(),
-  });
+  if (editingDistribution.value) {
+    form.post(`/distributions/${editingDistribution.value.id}`, {
+      forceFormData: true,
+      headers: { 'X-HTTP-Method-Override': 'PUT' },
+      onSuccess: () => closeSlideOver(),
+    });
+  } else {
+    form.post('/distributions', {
+      forceFormData: true,
+      onSuccess: () => closeSlideOver(),
+    });
+  }
 };
+
+// Auto-open slide-over for edit route
+if (props.editDistribution) {
+  openEditSlideOver(props.editDistribution);
+}
 </script>

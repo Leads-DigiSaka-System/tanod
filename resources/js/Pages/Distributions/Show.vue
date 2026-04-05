@@ -13,7 +13,11 @@
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Distribution #{{ distribution.id }}</h1>
           <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">View distribution details and associated information.</p>
         </div>
-        <div v-if="distribution.status === 'distributed'" class="mt-3 sm:mt-0">
+        <div v-if="distribution.status === 'distributed'" class="mt-3 sm:mt-0 flex gap-2">
+          <Link :href="`/distributions/${distribution.id}/edit`"
+            class="text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-indigo-500 dark:hover:bg-indigo-600 dark:focus:ring-indigo-800">
+            Edit
+          </Link>
           <Link :href="`/distributions/${distribution.id}/return`" method="post" as="button"
             class="text-white bg-amber-600 hover:bg-amber-700 focus:ring-4 focus:ring-amber-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-amber-500 dark:hover:bg-amber-600 dark:focus:ring-amber-800">
             Mark as Returned

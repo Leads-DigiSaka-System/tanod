@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\DistributionCreated;
 use App\Http\Requests\StoreDistributionRequest;
+use App\Http\Requests\UpdateDistributionRequest;
 use App\Models\Tractor;
 use App\Models\TractorDistribution;
 use App\Models\User;
@@ -38,7 +39,7 @@ class DistributionController extends Controller
     public function store(StoreDistributionRequest $request)
     {
         $data = $request->validated();
-        $data['distributed_by'] = $request->user()->id;
+        $data['distributed_by'] = ! empty($data['tps_id']) ? $data['tps_id'] : $request->user()->id;
         $data['status'] = 'distributed';
         $data['tractor_id'] = $data['tractor_ids'][0] ?? null;
 
@@ -70,9 +71,41 @@ class DistributionController extends Controller
         ]);
     }
 
+    public function edit(TractorDistribution $distribution)
+    {
+        $distribution->load(['tractor', 'distributedToUser', 'distributedByUser', 'tpsUser']);
+
+        return Inertia::render('Distributions/Index', [
+            'distributions' => TractorDistribution::with(['tractor', 'distributedToUser', 'distributedByUser', 'tpsUser'])
+                ->latest()
+                ->paginate(15),
+            'filters' => [],
+            'tractors' => Tractor::with('device.latestLocation')->orderBy('no_plate')->get(['id', 'no_plate', 'brand', 'model', 'device_id']),
+            'fcaUsers' => User::role('fca')->where('is_active', true)->get(['id', 'name', 'email']),
+            'tpsUsers' => User::role('tps')->where('is_active', true)->get(['id', 'name', 'email']),
+            'editDistribution' => $distribution,
+        ]);
+    }
+
+    public function update(UpdateDistributionRequest $request, TractorDistribution $distribution)
+    {
+        $data = $request->validated();
+        $data['distributed_by'] = ! empty($data['tps_id']) ? $data['tps_id'] : $distribution->distributed_by;
+        $data['tractor_id'] = $data['tractor_ids'][0] ?? null;
+
+        if ($request->hasFile('proof_photo')) {
+            $data['proof_photo'] = $request->file('proof_photo')->store('distributions/proofs', 'public');
+        }
+
+        $distribution->update($data);
+
+        return redirect()->route('distributions.index')
+            ->with('success', 'Distribution updated successfully.');
+    }
+
     public function returnTractor(Request $request, TractorDistribution $distribution)
     {
-        abort_unless($distribution->status === 'active', 422, 'Distribution is not active.');
+        abort_unless($distribution->status === 'distributed', 422, 'Distribution is not active.');
 
         $distribution->update([
             'status' => 'returned',

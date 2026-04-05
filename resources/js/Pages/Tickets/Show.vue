@@ -284,6 +284,22 @@
             </div>
           </div>
         </div>
+
+        <!-- Assistance Requests Card -->
+        <div v-if="assistanceRequests?.length" class="bg-white rounded-xl border border-orange-200 shadow-sm dark:bg-gray-800 dark:border-orange-900">
+          <div class="px-5 py-4 border-b border-orange-100 dark:border-orange-900 bg-orange-50 dark:bg-orange-900/20">
+            <h3 class="text-xs font-semibold text-orange-700 dark:text-orange-300 uppercase tracking-wider flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3" /></svg>
+              Assistance Requests ({{ assistanceRequests.length }})
+            </h3>
+          </div>
+          <div class="divide-y divide-orange-100 dark:divide-orange-900/40 max-h-64 overflow-y-auto">
+            <div v-for="req in assistanceRequests" :key="req.id" class="px-5 py-3">
+              <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{{ req.body }}</p>
+              <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ formatDate(req.created_at) }}</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </AppLayout>
@@ -296,7 +312,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
 import { formatDate } from '@/utils/dateFormat';
 
-const props = defineProps({ ticket: Object, tpsUsers: Array });
+const props = defineProps({ ticket: Object, tpsUsers: Array, assistanceRequests: Array });
 
 const page = usePage();
 const currentUserId = computed(() => page.props.auth?.user?.id);

@@ -70,6 +70,19 @@ class TicketController extends Controller
             ->where('is_active', true)
             ->get(['id', 'name', 'phone']);
 
+        $assistanceRequests = Notification::where('type', 'assistance_requested')
+            ->whereJsonContains('data->ticket_id', $ticket->id)
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (Notification $n) => [
+                'id' => $n->id,
+                'title' => $n->title,
+                'body' => $n->body,
+                'created_at' => $n->created_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+
         return Inertia::render('Tickets/Show', [
             'ticket' => [
                 'id' => $ticket->id,
@@ -112,6 +125,7 @@ class TicketController extends Controller
                 ])->all(),
             ],
             'tpsUsers' => $tpsUsers->map(fn ($u) => ['id' => $u->id, 'name' => $u->name])->values()->all(),
+            'assistanceRequests' => $assistanceRequests,
         ]);
     }
 

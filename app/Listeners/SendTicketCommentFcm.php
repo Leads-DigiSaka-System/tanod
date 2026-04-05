@@ -20,11 +20,7 @@ class SendTicketCommentFcm
         $comment = $event->comment;
         $ticket = $comment->ticket;
 
-        $recipientIds = $ticket->assignees()->pluck('users.id')
-            ->merge([$ticket->submitted_by])
-            ->filter()
-            ->unique()
-            ->reject(fn ($id) => $id === $comment->user_id);
+        $recipientIds = $event->recipientIds();
 
         if ($recipientIds->isEmpty()) {
             return;

@@ -3,6 +3,8 @@
 namespace App\Events;
 
 use App\Models\TicketComment;
+use App\Models\TractorDistribution;
+use App\Models\User;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -19,6 +21,46 @@ class TicketCommentAdded implements ShouldBroadcastNow, ShouldDispatchAfterCommi
     ) {}
 
     /**
+     * All participant IDs who should be notified (excludes the commenter).
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public function recipientIds(): \Illuminate\Support\Collection
+    {
+        $ticket = $this->comment->ticket;
+        $ticket->loadMissing('tractor');
+
+        $adminIds = User::role(['super-admin', 'sub-admin'])
+            ->where('is_active', true)
+            ->pluck('id');
+
+        // TPS users via tractor group membership
+        $tpsIds = collect();
+        if ($ticket->tractor_id) {
+            $tpsIds = User::role('tps')
+                ->where('is_active', true)
+                ->whereHas('groups.tractors', fn ($q) => $q->where('tractors.id', $ticket->tractor_id))
+                ->pluck('id');
+
+            // TPS users via active distribution
+            $distTpsIds = TractorDistribution::where('tractor_id', $ticket->tractor_id)
+                ->where('status', 'distributed')
+                ->pluck('tps_id');
+
+            $tpsIds = $tpsIds->merge($distTpsIds);
+        }
+
+        return $ticket->assignees()->pluck('users.id')
+            ->merge([$ticket->submitted_by, $ticket->assigned_to])
+            ->merge($adminIds)
+            ->merge($tpsIds)
+            ->when($ticket->tractor, fn ($col) => $col->merge([$ticket->tractor->assigned_to]))
+            ->filter()
+            ->unique()
+            ->reject(fn ($id) => $id === $this->comment->user_id);
+    }
+
+    /**
      * @return array<int, \Illuminate\Broadcasting\PrivateChannel>
      */
     public function broadcastOn(): array
@@ -27,16 +69,7 @@ class TicketCommentAdded implements ShouldBroadcastNow, ShouldDispatchAfterCommi
             new PrivateChannel("ticket.{$this->comment->ticket_id}"),
         ];
 
-        // Also notify all participants (assignees + submitter) except the commenter.
-        $ticket = $this->comment->ticket;
-
-        $recipientIds = $ticket->assignees()->pluck('users.id')
-            ->merge([$ticket->submitted_by])
-            ->filter()
-            ->unique()
-            ->reject(fn ($id) => $id === $this->comment->user_id);
-
-        foreach ($recipientIds as $userId) {
+        foreach ($this->recipientIds() as $userId) {
             $channels[] = new PrivateChannel("notifications.{$userId}");
         }
 
