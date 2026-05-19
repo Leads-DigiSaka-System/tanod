@@ -205,11 +205,7 @@
             <p class="text-sm text-gray-500 dark:text-gray-400">Tractor Monitoring & Management System</p>
           </div>
 
-          <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 dark:bg-gray-800 dark:border-gray-700 overflow-hidden login-card-enter">
-            <!-- Green header stripe -->
-            <div class="h-1.5" style="background: linear-gradient(90deg, #1a6e1a 0%, #2E7D32 40%, #F9A825 100%);"></div>
-
-            <div class="p-8 sm:p-10">
+          <div class="login-card-enter">
               <!-- Header with tractor icon -->
               <div class="mb-8">
                 <div class="flex items-center gap-3 mb-2">
@@ -310,7 +306,6 @@
                 </div>
               </div>
             </div>
-          </div>
         </div>
       </div>
 
