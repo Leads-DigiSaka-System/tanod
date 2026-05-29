@@ -4,7 +4,7 @@
 
     <div class="flex h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 lg:-m-8">
       <!-- Left Panel -->
-      <div class="w-80 flex-shrink-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+      <div class="w-80 shrink-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
         <!-- Header -->
         <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -40,7 +40,7 @@
           <!-- Search -->
           <div class="px-3 py-2.5">
             <div class="relative">
-              <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+              <div class="absolute inset-y-0 inset-s-0 flex items-center ps-3 pointer-events-none">
                 <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
@@ -85,47 +85,58 @@
               <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
             </select>
 
-            <div v-for="device in filteredDevices" :key="device.id"
-              @click="selectDevice(device)"
-              :class="['p-3 rounded-lg cursor-pointer border transition-all duration-200',
-                selectedDevice?.id === device.id
-                  ? 'border-indigo-500 bg-indigo-50 shadow-sm dark:bg-indigo-900/30 dark:border-indigo-400'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm dark:bg-gray-800 dark:border-gray-700 dark:hover:border-gray-600']">
-              <div class="flex items-center gap-2.5">
-                <div :class="['w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0',
-                  device.status === 'moving' ? 'bg-green-100 dark:bg-green-900/50' :
-                  device.status === 'idle' ? 'bg-yellow-100 dark:bg-yellow-900/50' : 'bg-red-100 dark:bg-red-900/50']">
-                  <svg class="w-4 h-4" :class="device.status === 'moving' ? 'text-green-600 dark:text-green-400' :
-                    device.status === 'idle' ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-                    <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1v-1h3.05a2.5 2.5 0 014.9 0H19a1 1 0 001-1v-5a1 1 0 00-.293-.707l-3-3A1 1 0 0016 4H3z" />
-                  </svg>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {{ device.tractor?.no_plate || device.device_name || device.imei }}
-                    </span>
-                    <span :class="['inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium',
-                      device.status === 'moving' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
-                      device.status === 'idle' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300']">
-                      {{ device.status === 'moving' ? 'Moving' : device.status === 'idle' ? 'Idle' : 'Offline' }}
-                    </span>
+            <div v-if="devicesLoading && !deviceList.length" class="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-center dark:border-gray-600 dark:bg-gray-800/60">
+              <svg class="mx-auto h-8 w-8 animate-pulse text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              <p class="mt-2 text-sm font-medium text-gray-700 dark:text-gray-200">Loading tractors...</p>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Fetching live locations and preparing the map.</p>
+            </div>
+
+            <template v-else>
+              <div v-for="device in filteredDevices" :key="device.id"
+                @click="selectDevice(device)"
+                :class="['p-3 rounded-lg cursor-pointer border transition-all duration-200',
+                  selectedDevice?.id === device.id
+                    ? 'border-indigo-500 bg-indigo-50 shadow-sm dark:bg-indigo-900/30 dark:border-indigo-400'
+                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm dark:bg-gray-800 dark:border-gray-700 dark:hover:border-gray-600']">
+                <div class="flex items-center gap-2.5">
+                  <div :class="['w-9 h-9 rounded-lg flex items-center justify-center shrink-0',
+                    device.status === 'moving' ? 'bg-green-100 dark:bg-green-900/50' :
+                    device.status === 'idle' ? 'bg-yellow-100 dark:bg-yellow-900/50' : 'bg-red-100 dark:bg-red-900/50']">
+                    <svg class="w-4 h-4" :class="device.status === 'moving' ? 'text-green-600 dark:text-green-400' :
+                      device.status === 'idle' ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                      <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1v-1h3.05a2.5 2.5 0 014.9 0H19a1 1 0 001-1v-5a1 1 0 00-.293-.707l-3-3A1 1 0 0016 4H3z" />
+                    </svg>
                   </div>
-                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ device.imei }}</p>
-                  <div v-if="device.speed > 0" class="text-xs text-gray-400 dark:text-gray-500 mt-0.5 flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" /></svg>
-                    {{ device.speed }} km/h
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {{ device.tractor?.no_plate || device.device_name || device.imei }}
+                      </span>
+                      <span :class="['inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium',
+                        device.status === 'moving' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
+                        device.status === 'idle' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300']">
+                        {{ device.status === 'moving' ? 'Moving' : device.status === 'idle' ? 'Idle' : 'Offline' }}
+                      </span>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ device.imei }}</p>
+                    <div v-if="device.speed > 0" class="text-xs text-gray-400 dark:text-gray-500 mt-0.5 flex items-center gap-1">
+                      <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" /></svg>
+                      {{ device.speed }} km/h
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div v-if="!filteredDevices.length" class="text-center py-10">
-              <svg class="mx-auto w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p class="text-sm text-gray-500 dark:text-gray-400">No devices found.</p>
-            </div>
+
+              <div v-if="!filteredDevices.length" class="text-center py-10">
+                <svg class="mx-auto w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p class="text-sm text-gray-500 dark:text-gray-400">No devices found.</p>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -240,7 +251,7 @@
 
               <div class="flex items-center gap-2">
                 <button @click="togglePlayback"
-                  class="w-10 h-10 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center transition-colors shadow-sm flex-shrink-0">
+                  class="w-10 h-10 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center transition-colors shadow-sm shrink-0">
                   <svg v-if="!isPlaying" class="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
                   </svg>
@@ -301,11 +312,17 @@
 
         <!-- Map loading overlay -->
         <div v-if="!mapReady" class="absolute inset-0 bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-          <div class="text-center">
-            <svg class="mx-auto h-12 w-12 text-indigo-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="max-w-md px-6 text-center">
+            <svg class="mx-auto h-12 w-12" :class="mapError ? 'text-red-400' : 'text-indigo-400 animate-pulse'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
             </svg>
-            <p class="mt-3 text-sm font-medium text-gray-500 dark:text-gray-400">Loading Map...</p>
+            <p class="mt-3 text-sm font-medium" :class="mapError ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'">
+              {{ mapError || 'Loading Map...' }}
+            </p>
+            <p v-if="mapError" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Update the Google Maps key restrictions to allow this host, or replace the configured key with one that permits
+              <span class="font-medium text-gray-700 dark:text-gray-200">{{ currentHost }}</span>.
+            </p>
           </div>
         </div>
 
@@ -523,7 +540,7 @@
                     <input :value="shareUrl" readonly
                       class="flex-1 bg-transparent text-sm text-gray-800 dark:text-gray-200 font-mono truncate border-none focus:ring-0 p-0" />
                     <button @click="copyShareUrl"
-                      class="flex-shrink-0 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 p-1.5 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors">
+                      class="shrink-0 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 p-1.5 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors">
                       <svg v-if="!shareCopied" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
                       <svg v-else class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                     </button>
@@ -563,6 +580,8 @@ const props = defineProps({
 // ═══════════════ STATE ═══════════════
 const mapContainer = ref(null);
 const mapReady = ref(false);
+const mapError = ref('');
+const devicesLoading = ref((props.devices?.length ?? 0) === 0);
 const activeTab = ref('objects');
 const activeState = ref('all');
 const deviceSearch = ref('');
@@ -608,16 +627,35 @@ let trackPolyline = null;
 let trackProgressPolyline = null;
 let trackMarkers = [];
 let playbackMarker = null;
+let playbackMarkerImage = null;
 let playbackAnimationId = null;
 let lastPlaybackTimestamp = null;
 let previousPositions = {};  // imei -> { lat, lng } for bearing calc
 let animationFrames = {};   // imei -> animation frame id
+let mapErrorPoll = null;
+let clusterMarkers = [];
+let mapIdleListener = null;
+let AdvancedMarkerElementClass = null;
+let latestRefreshRequestId = 0;
+let latestFollowRequestId = 0;
+let followSessionId = 0;
+
+const PHILIPPINES_BOUNDS = {
+  north: 21.5,
+  south: 4.5,
+  west: 116.7,
+  east: 126.8,
+};
 
 const mapTypes = [
   { id: 'roadmap', label: 'Map' },
   { id: 'satellite', label: 'Satellite' },
   { id: 'terrain', label: 'Terrain' },
 ];
+
+const GOOGLE_MAP_DEMO_ID = 'DEMO_MAP_ID';
+const DISPLAY_TIME_ZONE = 'Asia/Manila';
+const currentHost = computed(() => window.location.origin);
 
 // ═══════════════ COMPUTED ═══════════════
 const onlineCount = computed(() => deviceList.value.filter(d => d.status === 'moving' || d.status === 'idle').length);
@@ -645,9 +683,7 @@ const currentPlaybackTime = computed(() => {
   if (!trackData.value?.points?.length) return '--:--:--';
   const p = trackData.value.points[playbackIndex.value];
   if (!p?.gpsTime) return '--:--:--';
-  try {
-    return new Date(p.gpsTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-  } catch { return '--:--:--'; }
+  return formatClockTime(p.gpsTime);
 });
 
 const currentPlaybackSpeed = computed(() => {
@@ -657,22 +693,145 @@ const currentPlaybackSpeed = computed(() => {
 });
 
 // ═══════════════ GOOGLE MAPS ═══════════════
+function syncMapAuthorizationError() {
+  const pageText = document.body?.innerText?.trim() ?? '';
+
+  if (!/didn't load google maps correctly|for development purposes only|referernotallowedmaperror/i.test(pageText)) {
+    return false;
+  }
+
+  mapReady.value = false;
+  mapError.value = `Google Maps rejected this site for ${window.location.origin}.`;
+
+  return true;
+}
+
+function watchForMapAuthorizationError() {
+  if (!mapContainer.value) {
+    return;
+  }
+
+  if (mapErrorPoll) {
+    window.clearInterval(mapErrorPoll);
+  }
+
+  let attempts = 0;
+  mapErrorPoll = window.setInterval(() => {
+    attempts += 1;
+
+    if (syncMapAuthorizationError() || attempts >= 20) {
+      window.clearInterval(mapErrorPoll);
+      mapErrorPoll = null;
+    }
+  }, 500);
+}
+
 function loadGoogleMaps() {
-  return new Promise((resolve, reject) => {
-    if (window.google && window.google.maps) { resolve(); return; }
-    const key = props.googleMapKey;
-    if (!key) { reject(new Error('Google Maps API key not provided')); return; }
-    window.initGoogleMap = () => { resolve(); delete window.initGoogleMap; };
+  if (window.google?.maps) {
+    return Promise.resolve();
+  }
+
+  const key = props.googleMapKey;
+  if (!key) {
+    watchForMapAuthorizationError();
+    return Promise.reject(new Error('Google Maps API key not provided.'));
+  }
+
+  if (window.__tanodGoogleMapsPromise) {
+    return window.__tanodGoogleMapsPromise;
+  }
+
+  window.__tanodGoogleMapsPromise = new Promise((resolve, reject) => {
+    let timeoutId = null;
+
+    const cleanup = () => {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+      delete window.initGoogleMap;
+      delete window.gm_authFailure;
+    };
+
+    const fail = (message) => {
+      cleanup();
+      window.__tanodGoogleMapsPromise = null;
+      reject(new Error(message));
+    };
+
+    const complete = () => {
+      if (!window.google?.maps) {
+        return;
+      }
+
+      cleanup();
+      resolve();
+    };
+
+    window.initGoogleMap = complete;
+    window.gm_authFailure = () => {
+      fail(`Google Maps rejected this site for ${window.location.origin}.`);
+    };
+
+    timeoutId = window.setTimeout(() => {
+      if (window.google?.maps) {
+        complete();
+        return;
+      }
+
+      fail('Google Maps did not finish loading.');
+    }, 10000);
+
+    const existing = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
+    if (existing) {
+      existing.addEventListener('load', complete, { once: true });
+      existing.addEventListener('error', () => fail('Failed to load Google Maps.'), { once: true });
+      return;
+    }
+
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=geometry&callback=initGoogleMap`;
-    script.async = true; script.defer = true; script.onerror = reject;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=geometry,marker&loading=async&v=weekly&callback=initGoogleMap`;
+    script.async = true;
+    script.defer = true;
+    script.addEventListener('error', () => fail('Failed to load Google Maps.'), { once: true });
     document.head.appendChild(script);
+  });
+
+  return window.__tanodGoogleMapsPromise;
+}
+
+async function ensureAdvancedMarkerLibrary() {
+  if (AdvancedMarkerElementClass) {
+    return;
+  }
+
+  const { AdvancedMarkerElement } = await google.maps.importLibrary('marker');
+  AdvancedMarkerElementClass = AdvancedMarkerElement;
+}
+
+function focusMapOnPhilippines() {
+  if (!map || !window.google?.maps) {
+    return;
+  }
+
+  const bounds = new google.maps.LatLngBounds(
+    new google.maps.LatLng(PHILIPPINES_BOUNDS.south, PHILIPPINES_BOUNDS.west),
+    new google.maps.LatLng(PHILIPPINES_BOUNDS.north, PHILIPPINES_BOUNDS.east),
+  );
+
+  map.fitBounds(bounds, 24);
+
+  google.maps.event.addListenerOnce(map, 'idle', () => {
+    if (map && map.getZoom() > 6) {
+      map.setZoom(6);
+    }
   });
 }
 
 async function initMap() {
   try {
+    mapError.value = '';
     await loadGoogleMaps();
+    await ensureAdvancedMarkerLibrary();
     map = new google.maps.Map(mapContainer.value, {
       center: { lat: 14.17092, lng: 121.291831 },
       zoom: 6,
@@ -680,30 +839,234 @@ async function initMap() {
       mapTypeControl: false,
       streetViewControl: true,
       fullscreenControl: false,
+      mapId: GOOGLE_MAP_DEMO_ID,
     });
     mapReady.value = true;
+    focusMapOnPhilippines();
+
+    if (!mapIdleListener) {
+      mapIdleListener = map.addListener('idle', () => {
+        createMarkers();
+      });
+    }
+
     createMarkers();
   } catch (e) {
+    mapError.value = e instanceof Error ? e.message : 'Failed to load Google Maps.';
     console.error('Failed to load Google Maps:', e);
   }
 }
 
-// Tractor SVG path — a recognizable tractor silhouette (facing up/north at rotation 0)
+// Vehicle SVG path — directional silhouette facing up/north at rotation 0.
 const TRACTOR_PATH = 'M12 2C11.2 2 10.5 2.5 10.2 3.2L9.5 5H7C5.9 5 5 5.9 5 7V9.5C3.6 9.5 2.5 10.6 2.5 12C2.5 13.4 3.6 14.5 5 14.5V16C5 17.1 5.9 18 7 18H7.2C7.6 19.2 8.7 20 10 20C11.3 20 12.4 19.2 12.8 18H15.2C15.6 19.2 16.7 20 18 20C19.3 20 20.4 19.2 20.8 18H21C22.1 18 23 17.1 23 16V12C23 10.9 22.1 10 21 10H19L17.4 6.2C17 5.5 16.3 5 15.5 5H14.5L13.8 3.2C13.5 2.5 12.8 2 12 2ZM10 16C9.2 16 8.5 16.7 8.5 17.5C8.5 18.3 9.2 19 10 19C10.8 19 11.5 18.3 11.5 17.5C11.5 16.7 10.8 16 10 16ZM18 16C17.2 16 16.5 16.7 16.5 17.5C16.5 18.3 17.2 19 18 19C18.8 19 19.5 18.3 19.5 17.5C19.5 16.7 18.8 16 18 16ZM7 7H15.5L17 10H7V7ZM7 12H21V16H20.8C20.4 14.8 19.3 14 18 14C16.7 14 15.6 14.8 15.2 16H12.8C12.4 14.8 11.3 14 10 14C8.7 14 7.6 14.8 7.2 16H7V12Z';
+const TRACTOR_MARKER_IMAGES = {
+  moving: '/images/green_tractor.png',
+  idle: '/images/yellow_tractor.png',
+  offline: '/images/red_tractor.png',
+};
 
-function getMarkerIcon(status, rotation = 0) {
+function createVehicleMarkerContainer(size = 32) {
+  const container = document.createElement('div');
+  container.style.width = `${size}px`;
+  container.style.height = `${size}px`;
+  container.style.display = 'flex';
+  container.style.alignItems = 'center';
+  container.style.justifyContent = 'center';
+  container.style.transform = 'translate(-50%, -100%)';
+  container.style.userSelect = 'none';
+
+  return container;
+}
+
+function createStatusTractorMarkerContent(status, { iconSize = 38, rotation = 0 } = {}) {
+  const container = createVehicleMarkerContainer(iconSize);
+  const image = document.createElement('img');
+  image.src = TRACTOR_MARKER_IMAGES[status] || TRACTOR_MARKER_IMAGES.offline;
+  image.alt = `${status || 'offline'} tractor`;
+  image.width = iconSize;
+  image.height = iconSize;
+  image.draggable = false;
+  image.style.display = 'block';
+  image.style.width = `${iconSize}px`;
+  image.style.height = `${iconSize}px`;
+  image.style.objectFit = 'contain';
+  image.style.transform = `rotate(${rotation}deg)`;
+  image.style.transformOrigin = 'center';
+  image.style.filter = 'drop-shadow(0 8px 14px rgba(15, 23, 42, 0.32))';
+  container.appendChild(image);
+
+  return { element: container, image };
+}
+
+function createMarkerShell({
+  size,
+  background = 'rgba(255, 255, 255, 0.95)',
+  border = '2px solid #ffffff',
+  borderRadius = '9999px',
+  shadow = '0 10px 22px rgba(15, 23, 42, 0.28)',
+} = {}) {
+  const shell = document.createElement('div');
+  shell.style.width = `${size}px`;
+  shell.style.height = `${size}px`;
+  shell.style.display = 'flex';
+  shell.style.alignItems = 'center';
+  shell.style.justifyContent = 'center';
+  shell.style.borderRadius = borderRadius;
+  shell.style.background = background;
+  shell.style.border = border;
+  shell.style.boxShadow = shadow;
+  shell.style.transform = 'translate(-50%, -100%)';
+  shell.style.userSelect = 'none';
+
+  return shell;
+}
+
+function createSvgPath(pathData, fill, rotation = 0, { size = 24, stroke = '#ffffff', strokeWidth = '1.5' } = {}) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', String(size));
+  svg.setAttribute('height', String(size));
+  svg.style.transform = `rotate(${rotation}deg)`;
+  svg.style.transformOrigin = 'center';
+
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', pathData);
+  path.setAttribute('fill', fill);
+  path.setAttribute('stroke', stroke);
+  path.setAttribute('stroke-width', strokeWidth);
+  path.setAttribute('stroke-linejoin', 'round');
+
+  svg.appendChild(path);
+
+  return { svg, path };
+}
+
+function createTractorMarkerContent(status, rotation = 0, { fillColor, iconSize = 32 } = {}) {
   const colors = { moving: '#16a34a', idle: '#ca8a04', offline: '#dc2626' };
-  const color = colors[status] || colors.offline;
-  return {
-    path: TRACTOR_PATH,
-    anchor: new google.maps.Point(12, 12),
-    fillColor: color,
-    fillOpacity: 1,
-    strokeColor: '#fff',
-    strokeWeight: 1.5,
-    scale: 1.4,
-    rotation: rotation,
-  };
+  const color = fillColor || colors[status] || colors.offline;
+  const container = createVehicleMarkerContainer(iconSize);
+  const { svg } = createSvgPath(TRACTOR_PATH, color, rotation, {
+    size: iconSize,
+    stroke: 'none',
+    strokeWidth: '0',
+  });
+  svg.style.display = 'block';
+  svg.style.filter = 'drop-shadow(0 8px 14px rgba(15, 23, 42, 0.32))';
+  container.appendChild(svg);
+
+  return { element: container, svg };
+}
+
+function createClusterMarkerContent(count) {
+  const size = count >= 500 ? 60 : count >= 100 ? 52 : count >= 25 ? 44 : 36;
+  const shell = createMarkerShell({
+    size,
+    background: '#6d6af8',
+    border: '2px solid #ffffff',
+    shadow: '0 12px 24px rgba(79, 70, 229, 0.35)',
+  });
+  shell.style.color = '#ffffff';
+  shell.style.fontWeight = '700';
+  shell.style.fontSize = count >= 100 ? '13px' : '12px';
+  shell.textContent = getClusterLabel(count);
+
+  return shell;
+}
+
+function getClusterLabel(count) {
+  return count > 999 ? '999+' : String(count);
+}
+
+function createTrackBadgeMarkerContent(label, fillColor) {
+  const shell = createMarkerShell({
+    size: 30,
+    background: fillColor,
+    border: '2px solid #ffffff',
+    shadow: '0 8px 18px rgba(15, 23, 42, 0.24)',
+  });
+  shell.style.color = '#ffffff';
+  shell.style.fontWeight = '700';
+  shell.style.fontSize = '11px';
+  shell.textContent = label;
+
+  return shell;
+}
+
+function createAdvancedMarker({ position, title, content, zIndex = 0, clickable = false }) {
+  return new AdvancedMarkerElementClass({
+    map,
+    position,
+    title,
+    content,
+    zIndex,
+    ...(clickable ? { gmpClickable: true } : {}),
+  });
+}
+
+function addAdvancedMarkerClickListener(marker, handler) {
+  marker.addEventListener('gmp-click', handler);
+}
+
+function removeAdvancedMarker(marker) {
+  if (marker) {
+    marker.map = null;
+  }
+}
+
+function getClusteredDevices() {
+  const zoom = map?.getZoom() ?? 6;
+  const bounds = map?.getBounds();
+  const devices = deviceList.value.filter((device) => device.lat && device.lng);
+
+  const visibleDevices = bounds
+    ? devices.filter((device) => bounds.contains(new google.maps.LatLng(parseFloat(device.lat), parseFloat(device.lng))))
+    : devices;
+
+  if (!visibleDevices.length) {
+    return [];
+  }
+
+  const gridSize = 90;
+  const scale = 256 * Math.pow(2, zoom);
+  const clusterMap = new Map();
+
+  visibleDevices.forEach((device) => {
+    const lat = parseFloat(device.lat);
+    const lng = parseFloat(device.lng);
+    const sinLat = Math.sin((lat * Math.PI) / 180);
+    const x = ((lng + 180) / 360) * scale;
+    const y = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale;
+    const key = `${Math.floor(x / gridSize)}:${Math.floor(y / gridSize)}`;
+
+    if (!clusterMap.has(key)) {
+      clusterMap.set(key, []);
+    }
+
+    clusterMap.get(key).push(device);
+  });
+
+  return Array.from(clusterMap.values()).map((clusterDevices) => {
+    const center = clusterDevices.reduce((carry, device) => {
+      carry.lat += parseFloat(device.lat);
+      carry.lng += parseFloat(device.lng);
+      return carry;
+    }, { lat: 0, lng: 0 });
+
+    const clusterBounds = new google.maps.LatLngBounds();
+    clusterDevices.forEach((device) => {
+      clusterBounds.extend(new google.maps.LatLng(parseFloat(device.lat), parseFloat(device.lng)));
+    });
+
+    return {
+      count: clusterDevices.length,
+      devices: clusterDevices,
+      center: {
+        lat: center.lat / clusterDevices.length,
+        lng: center.lng / clusterDevices.length,
+      },
+      bounds: clusterBounds,
+    };
+  });
 }
 
 // Calculate bearing between two lat/lng points (returns degrees 0-360, 0=north)
@@ -716,110 +1079,119 @@ function calcBearing(lat1, lng1, lat2, lng2) {
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
-// Smooth-animate a marker from current position to target position over duration ms
-function animateMarkerTo(marker, targetLat, targetLng, imei, duration = 1500) {
-  if (animationFrames[imei]) cancelAnimationFrame(animationFrames[imei]);
-  const startPos = marker.getPosition();
-  if (!startPos) { marker.setPosition({ lat: targetLat, lng: targetLng }); return; }
-  const startLat = startPos.lat();
-  const startLng = startPos.lng();
-  if (Math.abs(startLat - targetLat) < 0.000001 && Math.abs(startLng - targetLng) < 0.000001) return;
-  const startTime = performance.now();
-  function step(now) {
-    const elapsed = now - startTime;
-    const t = Math.min(elapsed / duration, 1);
-    // ease-out cubic for smooth deceleration
-    const ease = 1 - Math.pow(1 - t, 3);
-    const lat = startLat + (targetLat - startLat) * ease;
-    const lng = startLng + (targetLng - startLng) * ease;
-    marker.setPosition({ lat, lng });
-    if (t < 1) animationFrames[imei] = requestAnimationFrame(step);
-    else delete animationFrames[imei];
-  }
-  animationFrames[imei] = requestAnimationFrame(step);
+function clearRenderedMarkers() {
+  Object.values(markers).forEach((marker) => removeAdvancedMarker(marker));
+  clusterMarkers.forEach((marker) => removeAdvancedMarker(marker));
+
+  markers = {};
+  clusterMarkers = [];
+  infoWindows = {};
+  previousPositions = {};
 }
 
 function createMarkers() {
-  if (!map) return;
-  Object.values(markers).forEach(m => m.setMap(null));
-  markers = {};
-  infoWindows = {};
-  previousPositions = {};
-  const clusterMarkersList = [];
+  if (!map || !window.google?.maps || !AdvancedMarkerElementClass) return;
+  clearRenderedMarkers();
 
-  deviceList.value.forEach(device => {
-    if (!device.lat || !device.lng) return;
-    const lat = parseFloat(device.lat);
-    const lng = parseFloat(device.lng);
-    const heading = parseFloat(device.direction) || 0;
-    previousPositions[device.imei] = { lat, lng };
-    const marker = new google.maps.Marker({
-      position: { lat, lng },
-      map: map,
-      icon: getMarkerIcon(device.status, heading),
-      title: device.tractor?.no_plate || device.device_name || device.imei,
-    });
-    marker.addListener('click', () => {
-      Object.values(infoWindows).forEach(iw => iw.close());
-      map.setZoom(16);
-      map.panTo(marker.getPosition());
-      const found = deviceList.value.find(d => d.imei === device.imei);
-      if (found) {
-        selectedDevice.value = found;
-        showDetailSidebar.value = true;
-        reverseGeocode(found.lat, found.lng);
-      }
-    });
-    markers['marker_' + device.imei] = marker;
-    clusterMarkersList.push(marker);
-  });
+  getClusteredDevices().forEach((cluster) => {
+    if (cluster.count === 1) {
+      const device = cluster.devices[0];
+      const lat = parseFloat(device.lat);
+      const lng = parseFloat(device.lng);
+      const heading = parseFloat(device.direction) || 0;
 
-  if (clusterMarkersList.length > 0) {
-    const bounds = new google.maps.LatLngBounds();
-    clusterMarkersList.forEach(m => bounds.extend(m.getPosition()));
-    map.fitBounds(bounds);
-  }
-}
+      previousPositions[device.imei] = { lat, lng };
 
-function updateMarkers() {
-  deviceList.value.forEach(device => {
-    if (!device.lat || !device.lng) return;
-    const key = 'marker_' + device.imei;
-    const newLat = parseFloat(device.lat);
-    const newLng = parseFloat(device.lng);
-
-    // Calculate bearing from previous position for rotation
-    let heading = parseFloat(device.direction) || 0;
-    const prev = previousPositions[device.imei];
-    if (prev && (Math.abs(prev.lat - newLat) > 0.00001 || Math.abs(prev.lng - newLng) > 0.00001)) {
-      heading = calcBearing(prev.lat, prev.lng, newLat, newLng);
-    }
-    previousPositions[device.imei] = { lat: newLat, lng: newLng };
-
-    if (markers[key]) {
-      // Smooth animate to new position
-      animateMarkerTo(markers[key], newLat, newLng, device.imei);
-      markers[key].setIcon(getMarkerIcon(device.status, heading));
-    } else {
-      const marker = new google.maps.Marker({
-        position: { lat: newLat, lng: newLng },
-        map: map,
-        icon: getMarkerIcon(device.status, heading),
+      const { element } = createStatusTractorMarkerContent(device.status);
+      const marker = createAdvancedMarker({
+        position: { lat, lng },
         title: device.tractor?.no_plate || device.device_name || device.imei,
+        content: element,
+        clickable: true,
       });
-      marker.addListener('click', () => {
+
+      addAdvancedMarkerClickListener(marker, () => {
         map.setZoom(16);
-        map.panTo(marker.getPosition());
-        const found = deviceList.value.find(d => d.imei === device.imei);
+        map.panTo(marker.position);
+        const found = deviceList.value.find((item) => item.imei === device.imei);
         if (found) {
           selectedDevice.value = found;
           showDetailSidebar.value = true;
           reverseGeocode(found.lat, found.lng);
         }
       });
-      markers[key] = marker;
+
+      markers[`marker_${device.imei}`] = marker;
+      return;
     }
+
+    const clusterMarker = createAdvancedMarker({
+      position: cluster.center,
+      content: createClusterMarkerContent(cluster.count),
+      zIndex: 10,
+      clickable: true,
+    });
+
+    addAdvancedMarkerClickListener(clusterMarker, () => {
+      map.fitBounds(cluster.bounds, 80);
+    });
+
+    clusterMarkers.push(clusterMarker);
   });
+}
+
+function updateMarkers() {
+  if (!map || !window.google?.maps) return;
+  createMarkers();
+}
+
+function mergeDevicePayload(currentDevice, nextDevice) {
+  if (!currentDevice) {
+    return nextDevice;
+  }
+
+  return {
+    ...currentDevice,
+    ...nextDevice,
+    tractor: currentDevice.tractor || nextDevice.tractor
+      ? {
+          ...(currentDevice.tractor ?? {}),
+          ...(nextDevice.tractor ?? {}),
+        }
+      : null,
+  };
+}
+
+function upsertDevice(device) {
+  const index = deviceList.value.findIndex((item) => item.id === device.id);
+
+  if (index === -1) {
+    deviceList.value.push(device);
+    return device;
+  }
+
+  const mergedDevice = mergeDevicePayload(deviceList.value[index], device);
+  deviceList.value[index] = mergedDevice;
+
+  return mergedDevice;
+}
+
+async function loadSelectedDevice(deviceId) {
+  try {
+    const { data } = await axios.get(`/live-view/follow/${deviceId}`);
+
+    if (!data.device) {
+      return;
+    }
+
+    const mergedDevice = upsertDevice(data.device);
+
+    if (selectedDevice.value?.id === deviceId) {
+      selectedDevice.value = mergeDevicePayload(selectedDevice.value, mergedDevice);
+    }
+  } catch (error) {
+    console.error('Failed to load selected device details:', error);
+  }
 }
 
 // ═══════════════ DEVICE SELECTION ═══════════════
@@ -840,79 +1212,132 @@ function selectDevice(device) {
     reverseGeocode(device.lat, device.lng);
     if (map) { map.setZoom(16); map.panTo(new google.maps.LatLng(parseFloat(device.lat), parseFloat(device.lng))); }
   }
-  stopFollow();
+  stopFollow({ resumePolling: isFollowing.value });
+  void loadSelectedDevice(device.id);
 }
 
 function liveFollow() {
   if (isFollowing.value) { stopFollow(); return; }
+  stopFollow({ resumePolling: false });
   if (!selectedDevice.value) return;
   isFollowing.value = true;
+  followSessionId += 1;
+  const currentFollowSessionId = followSessionId;
   const deviceId = selectedDevice.value.id;
   const imei = selectedDevice.value.imei;
   const m = markers['marker_' + imei];
-  if (m && map) { map.setZoom(16); map.panTo(m.getPosition()); }
+  if (m && map) {
+    map.setZoom(16);
+    map.panTo(m.position);
+  } else if (map && selectedDevice.value.lat && selectedDevice.value.lng) {
+    map.setZoom(16);
+    map.panTo({ lat: parseFloat(selectedDevice.value.lat), lng: parseFloat(selectedDevice.value.lng) });
+  }
 
   // Stop the 20s all-device polling while following a single device
-  if (refreshInterval) { clearInterval(refreshInterval); refreshInterval = null; }
+  stopRefreshLoop();
 
   // Fetch fresh location immediately, then every 10 seconds
-  fetchFollowedDevice(deviceId, imei);
+  fetchFollowedDevice(deviceId, currentFollowSessionId);
   followInterval = setInterval(() => {
-    fetchFollowedDevice(deviceId, imei);
+    fetchFollowedDevice(deviceId, currentFollowSessionId);
   }, 10000);
 }
 
-async function fetchFollowedDevice(deviceId, imei) {
+async function fetchFollowedDevice(deviceId, currentFollowSessionId) {
+  const requestId = ++latestFollowRequestId;
+
   try {
     const { data } = await axios.get(`/live-view/follow/${deviceId}`);
-    if (data.device) {
-      // Update the device in the list so markers refresh
-      const idx = deviceList.value.findIndex(d => d.id === deviceId);
-      if (idx !== -1) deviceList.value[idx] = data.device;
-      selectedDevice.value = data.device;
+    if (
+      requestId !== latestFollowRequestId ||
+      currentFollowSessionId !== followSessionId ||
+      !isFollowing.value ||
+      selectedDevice.value?.id !== deviceId
+    ) {
+      return;
+    }
 
-      // Animate marker to new position
-      const key = 'marker_' + imei;
-      const newLat = parseFloat(data.device.lat);
-      const newLng = parseFloat(data.device.lng);
-      if (markers[key] && newLat && newLng) {
-        let heading = parseFloat(data.device.direction) || 0;
-        const prev = previousPositions[imei];
-        if (prev && (Math.abs(prev.lat - newLat) > 0.00001 || Math.abs(prev.lng - newLng) > 0.00001)) {
-          heading = calcBearing(prev.lat, prev.lng, newLat, newLng);
+    if (data.device) {
+      const mergedDevice = upsertDevice(data.device);
+      selectedDevice.value = mergeDevicePayload(selectedDevice.value, mergedDevice);
+
+      if (data.device.lat && data.device.lng) {
+        if (map) {
+          map.panTo({ lat: parseFloat(data.device.lat), lng: parseFloat(data.device.lng) });
         }
-        previousPositions[imei] = { lat: newLat, lng: newLng };
-        animateMarkerTo(markers[key], newLat, newLng, imei);
-        markers[key].setIcon(getMarkerIcon(data.device.status, heading));
-        if (map) map.panTo({ lat: newLat, lng: newLng });
+
+        createMarkers();
       }
     }
   } catch (e) { console.error('Follow refresh failed:', e); }
 }
 
-function stopFollow() {
+function stopRefreshLoop() {
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+    refreshInterval = null;
+  }
+}
+
+function startRefreshLoop({ immediate = false } = {}) {
+  stopRefreshLoop();
+  refreshCountdown.value = 20;
+
+  if (immediate) {
+    void refreshData();
+  }
+
+  refreshInterval = setInterval(refreshData, 20000);
+}
+
+function stopFollow({ resumePolling = true } = {}) {
   isFollowing.value = false;
+  followSessionId += 1;
   if (followInterval) { clearInterval(followInterval); followInterval = null; }
 
-  // Resume the 20s all-device polling
-  refreshData();
-  refreshInterval = setInterval(refreshData, 20000);
+  if (resumePolling) {
+    startRefreshLoop({ immediate: true });
+  }
 }
 
 // ═══════════════ DATA REFRESH ═══════════════
 async function refreshData() {
+  const requestId = ++latestRefreshRequestId;
+  devicesLoading.value = true;
+
   try {
     const { data } = await axios.get('/live-view/locations');
+    if (requestId !== latestRefreshRequestId || isFollowing.value) {
+      return;
+    }
+
     if (data.devices) {
       deviceList.value = data.devices;
-      updateMarkers();
+
+      if (map && Object.keys(markers).length === 0) {
+        createMarkers();
+      } else {
+        updateMarkers();
+      }
+
       if (selectedDevice.value) {
         const updated = data.devices.find(d => d.id === selectedDevice.value.id);
-        if (updated) selectedDevice.value = updated;
+        if (updated) {
+          selectedDevice.value = mergeDevicePayload(selectedDevice.value, updated);
+        }
       }
     }
   } catch (e) { console.error('Refresh failed:', e); }
-  refreshCountdown.value = 20;
+  finally {
+    if (requestId === latestRefreshRequestId) {
+      devicesLoading.value = false;
+    }
+  }
+
+  if (requestId === latestRefreshRequestId && !isFollowing.value) {
+    refreshCountdown.value = 20;
+  }
 }
 
 // ═══════════════ TRACKS ═══════════════
@@ -943,7 +1368,7 @@ async function searchTracks() {
 }
 
 function drawTrack(points) {
-  if (!map || !points.length) return;
+  if (!map || !points.length || !AdvancedMarkerElementClass) return;
   const path = points.map(p => new google.maps.LatLng(p.lat, p.lng));
 
   // Full track polyline (faded)
@@ -957,32 +1382,30 @@ function drawTrack(points) {
   });
 
   // Start marker
-  trackMarkers.push(new google.maps.Marker({
-    position: path[0], map,
-    label: { text: 'S', color: '#fff', fontWeight: 'bold', fontSize: '11px' },
-    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 14, fillColor: '#22c55e', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
+  trackMarkers.push(createAdvancedMarker({
+    position: path[0],
+    content: createTrackBadgeMarkerContent('S', '#22c55e'),
     zIndex: 100,
   }));
 
   // End marker
   if (path.length > 1) {
-    trackMarkers.push(new google.maps.Marker({
-      position: path[path.length - 1], map,
-      label: { text: 'E', color: '#fff', fontWeight: 'bold', fontSize: '11px' },
-      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 14, fillColor: '#ef4444', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
+    trackMarkers.push(createAdvancedMarker({
+      position: path[path.length - 1],
+      content: createTrackBadgeMarkerContent('E', '#ef4444'),
       zIndex: 100,
     }));
   }
 
-  // Playback marker — same tractor icon in indigo
-  playbackMarker = new google.maps.Marker({
-    position: path[0], map,
-    icon: {
-      path: TRACTOR_PATH,
-      anchor: new google.maps.Point(12, 12),
-      fillColor: '#4f46e5', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 1.5, scale: 1.8,
-      rotation: 0,
-    },
+  // Playback marker
+  const playbackContent = createStatusTractorMarkerContent('moving', {
+    iconSize: 40,
+    rotation: 0,
+  });
+  playbackMarkerImage = playbackContent.image;
+  playbackMarker = createAdvancedMarker({
+    position: path[0],
+    content: playbackContent.element,
     zIndex: 200,
   });
 
@@ -1000,8 +1423,9 @@ function clearTracks() {
   stopPlayback();
   if (trackPolyline) { trackPolyline.setMap(null); trackPolyline = null; }
   if (trackProgressPolyline) { trackProgressPolyline.setMap(null); trackProgressPolyline = null; }
-  if (playbackMarker) { playbackMarker.setMap(null); playbackMarker = null; }
-  trackMarkers.forEach(m => m.setMap(null));
+  if (playbackMarker) { playbackMarker.map = null; playbackMarker = null; }
+  playbackMarkerImage = null;
+  trackMarkers.forEach(m => { m.map = null; });
   trackMarkers = [];
   trackData.value = null;
   playbackIndex.value = 0;
@@ -1068,9 +1492,10 @@ watch(playbackIndex, (idx, oldIdx) => {
     if (prevPoint && (prevPoint.lat !== point.lat || prevPoint.lng !== point.lng)) {
       bearing = calcBearing(prevPoint.lat, prevPoint.lng, point.lat, point.lng);
     }
-    const icon = playbackMarker.getIcon();
-    playbackMarker.setIcon({ ...icon, rotation: bearing });
-    playbackMarker.setPosition(pos);
+    if (playbackMarkerImage) {
+      playbackMarkerImage.style.transform = `rotate(${bearing}deg)`;
+    }
+    playbackMarker.position = pos;
   }
 
   if (trackProgressPolyline) {
@@ -1124,28 +1549,58 @@ function setMapType(typeId) {
 
 // ═══════════════ HELPERS ═══════════════
 function formatTimeAgo(minutes) {
-  if (!minutes || minutes >= 999) return 'N/A';
+  if (minutes == null || minutes >= 999) return 'N/A';
+  if (minutes < 1) return 'Just now';
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+function parseDateTime(dt) {
+  if (!dt) return null;
+
+  const value = new Date(dt);
+
+  return Number.isNaN(value.getTime()) ? null : value;
+}
+
+function formatClockTime(dt) {
+  const value = parseDateTime(dt);
+
+  if (!value) return '--:--:--';
+
+  return new Intl.DateTimeFormat('en-PH', {
+    timeZone: DISPLAY_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(value);
+}
+
 function formatDateTime(dt) {
-  if (!dt) return 'N/A';
-  try {
-    const d = new Date(dt);
-    if (isNaN(d.getTime())) return String(dt);
-    const pad = (n) => String(n).padStart(2, '0');
-    const year = d.getFullYear();
-    const month = pad(d.getMonth() + 1);
-    const day = pad(d.getDate());
-    let hours = d.getHours();
-    const mins = pad(d.getMinutes());
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12 || 12;
-    return `${year}-${month}-${day} ${pad(hours)}:${mins} ${ampm}`;
-  } catch { return dt; }
+  const value = parseDateTime(dt);
+
+  if (!value) return dt ? String(dt) : 'N/A';
+
+  const parts = new Intl.DateTimeFormat('en-PH', {
+    timeZone: DISPLAY_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).formatToParts(value).reduce((carry, part) => {
+    if (part.type !== 'literal') {
+      carry[part.type] = part.value;
+    }
+
+    return carry;
+  }, {});
+
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute} ${parts.dayPeriod}`;
 }
 
 function formatDuration(seconds) {
@@ -1160,16 +1615,19 @@ function formatDuration(seconds) {
 onMounted(async () => {
   await nextTick();
   await initMap();
-  refreshInterval = setInterval(refreshData, 20000);
+  await refreshData();
+  startRefreshLoop();
   countdownInterval = setInterval(() => {
     refreshCountdown.value = Math.max(0, refreshCountdown.value - 1);
   }, 1000);
 });
 
 onUnmounted(() => {
-  if (refreshInterval) clearInterval(refreshInterval);
+  stopRefreshLoop();
   if (countdownInterval) clearInterval(countdownInterval);
-  stopFollow();
+  if (mapErrorPoll) window.clearInterval(mapErrorPoll);
+  if (mapIdleListener) google.maps.event.removeListener(mapIdleListener);
+  stopFollow({ resumePolling: false });
   stopPlayback();
 });
 </script>

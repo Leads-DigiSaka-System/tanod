@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Device;
 use App\Models\DeviceLocation;
 use App\Services\Jimi\JimiDeviceService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -62,25 +63,36 @@ class DeviceController extends Controller
     {
         $locations = $jimiDeviceService->fetchAndStoreLocations(forceRefresh: true);
 
-        return back()->with('success', 'Synced locations for ' . count($locations) . ' devices.');
+        return back()->with('success', 'Synced locations for '.count($locations).' devices.');
     }
 
     public function locationHistory(Request $request, Device $device)
     {
-        $request->validate([
-            'from' => 'required|date',
-            'to' => 'required|date|after_or_equal:from',
+        $filters = $request->validate([
+            'from' => ['nullable', 'date', 'required_with:to'],
+            'to' => ['nullable', 'date', 'required_with:from', 'after_or_equal:from'],
         ]);
 
-        $locations = DeviceLocation::where('device_id', $device->id)
-            ->whereBetween('heartbeat_at', [$request->from, $request->to])
-            ->orderBy('heartbeat_at')
-            ->get();
+        $hasDateRange = filled($filters['from'] ?? null) && filled($filters['to'] ?? null);
+        $tz = config('app.timezone', 'Asia/Manila');
+        $from = $hasDateRange ? Carbon::parse($filters['from'], $tz)->startOfDay()->utc() : null;
+        $to = $hasDateRange ? Carbon::parse($filters['to'], $tz)->endOfDay()->utc() : null;
+
+        $locations = DeviceLocation::query()
+            ->where('device_id', $device->id)
+            ->when(
+                $hasDateRange,
+                fn ($query) => $query->whereBetween('heartbeat_at', [$from, $to]),
+                fn ($query) => $query->whereRaw('0 = 1')
+            )
+            ->latest('heartbeat_at')
+            ->paginate(50)
+            ->withQueryString();
 
         return Inertia::render('Devices/LocationHistory', [
             'device' => $device,
             'locations' => $locations,
-            'filters' => $request->only(['from', 'to']),
+            'filters' => $filters,
         ]);
     }
 }

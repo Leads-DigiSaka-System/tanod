@@ -138,15 +138,15 @@ import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 
-const props = defineProps({ device: Object, locations: Object, filterData: Object });
+const props = defineProps({ device: Object, locations: Object, filters: Object });
 
 const filters = reactive({
-  from: props.filterData?.from || '',
-  to: props.filterData?.to || '',
+  from: props.filters?.from || '',
+  to: props.filters?.to || '',
 });
 
 const applyFilter = () => {
-  router.get(`/devices/${props.device.id}/location-history`, {
+  router.get(`/devices/${props.device.id}/history`, {
     from: filters.from || undefined,
     to: filters.to || undefined,
   }, { preserveState: true, replace: true });
@@ -155,7 +155,7 @@ const applyFilter = () => {
 const clearFilter = () => {
   filters.from = '';
   filters.to = '';
-  router.get(`/devices/${props.device.id}/location-history`, {}, { preserveState: true, replace: true });
+  router.get(`/devices/${props.device.id}/history`, {}, { preserveState: true, replace: true });
 };
 
 const maxSpeed = computed(() => {

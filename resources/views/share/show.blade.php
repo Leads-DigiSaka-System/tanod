@@ -28,7 +28,7 @@
 <body class="h-full bg-gray-50">
     <!-- Top Bar -->
     <div class="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-        <div class="max-w-screen-xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,7 +64,7 @@
         <!-- Device Header -->
         <div class="px-5 py-4 border-b border-gray-100">
             <div class="flex items-center gap-3">
-                <div id="deviceIcon" class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <div id="deviceIcon" class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center shrink-0">
                     <svg class="w-6 h-6 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
                         <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1v-1h3.05a2.5 2.5 0 014.9 0H19a1 1 0 001-1v-5a1 1 0 00-.293-.707l-3-3A1 1 0 0016 4H3z" />
@@ -99,7 +99,7 @@
         <!-- Location -->
         <div class="px-5 py-3">
             <div class="flex items-start gap-2">
-                <svg class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 text-gray-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
@@ -128,7 +128,16 @@
         const GOOGLE_MAP_KEY = "{{ $googleMapKey }}";
         const EXPIRES_AT = new Date("{{ $share->expires_at->toIso8601String() }}");
 
+        const DISPLAY_TIME_ZONE = 'Asia/Manila';
+        const GOOGLE_MAP_DEMO_ID = 'DEMO_MAP_ID';
+        const TRACTOR_MARKER_IMAGES = {
+            moving: @json(asset('images/green_tractor.png')),
+            idle: @json(asset('images/yellow_tractor.png')),
+            offline: @json(asset('images/red_tractor.png')),
+        };
+
         let map, marker, infoWindow;
+        let AdvancedMarkerElementClass = null;
         let refreshTimer = null;
         let countdownTimer = null;
         let countdownValue = 20;
@@ -140,15 +149,25 @@
                 if (window.google && window.google.maps) { resolve(); return; }
                 window.initMap = () => { resolve(); delete window.initMap; };
                 const s = document.createElement('script');
-                s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAP_KEY}&callback=initMap`;
+                s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAP_KEY}&libraries=marker&loading=async&v=weekly&callback=initMap`;
                 s.async = true; s.defer = true; s.onerror = reject;
                 document.head.appendChild(s);
             });
         }
 
+        async function loadAdvancedMarkerLibrary() {
+            if (AdvancedMarkerElementClass) {
+                return;
+            }
+
+            const { AdvancedMarkerElement } = await google.maps.importLibrary('marker');
+            AdvancedMarkerElementClass = AdvancedMarkerElement;
+        }
+
         // Init
         async function init() {
             await loadGoogleMaps();
+            await loadAdvancedMarkerLibrary();
 
             const lat = currentDevice?.lat ? parseFloat(currentDevice.lat) : 14.17;
             const lng = currentDevice?.lng ? parseFloat(currentDevice.lng) : 121.29;
@@ -161,6 +180,7 @@
                 streetViewControl: false,
                 fullscreenControl: true,
                 zoomControl: true,
+                mapId: GOOGLE_MAP_DEMO_ID,
             });
 
             if (currentDevice?.lat && currentDevice?.lng) {
@@ -173,24 +193,38 @@
             startRefreshCycle();
         }
 
-        function getMarkerIcon(status) {
-            const colors = { moving: '#22c55e', idle: '#eab308', offline: '#ef4444' };
-            const color = colors[status] || colors.offline;
-            return {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 14,
-                fillColor: color,
-                fillOpacity: 1,
-                strokeColor: '#fff',
-                strokeWeight: 3,
-            };
+        function createStatusMarkerContent(status) {
+            const wrapper = document.createElement('div');
+            wrapper.style.width = '38px';
+            wrapper.style.height = '38px';
+            wrapper.style.display = 'flex';
+            wrapper.style.alignItems = 'center';
+            wrapper.style.justifyContent = 'center';
+            wrapper.style.transform = 'translate(-50%, -100%)';
+            wrapper.style.userSelect = 'none';
+
+            const image = document.createElement('img');
+            image.src = TRACTOR_MARKER_IMAGES[status] || TRACTOR_MARKER_IMAGES.offline;
+            image.alt = `${status || 'offline'} tractor`;
+            image.width = 38;
+            image.height = 38;
+            image.draggable = false;
+            image.style.display = 'block';
+            image.style.width = '38px';
+            image.style.height = '38px';
+            image.style.objectFit = 'contain';
+            image.style.filter = 'drop-shadow(0 8px 14px rgba(15, 23, 42, 0.32))';
+
+            wrapper.appendChild(image);
+
+            return wrapper;
         }
 
         function createMarker(lat, lng) {
-            marker = new google.maps.Marker({
+            marker = new AdvancedMarkerElementClass({
                 position: { lat, lng },
                 map: map,
-                icon: getMarkerIcon(currentDevice?.status || 'offline'),
+                content: createStatusMarkerContent(currentDevice?.status || 'offline'),
                 title: currentDevice?.device_name || 'Device',
             });
         }
@@ -223,7 +257,11 @@
 
             if (device.heartbeat_at) {
                 const dt = new Date(device.heartbeat_at);
-                document.getElementById('lastSeenValue').textContent = dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                document.getElementById('lastSeenValue').textContent = dt.toLocaleTimeString('en-PH', {
+                    timeZone: DISPLAY_TIME_ZONE,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
                 const ago = Math.round((Date.now() - dt.getTime()) / 60000);
                 document.getElementById('lastSeenAgo').textContent = ago < 60 ? `${ago}m ago` : `${Math.floor(ago/60)}h ago`;
             }
@@ -235,10 +273,15 @@
             }
 
             // Update marker
-            if (marker && device.lat && device.lng) {
+            if (device.lat && device.lng) {
                 const pos = new google.maps.LatLng(parseFloat(device.lat), parseFloat(device.lng));
-                marker.setPosition(pos);
-                marker.setIcon(getMarkerIcon(device.status));
+
+                if (!marker) {
+                    createMarker(pos.lat(), pos.lng());
+                }
+
+                marker.position = pos;
+                marker.content = createStatusMarkerContent(device.status);
                 map.panTo(pos);
             }
         }

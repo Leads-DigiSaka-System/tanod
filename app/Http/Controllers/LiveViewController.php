@@ -9,6 +9,7 @@ use App\Models\TractorGroup;
 use App\Services\Jimi\JimiDeviceService;
 use App\Services\Jimi\JimiTrackingService;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -16,20 +17,19 @@ use Inertia\Inertia;
 
 class LiveViewController extends Controller
 {
-    public function index(Request $request, JimiDeviceService $jimiService)
+    private const ONLINE_THRESHOLD_MINUTES = 10;
+
+    public function index(Request $request)
     {
-        $locations = $jimiService->fetchLiveLocations();
-
-        $devices = Device::with(['tractor.groups', 'tractor.assignee'])
+        $groups = TractorGroup::query()
             ->where('is_active', true)
-            ->get()
-            ->map(fn ($device) => $this->formatDeviceFromApi($device, $locations[$device->imei] ?? null, true));
-
-        $groups = TractorGroup::where('is_active', true)->get(['id', 'name']);
+            ->when($request->user()->hasRole('tps'), fn (Builder $query) => $query
+                ->whereHas('users', fn (Builder $groupQuery) => $groupQuery->where('users.id', $request->user()->id)))
+            ->get(['id', 'name']);
 
         return Inertia::render('LiveView/Index', [
-            'devices'      => $devices,
-            'groups'       => $groups,
+            'devices' => [],
+            'groups' => $groups,
             'googleMapKey' => config('services.google.maps_key', env('GOOGLE_MAP_KEY', '')),
         ]);
     }
@@ -42,13 +42,13 @@ class LiveViewController extends Controller
     {
         $request->validate([
             'device_id' => 'required|exists:devices,id',
-            'period'    => 'required|in:today,yesterday,3days,week,month,custom',
-            'from'      => 'nullable|date|required_if:period,custom',
-            'to'        => 'nullable|date|required_if:period,custom',
+            'period' => 'required|in:today,yesterday,3days,week,month,custom',
+            'from' => 'nullable|date|required_if:period,custom',
+            'to' => 'nullable|date|required_if:period,custom',
         ]);
 
-        $device = Device::findOrFail($request->device_id);
-        $imei   = $device->imei;
+        $device = $this->findAccessibleDevice($request, (int) $request->device_id);
+        $imei = $device->imei;
 
         // Calculate date range based on period
         [$beginTime, $endTime] = $this->calculateDateRange(
@@ -79,17 +79,17 @@ class LiveViewController extends Controller
         $formatted = $this->formatTrackPoints($trackPoints);
 
         return response()->json([
-            'success'    => true,
-            'device'     => [
-                'id'          => $device->id,
-                'imei'        => $device->imei,
+            'success' => true,
+            'device' => [
+                'id' => $device->id,
+                'imei' => $device->imei,
                 'device_name' => $device->device_name,
-                'no_plate'    => $device->tractor?->no_plate,
+                'no_plate' => $device->tractor?->no_plate,
             ],
-            'period'     => $request->period,
+            'period' => $request->period,
             'begin_time' => $beginTime,
-            'end_time'   => $endTime,
-            'track'      => $formatted,
+            'end_time' => $endTime,
+            'track' => $formatted,
         ]);
     }
 
@@ -97,8 +97,9 @@ class LiveViewController extends Controller
      * Real-time single-device location for the "Follow" feature.
      * Direct JIMI API call — no cache, no DB persistence.
      */
-    public function followDevice(Device $device, JimiDeviceService $jimiService)
+    public function followDevice(Request $request, Device $device, JimiDeviceService $jimiService)
     {
+        $device = $this->findAccessibleDevice($request, $device->id);
         $locations = $jimiService->fetchLocationsRealtime();
         $item = $locations[$device->imei] ?? null;
 
@@ -114,6 +115,7 @@ class LiveViewController extends Controller
      */
     public function trackDevice(Request $request, Device $device)
     {
+        $device = $this->findAccessibleDevice($request, $device->id);
         $device->load(['latestLocation', 'tractor.groups', 'tractor.assignee']);
 
         $trail = DeviceLocation::where('device_id', $device->id)
@@ -123,7 +125,7 @@ class LiveViewController extends Controller
 
         return response()->json([
             'device' => $device,
-            'trail'  => $trail,
+            'trail' => $trail,
         ]);
     }
 
@@ -131,7 +133,12 @@ class LiveViewController extends Controller
     {
         $locations = $jimiService->fetchLiveLocations();
 
-        $devices = Device::with(['tractor.groups'])
+        $devices = $this->accessibleDevicesQuery(request())
+            ->select(['id', 'imei', 'device_name'])
+            ->with([
+                'tractor:id,device_id,no_plate,brand,model',
+                'tractor.groups:id,name',
+            ])
             ->where('is_active', true)
             ->get()
             ->map(fn ($device) => $this->formatDeviceFromApi($device, $locations[$device->imei] ?? null, false));
@@ -146,26 +153,28 @@ class LiveViewController extends Controller
     {
         $request->validate([
             'device_id' => 'required|exists:devices,id',
-            'duration'  => 'nullable|integer|min:1|max:72', // hours
+            'duration' => 'nullable|integer|min:1|max:72', // hours
         ]);
 
-        $device   = Device::with('tractor')->findOrFail($request->device_id);
+        $device = $this->accessibleDevicesQuery($request)
+            ->with('tractor')
+            ->findOrFail($request->device_id);
         $duration = $request->input('duration', 1); // default 1 hour
-        $token    = Str::random(48);
+        $token = Str::random(48);
 
         $share = DeviceShare::create([
-            'token'       => $token,
-            'device_id'   => $device->id,
-            'imei'        => $device->imei,
+            'token' => $token,
+            'device_id' => $device->id,
+            'imei' => $device->imei,
             'device_name' => $device->tractor?->no_plate ?? $device->device_name ?? $device->imei,
-            'created_by'  => auth()->id(),
-            'expires_at'  => now()->addHours($duration),
+            'created_by' => auth()->id(),
+            'expires_at' => now()->addHours($duration),
         ]);
 
         return response()->json([
             'success' => true,
-            'url'     => url("/share/{$token}"),
-            'token'   => $token,
+            'url' => url("/share/{$token}"),
+            'token' => $token,
             'expires' => $share->expires_at->toIso8601String(),
         ]);
     }
@@ -173,19 +182,20 @@ class LiveViewController extends Controller
     /**
      * Public share page – standalone Blade view (no auth required).
      */
-    public function showShare(string $token)
+    public function showShare(string $token, JimiDeviceService $jimiService)
     {
         $share = DeviceShare::where('token', $token)->first();
 
-        if (!$share || $share->isExpired()) {
+        if (! $share || $share->isExpired()) {
             return view('share.expired');
         }
 
-        $device = Device::with(['latestLocation', 'tractor.groups'])->find($share->device_id);
+        $device = Device::with(['tractor.groups', 'tractor.assignee'])->find($share->device_id);
+        $locations = $jimiService->fetchLiveLocations();
 
         return view('share.show', [
-            'share'        => $share,
-            'device'       => $device ? $this->formatDevice($device, true) : null,
+            'share' => $share,
+            'device' => $device ? $this->formatDeviceFromApi($device, $locations[$device->imei] ?? null, true) : null,
             'googleMapKey' => config('services.google.maps_key', env('GOOGLE_MAP_KEY', '')),
         ]);
     }
@@ -193,19 +203,20 @@ class LiveViewController extends Controller
     /**
      * Public JSON endpoint for share auto-refresh (no auth).
      */
-    public function shareData(string $token)
+    public function shareData(string $token, JimiDeviceService $jimiService)
     {
         $share = DeviceShare::where('token', $token)->first();
 
-        if (!$share || $share->isExpired()) {
+        if (! $share || $share->isExpired()) {
             return response()->json(['expired' => true], 410);
         }
 
-        $device = Device::with(['latestLocation', 'tractor.groups'])->find($share->device_id);
+        $device = Device::with(['tractor.groups', 'tractor.assignee'])->find($share->device_id);
+        $locations = $jimiService->fetchLiveLocations();
 
         return response()->json([
             'expired' => false,
-            'device'  => $device ? $this->formatDevice($device, true) : null,
+            'device' => $device ? $this->formatDeviceFromApi($device, $locations[$device->imei] ?? null, true) : null,
             'expires' => $share->expires_at->toIso8601String(),
         ]);
     }
@@ -219,50 +230,51 @@ class LiveViewController extends Controller
      */
     private function formatDevice(Device $device, bool $full = false): array
     {
-        $loc        = $device->latestLocation;
-        $minutesAgo = $loc && $loc->heartbeat_at
-            ? Carbon::parse($loc->heartbeat_at)->diffInMinutes(now())
+        $loc = $device->latestLocation;
+        $heartbeatAt = $loc?->heartbeat_at?->copy()?->utc();
+        $minutesAgo = $heartbeatAt
+            ? $heartbeatAt->diffInMinutes(now()->utc())
             : 999;
 
         $status = 'offline';
-        if ($minutesAgo <= 8 && $loc) {
+        if ($minutesAgo <= self::ONLINE_THRESHOLD_MINUTES && $loc) {
             $status = ($loc->speed ?? 0) > 0 ? 'moving' : 'idle';
         }
 
         $base = [
-            'id'           => $device->id,
-            'imei'         => $device->imei,
-            'device_name'  => $device->device_name,
-            'status'       => $status,
-            'minutes_ago'  => $minutesAgo,
-            'lat'          => $loc->lat ?? null,
-            'lng'          => $loc->lng ?? null,
-            'speed'        => $loc->speed ?? 0,
-            'direction'    => $loc->direction ?? 0,
-            'acc_status'   => $loc->acc_status ?? false,
-            'heartbeat_at' => $loc->heartbeat_at ?? null,
+            'id' => $device->id,
+            'imei' => $device->imei,
+            'device_name' => $device->device_name,
+            'status' => $status,
+            'minutes_ago' => $minutesAgo,
+            'lat' => $loc->lat ?? null,
+            'lng' => $loc->lng ?? null,
+            'speed' => $loc->speed ?? 0,
+            'direction' => $loc->direction ?? 0,
+            'acc_status' => $loc->acc_status ?? false,
+            'heartbeat_at' => $heartbeatAt?->toIso8601String(),
         ];
 
         if ($full) {
             $base['pos_type'] = $loc->pos_type ?? null;
-            $base['gps_num']  = $loc->gps_num ?? null;
-            $base['mileage']  = $loc->mileage ?? null;
-            $base['tractor']  = $device->tractor ? [
-                'id'       => $device->tractor->id,
-                'id_no'    => $device->tractor->id_no,
+            $base['gps_num'] = $loc->gps_num ?? null;
+            $base['mileage'] = $loc->mileage ?? null;
+            $base['tractor'] = $device->tractor ? [
+                'id' => $device->tractor->id,
+                'id_no' => $device->tractor->id_no,
                 'no_plate' => $device->tractor->no_plate,
-                'brand'    => $device->tractor->brand,
-                'model'    => $device->tractor->model,
-                'group'    => $device->tractor->groups->first()?->name,
+                'brand' => $device->tractor->brand,
+                'model' => $device->tractor->model,
+                'group' => $device->tractor->groups->first()?->name,
                 'group_id' => $device->tractor->groups->first()?->id,
                 'assignee' => $device->tractor->assignee?->name,
             ] : null;
         } else {
             $base['tractor'] = $device->tractor ? [
                 'no_plate' => $device->tractor->no_plate,
-                'brand'    => $device->tractor->brand,
-                'model'    => $device->tractor->model,
-                'group'    => $device->tractor->groups->first()?->name,
+                'brand' => $device->tractor->brand,
+                'model' => $device->tractor->model,
+                'group' => $device->tractor->groups->first()?->name,
                 'group_id' => $device->tractor->groups->first()?->id,
             ] : null;
         }
@@ -290,9 +302,10 @@ class LiveViewController extends Controller
         $mileage = null;
 
         if ($apiData) {
-            $heartbeatAt = $apiData['hbTime'] ?? null;
+            $parsedHeartbeatAt = $this->parseHeartbeat($apiData['hbTime'] ?? null);
+            $heartbeatAt = $parsedHeartbeatAt?->toIso8601String();
             $minutesAgo = $heartbeatAt
-                ? Carbon::parse($heartbeatAt)->diffInMinutes(now())
+                ? $parsedHeartbeatAt->diffInMinutes(now()->utc())
                 : 999;
 
             $lat = $apiData['lat'] ?? null;
@@ -304,50 +317,87 @@ class LiveViewController extends Controller
             $gpsNum = (int) ($apiData['gpsNum'] ?? 0);
             $mileage = $apiData['mileage'] ?? null;
 
-            if ($minutesAgo <= 8) {
+            if ($minutesAgo <= self::ONLINE_THRESHOLD_MINUTES) {
                 $status = $speed > 0 ? 'moving' : 'idle';
             }
         }
 
         $base = [
-            'id'           => $device->id,
-            'imei'         => $device->imei,
-            'device_name'  => $device->device_name,
-            'status'       => $status,
-            'minutes_ago'  => $minutesAgo,
-            'lat'          => $lat,
-            'lng'          => $lng,
-            'speed'        => $speed,
-            'direction'    => $direction,
-            'acc_status'   => $accStatus,
+            'id' => $device->id,
+            'imei' => $device->imei,
+            'device_name' => $device->device_name,
+            'status' => $status,
+            'minutes_ago' => $minutesAgo,
+            'lat' => $lat,
+            'lng' => $lng,
+            'speed' => $speed,
+            'direction' => $direction,
+            'acc_status' => $accStatus,
             'heartbeat_at' => $heartbeatAt,
         ];
 
         if ($full) {
             $base['pos_type'] = $posType;
-            $base['gps_num']  = $gpsNum;
-            $base['mileage']  = $mileage;
-            $base['tractor']  = $device->tractor ? [
-                'id'       => $device->tractor->id,
-                'id_no'    => $device->tractor->id_no,
+            $base['gps_num'] = $gpsNum;
+            $base['mileage'] = $mileage;
+            $base['tractor'] = $device->tractor ? [
+                'id' => $device->tractor->id,
+                'id_no' => $device->tractor->id_no,
                 'no_plate' => $device->tractor->no_plate,
-                'brand'    => $device->tractor->brand,
-                'model'    => $device->tractor->model,
-                'group'    => $device->tractor->groups->first()?->name,
+                'brand' => $device->tractor->brand,
+                'model' => $device->tractor->model,
+                'group' => $device->tractor->groups->first()?->name,
                 'group_id' => $device->tractor->groups->first()?->id,
                 'assignee' => $device->tractor->assignee?->name,
             ] : null;
         } else {
             $base['tractor'] = $device->tractor ? [
                 'no_plate' => $device->tractor->no_plate,
-                'brand'    => $device->tractor->brand,
-                'model'    => $device->tractor->model,
-                'group'    => $device->tractor->groups->first()?->name,
+                'brand' => $device->tractor->brand,
+                'model' => $device->tractor->model,
+                'group' => $device->tractor->groups->first()?->name,
                 'group_id' => $device->tractor->groups->first()?->id,
             ] : null;
         }
 
         return $base;
+    }
+
+    private function parseHeartbeat(?string $heartbeatAt): ?Carbon
+    {
+        if (blank($heartbeatAt)) {
+            return null;
+        }
+
+        return Carbon::parse($heartbeatAt, 'UTC')->utc();
+    }
+
+    private function accessibleDevicesQuery(Request $request): Builder
+    {
+        $user = $request->user();
+
+        return Device::query()
+            ->whereHas('tractor', fn (Builder $query) => $this->scopeTractorsByRole($query, $user));
+    }
+
+    private function findAccessibleDevice(Request $request, int $deviceId): Device
+    {
+        return $this->accessibleDevicesQuery($request)->findOrFail($deviceId);
+    }
+
+    private function scopeTractorsByRole(Builder $query, \App\Models\User $user): void
+    {
+        if ($user->hasAnyRole(['super-admin', 'sub-admin'])) {
+            return;
+        }
+
+        if ($user->hasRole('tps')) {
+            $query->whereHas('groups.users', fn (Builder $groupQuery) => $groupQuery->where('users.id', $user->id));
+
+            return;
+        }
+
+        $query->whereRaw('0 = 1');
     }
 
     /**
@@ -360,31 +410,31 @@ class LiveViewController extends Controller
         switch ($period) {
             case 'today':
                 $begin = Carbon::now($tz)->startOfDay();
-                $end   = Carbon::now($tz);
+                $end = Carbon::now($tz);
                 break;
             case 'yesterday':
                 $begin = Carbon::now($tz)->subDay()->startOfDay();
-                $end   = Carbon::now($tz)->subDay()->endOfDay();
+                $end = Carbon::now($tz)->subDay()->endOfDay();
                 break;
             case '3days':
                 $begin = Carbon::now($tz)->subDays(3)->startOfDay();
-                $end   = Carbon::now($tz);
+                $end = Carbon::now($tz);
                 break;
             case 'week':
                 $begin = Carbon::now($tz)->startOfWeek();
-                $end   = Carbon::now($tz);
+                $end = Carbon::now($tz);
                 break;
             case 'month':
                 $begin = Carbon::now($tz)->startOfMonth();
-                $end   = Carbon::now($tz);
+                $end = Carbon::now($tz);
                 break;
             case 'custom':
                 $begin = Carbon::parse($from, $tz)->startOfDay();
-                $end   = Carbon::parse($to, $tz)->endOfDay();
+                $end = Carbon::parse($to, $tz)->endOfDay();
                 break;
             default:
                 $begin = Carbon::now($tz)->subDays(3)->startOfDay();
-                $end   = Carbon::now($tz);
+                $end = Carbon::now($tz);
         }
 
         return [
@@ -398,8 +448,8 @@ class LiveViewController extends Controller
      */
     private function getDateChunks(string $beginTime, string $endTime, int $days = 2): array
     {
-        $begin  = Carbon::parse($beginTime);
-        $end    = Carbon::parse($endTime);
+        $begin = Carbon::parse($beginTime);
+        $end = Carbon::parse($endTime);
         $chunks = [];
 
         while ($begin->lt($end)) {
@@ -424,14 +474,14 @@ class LiveViewController extends Controller
     {
         if (empty($points)) {
             return [
-                'points'      => [],
+                'points' => [],
                 'totalPoints' => 0,
-                'distance'    => 0,
-                'maxSpeed'    => 0,
-                'avgSpeed'    => 0,
-                'duration'    => 0,
-                'startTime'   => null,
-                'endTime'     => null,
+                'distance' => 0,
+                'maxSpeed' => 0,
+                'avgSpeed' => 0,
+                'duration' => 0,
+                'startTime' => null,
+                'endTime' => null,
             ];
         }
 
@@ -441,29 +491,33 @@ class LiveViewController extends Controller
         });
 
         $formatted = [];
-        $speeds    = [];
-        $maxSpeed  = 0;
+        $speeds = [];
+        $maxSpeed = 0;
         $totalDist = 0;
 
         foreach ($points as $i => $p) {
-            $lat   = (float) ($p['lat'] ?? 0);
-            $lng   = (float) ($p['lng'] ?? 0);
+            $lat = (float) ($p['lat'] ?? 0);
+            $lng = (float) ($p['lng'] ?? 0);
             $speed = (float) ($p['speed'] ?? $p['gpsSpeed'] ?? 0);
-            $dir   = (float) ($p['course'] ?? $p['direction'] ?? 0);
-            $time  = $p['gpsTime'] ?? $p['positionTime'] ?? null;
+            $dir = (float) ($p['course'] ?? $p['direction'] ?? 0);
+            $time = $p['gpsTime'] ?? $p['positionTime'] ?? null;
 
-            if ($lat == 0 && $lng == 0) continue;
+            if ($lat == 0 && $lng == 0) {
+                continue;
+            }
 
             $formatted[] = [
-                'lat'       => $lat,
-                'lng'       => $lng,
-                'speed'     => $speed,
+                'lat' => $lat,
+                'lng' => $lng,
+                'speed' => $speed,
                 'direction' => $dir,
-                'gpsTime'   => $time,
+                'gpsTime' => $time,
             ];
 
             $speeds[] = $speed;
-            if ($speed > $maxSpeed) $maxSpeed = $speed;
+            if ($speed > $maxSpeed) {
+                $maxSpeed = $speed;
+            }
 
             // Calculate distance from previous point using Haversine
             if ($i > 0) {
@@ -475,9 +529,9 @@ class LiveViewController extends Controller
             }
         }
 
-        $avgSpeed  = count($speeds) > 0 ? array_sum($speeds) / count($speeds) : 0;
+        $avgSpeed = count($speeds) > 0 ? array_sum($speeds) / count($speeds) : 0;
         $startTime = $formatted[0]['gpsTime'] ?? null;
-        $endTime   = end($formatted)['gpsTime'] ?? null;
+        $endTime = end($formatted)['gpsTime'] ?? null;
 
         $duration = 0;
         if ($startTime && $endTime) {
@@ -485,14 +539,14 @@ class LiveViewController extends Controller
         }
 
         return [
-            'points'      => $formatted,
+            'points' => $formatted,
             'totalPoints' => count($formatted),
-            'distance'    => round($totalDist, 2),     // km
-            'maxSpeed'    => round($maxSpeed, 1),       // km/h
-            'avgSpeed'    => round($avgSpeed, 1),       // km/h
-            'duration'    => $duration,                  // seconds
-            'startTime'   => $startTime,
-            'endTime'     => $endTime,
+            'distance' => round($totalDist, 2),     // km
+            'maxSpeed' => round($maxSpeed, 1),       // km/h
+            'avgSpeed' => round($avgSpeed, 1),       // km/h
+            'duration' => $duration,                  // seconds
+            'startTime' => $startTime,
+            'endTime' => $endTime,
         ];
     }
 
@@ -501,11 +555,12 @@ class LiveViewController extends Controller
      */
     private function haversineDistance(float $lat1, float $lng1, float $lat2, float $lng2): float
     {
-        $R     = 6371;
-        $dLat  = deg2rad($lat2 - $lat1);
-        $dLng  = deg2rad($lng2 - $lng1);
-        $a     = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
-        $c     = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        $R = 6371;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
         return $R * $c;
     }
 }

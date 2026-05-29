@@ -88,12 +88,14 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::delete('distributions/{distribution}', [DistributionController::class, 'destroy'])->name('distributions.destroy');
 
     // Live View / Map
-    Route::get('live-view', [LiveViewController::class, 'index'])->name('live-view.index');
-    Route::get('live-view/locations', [LiveViewController::class, 'allLocations'])->name('live-view.locations');
-    Route::get('live-view/follow/{device}', [LiveViewController::class, 'followDevice'])->name('live-view.follow');
-    Route::get('live-view/track/{device}', [LiveViewController::class, 'trackDevice'])->name('live-view.track');
-    Route::get('live-view/track-data', [LiveViewController::class, 'getTrackData'])->name('live-view.track-data');
-    Route::post('live-view/share', [LiveViewController::class, 'createShare'])->name('live-view.share');
+    Route::middleware('role:super-admin|sub-admin|tps')->group(function () {
+        Route::get('live-view', [LiveViewController::class, 'index'])->name('live-view.index');
+        Route::get('live-view/locations', [LiveViewController::class, 'allLocations'])->name('live-view.locations');
+        Route::get('live-view/follow/{device}', [LiveViewController::class, 'followDevice'])->name('live-view.follow');
+        Route::get('live-view/track/{device}', [LiveViewController::class, 'trackDevice'])->name('live-view.track');
+        Route::get('live-view/track-data', [LiveViewController::class, 'getTrackData'])->name('live-view.track-data');
+        Route::post('live-view/share', [LiveViewController::class, 'createShare'])->name('live-view.share');
+    });
 
     // Alerts
     Route::get('alerts', [AlertController::class, 'index'])->name('alerts.index');

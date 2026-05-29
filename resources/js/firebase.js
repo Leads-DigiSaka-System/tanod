@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { getMessaging, getToken, isSupported, onMessage } from 'firebase/messaging';
 
 const firebaseConfig = {
     apiKey: 'AIzaSyBdjJLzOR27vPMVZCHSz_k8QVSyJ12in70',
@@ -12,7 +12,33 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const messaging = getMessaging(app);
+let messagingPromise;
+
+async function resolveMessaging() {
+    if (!messagingPromise) {
+        messagingPromise = (async () => {
+            if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+                return null;
+            }
+
+            if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+                return null;
+            }
+
+            if (!await isSupported()) {
+                return null;
+            }
+
+            return getMessaging(app);
+        })().catch((error) => {
+            console.warn('Firebase messaging is unavailable in this browser.', error);
+
+            return null;
+        });
+    }
+
+    return messagingPromise;
+}
 
 /**
  * Request notification permission and retrieve FCM token.
@@ -20,6 +46,12 @@ const messaging = getMessaging(app);
  */
 export async function requestFcmToken(vapidKey) {
     try {
+        const messaging = await resolveMessaging();
+
+        if (!messaging || !('Notification' in window)) {
+            return null;
+        }
+
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
             console.warn('Notification permission denied');
@@ -38,20 +70,24 @@ export async function requestFcmToken(vapidKey) {
  * Listen for foreground push messages and show a browser notification.
  */
 export function onForegroundMessage(callback) {
-    onMessage(messaging, (payload) => {
-        const { title, body } = payload.notification ?? {};
-
-        if (title) {
-            new Notification(title, {
-                body: body ?? '',
-                icon: '/images/logo.png',
-            });
+    void resolveMessaging().then((messaging) => {
+        if (!messaging) {
+            return;
         }
 
-        if (callback) {
-            callback(payload);
-        }
+        onMessage(messaging, (payload) => {
+            const { title, body } = payload.notification ?? {};
+
+            if (title && 'Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, {
+                    body: body ?? '',
+                    icon: '/images/logo.png',
+                });
+            }
+
+            if (callback) {
+                callback(payload);
+            }
+        });
     });
 }
-
-export { messaging };
