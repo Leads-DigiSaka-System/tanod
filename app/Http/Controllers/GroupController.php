@@ -49,7 +49,7 @@ class GroupController extends Controller
         return Inertia::render('Groups/Index', [
             'groups' => $groups,
             'tractors' => $tractors,
-            'tpsUsers' => $tpsUsers,
+            'tpsUsers' => $this->assignableTpsUsers(),
             'filters' => $request->only(['search']),
         ]);
     }
@@ -70,7 +70,7 @@ class GroupController extends Controller
 
         return Inertia::render('Groups/Create', [
             'tractors' => $tractors,
-            'tpsUsers' => User::role('tps')->select('id', 'name', 'email')->get(),
+            'tpsUsers' => $this->assignableTpsUsers(),
         ]);
     }
 
@@ -81,14 +81,12 @@ class GroupController extends Controller
 
         $tractorIds = $data['tractor_ids'] ?? [];
         $tpsUserIds = $data['tps_user_ids'] ?? [];
-        unset($data['tractor_ids'], $data['tps_user_ids']);
+        $assignAllTps = $request->boolean('assign_all_tps');
+        unset($data['tractor_ids'], $data['tps_user_ids'], $data['assign_all_tps']);
 
         $group = TractorGroup::create($data);
         $group->tractors()->sync($tractorIds);
-
-        // Attach TPS users with role pivot
-        $tpsPivot = collect($tpsUserIds)->mapWithKeys(fn ($id) => [$id => ['role' => 'tps']])->all();
-        $group->users()->sync($tpsPivot);
+        $this->syncTpsUsers($group, $tpsUserIds, $assignAllTps);
 
         return redirect()->route('groups.index')
             ->with('success', 'Group created successfully.');
@@ -122,7 +120,7 @@ class GroupController extends Controller
         return Inertia::render('Groups/Edit', [
             'group' => $group,
             'tractors' => $tractors,
-            'tpsUsers' => User::role('tps')->select('id', 'name', 'email')->get(),
+            'tpsUsers' => $this->assignableTpsUsers(),
         ]);
     }
 
@@ -135,19 +133,19 @@ class GroupController extends Controller
             'is_active' => 'boolean',
             'tractor_ids' => 'nullable|array',
             'tractor_ids.*' => 'exists:tractors,id',
+            'assign_all_tps' => 'boolean',
             'tps_user_ids' => 'nullable|array',
             'tps_user_ids.*' => 'exists:users,id',
         ]);
 
         $tractorIds = $data['tractor_ids'] ?? [];
         $tpsUserIds = $data['tps_user_ids'] ?? [];
-        unset($data['tractor_ids'], $data['tps_user_ids']);
+        $assignAllTps = $request->boolean('assign_all_tps');
+        unset($data['tractor_ids'], $data['tps_user_ids'], $data['assign_all_tps']);
 
         $group->update($data);
         $group->tractors()->sync($tractorIds);
-
-        $tpsPivot = collect($tpsUserIds)->mapWithKeys(fn ($id) => [$id => ['role' => 'tps']])->all();
-        $group->users()->sync($tpsPivot);
+        $this->syncTpsUsers($group, $tpsUserIds, $assignAllTps);
 
         return redirect()->route('groups.index')
             ->with('success', 'Group updated successfully.');
@@ -161,5 +159,32 @@ class GroupController extends Controller
 
         return redirect()->route('groups.index')
             ->with('success', 'Group deleted successfully.');
+    }
+
+    /**
+     * @param  array<int>  $requestedTpsUserIds
+     */
+    private function syncTpsUsers(TractorGroup $group, array $requestedTpsUserIds, bool $assignAllTps): void
+    {
+        $tpsUserIds = User::role('tps')
+            ->where('tps_assign_all_tractors', false)
+            ->when(! $assignAllTps, fn ($query) => $query->whereIn('id', $requestedTpsUserIds))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $tpsPivot = collect($tpsUserIds)
+            ->mapWithKeys(fn (int $id) => [$id => ['role' => 'tps']])
+            ->all();
+
+        $group->users()->sync($tpsPivot);
+    }
+
+    private function assignableTpsUsers()
+    {
+        return User::role('tps')
+            ->where('tps_assign_all_tractors', false)
+            ->select('id', 'name', 'email')
+            ->get();
     }
 }

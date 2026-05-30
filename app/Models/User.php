@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -27,6 +28,7 @@ class User extends Authenticatable
         'device_type',
         'is_active',
         'fca_id',
+        'tps_assign_all_tractors',
         'deletion_requested_at',
         'deletion_scheduled_for',
     ];
@@ -44,6 +46,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'must_change_password' => 'boolean',
+            'tps_assign_all_tractors' => 'boolean',
             'deletion_requested_at' => 'datetime',
             'deletion_scheduled_for' => 'datetime',
         ];
@@ -105,5 +108,90 @@ class User extends Authenticatable
     public function feedbacks()
     {
         return $this->hasMany(FarmerFeedback::class, 'submitted_by');
+    }
+
+    public function hasFullTpsTractorAccess(): bool
+    {
+        return $this->hasRole('tps') && $this->tps_assign_all_tractors;
+    }
+
+    /**
+     * @return array<int>
+     */
+    public function accessibleTractorIds(): array
+    {
+        if ($this->hasAnyRole(['super-admin', 'sub-admin'])) {
+            return Tractor::query()->pluck('id')->map(fn ($id) => (int) $id)->all();
+        }
+
+        if ($this->hasRole('tps')) {
+            if ($this->hasFullTpsTractorAccess()) {
+                return Tractor::query()->pluck('id')->map(fn ($id) => (int) $id)->all();
+            }
+
+            $groupTractorIds = Tractor::query()
+                ->whereHas('groups.users', fn (Builder $query) => $query->where('users.id', $this->id))
+                ->pluck('id');
+
+            $distributionTractorIds = TractorDistribution::query()
+                ->where('tps_id', $this->id)
+                ->where('status', 'distributed')
+                ->pluck('tractor_id');
+
+            return $groupTractorIds->merge($distributionTractorIds)
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        if ($this->hasRole('fca')) {
+            return Tractor::query()
+                ->whereHas('distributions', fn (Builder $query) => $query->where('distributed_to', $this->id)
+                    ->where('status', 'distributed'))
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+        }
+
+        if ($this->hasRole('farmer') && $this->fca_id) {
+            return Tractor::query()
+                ->whereHas('distributions', fn (Builder $query) => $query->where('distributed_to', $this->fca_id)
+                    ->where('status', 'distributed'))
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+        }
+
+        return [];
+    }
+
+    /**
+     * @return array<int>
+     */
+    public static function tpsIdsForTractor(int $tractorId): array
+    {
+        $assignedTpsIds = static::query()
+            ->role('tps')
+            ->where('is_active', true)
+            ->where(function (Builder $query) use ($tractorId) {
+                $query->where('tps_assign_all_tractors', true)
+                    ->orWhereHas('groups.tractors', fn (Builder $groupQuery) => $groupQuery->where('tractors.id', $tractorId));
+            })
+            ->pluck('id');
+
+        $distributionTpsIds = TractorDistribution::query()
+            ->where('tractor_id', $tractorId)
+            ->where('status', 'distributed')
+            ->whereNotNull('tps_id')
+            ->pluck('tps_id');
+
+        return $assignedTpsIds->merge($distributionTpsIds)
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 }

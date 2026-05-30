@@ -10,6 +10,7 @@ use App\Models\Ticket;
 use App\Models\TicketComment;
 use App\Models\Tractor;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -24,15 +25,29 @@ class ApiTicketController extends Controller
         $user = $request->user();
 
         $tractorIds = $this->accessibleTractorIds($user);
+        $forChat = $request->boolean('for_chat');
 
-        $tickets = Ticket::with(['tractor:id,no_plate,brand,model', 'submitter:id,name'])
-            ->where(function ($q) use ($user, $tractorIds) {
-                $q->whereIn('tractor_id', $tractorIds)
-                    ->orWhere('submitted_by', $user->id);
-            })
+        $tickets = Ticket::query()
+            ->with([
+                'tractor:id,no_plate,brand,model',
+                'submitter:id,name',
+                'latestComment.user:id,name',
+            ])
+            ->withMax('comments', 'created_at')
+            ->when(
+                $forChat && $user->hasRole('fca'),
+                fn (Builder $query) => $query->where('submitted_by', $user->id),
+                function (Builder $query) use ($user, $tractorIds) {
+                    $query->where(function (Builder $ticketQuery) use ($user, $tractorIds) {
+                        $ticketQuery->whereIn('tractor_id', $tractorIds)
+                            ->orWhere('submitted_by', $user->id);
+                    });
+                }
+            )
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->priority, fn ($q, $p) => $q->where('priority', $p))
-            ->latest()
+            ->orderByRaw('coalesce(comments_max_created_at, tickets.created_at) desc')
+            ->orderByDesc('tickets.id')
             ->paginate($request->per_page ?? 15);
 
         $tickets->getCollection()->transform(fn (Ticket $t) => $this->formatTicket($t));
@@ -67,7 +82,7 @@ class ApiTicketController extends Controller
     }
 
     /**
-     * Create a new ticket with optional photo.
+     * Create a new ticket with a required proof photo.
      */
     public function store(Request $request)
     {
@@ -80,7 +95,7 @@ class ApiTicketController extends Controller
             'priority' => ['required', Rule::in(['low', 'medium', 'high', 'critical'])],
             'category' => ['nullable', Rule::in(['general', 'technical', 'billing', 'tractor', 'device', 'booking'])],
             'tractor_id' => 'nullable|exists:tractors,id',
-            'photo' => 'nullable|image|max:5120',
+            'photo' => 'required|image|max:10240',
         ]);
 
         if (! empty($data['tractor_id'])) {
@@ -125,11 +140,7 @@ class ApiTicketController extends Controller
         // Notify TPS users assigned to the tractor's group
         $tpsIds = [];
         if ($ticket->tractor_id) {
-            $tpsIds = User::role('tps')
-                ->where('is_active', true)
-                ->whereHas('groups.tractors', fn ($q) => $q->where('tractors.id', $ticket->tractor_id))
-                ->pluck('id')
-                ->all();
+            $tpsIds = User::tpsIdsForTractor($ticket->tractor_id);
 
             foreach ($tpsIds as $tpsId) {
                 Notification::create([
@@ -164,8 +175,11 @@ class ApiTicketController extends Controller
 
         $request->validate([
             'body' => 'required_without:attachment|nullable|string|max:5000',
+            'socket_id' => 'nullable|string|max:100',
             'attachment' => 'required_without:body|nullable|file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf',
         ]);
+
+        $socketId = $request->header('X-Socket-ID') ?: $request->string('socket_id')->toString();
 
         $attachmentPath = null;
         if ($request->hasFile('attachment')) {
@@ -181,7 +195,10 @@ class ApiTicketController extends Controller
 
         $comment->load(['user:id,name', 'ticket.assignees']);
 
-        TicketCommentAdded::dispatch($comment);
+        $event = new TicketCommentAdded($comment);
+        $event->socket = $socketId !== '' ? $socketId : null;
+
+        event($event);
 
         return response()->json([
             'data' => [
@@ -293,32 +310,7 @@ class ApiTicketController extends Controller
      */
     private function accessibleTractorIds(\App\Models\User $user): array
     {
-        if ($user->hasAnyRole(['super-admin', 'sub-admin'])) {
-            return Tractor::pluck('id')->map(fn ($id) => (int) $id)->all();
-        }
-
-        if ($user->hasRole('tps')) {
-            $groupIds = Tractor::whereHas('groups.users', fn ($q) => $q->where('users.id', $user->id))
-                ->pluck('id');
-
-            $distributionIds = \App\Models\TractorDistribution::where('tps_id', $user->id)
-                ->where('status', 'distributed')
-                ->pluck('tractor_id');
-
-            return $groupIds->merge($distributionIds)->unique()->values()->map(fn ($id) => (int) $id)->all();
-        }
-
-        if ($user->hasRole('fca')) {
-            return Tractor::whereHas('distributions', fn ($q) => $q->where('distributed_to', $user->id)->where('status', 'distributed'))
-                ->pluck('id')->map(fn ($id) => (int) $id)->all();
-        }
-
-        if ($user->hasRole('farmer')) {
-            return Tractor::whereHas('distributions', fn ($q) => $q->where('distributed_to', $user->fca_id)->where('status', 'distributed'))
-                ->pluck('id')->map(fn ($id) => (int) $id)->all();
-        }
-
-        return [];
+        return $user->accessibleTractorIds();
     }
 
     /**
@@ -343,6 +335,9 @@ class ApiTicketController extends Controller
      */
     private function formatTicket(Ticket $ticket, bool $full = false): array
     {
+        $latestComment = $ticket->latestComment;
+        $lastActivityAt = $latestComment?->created_at ?? $ticket->created_at;
+
         $data = [
             'id' => $ticket->id,
             'subject' => $ticket->subject,
@@ -362,6 +357,18 @@ class ApiTicketController extends Controller
                 'name' => $ticket->submitter->name,
             ] : null,
             'created_at' => $ticket->created_at?->toIso8601String(),
+            'last_activity_at' => $lastActivityAt?->toIso8601String(),
+            'last_comment' => $latestComment ? [
+                'id' => $latestComment->id,
+                'ticket_id' => $latestComment->ticket_id,
+                'body' => $latestComment->body,
+                'attachment_url' => $this->storageUrl($latestComment->attachment_path),
+                'user' => $latestComment->user ? [
+                    'id' => $latestComment->user->id,
+                    'name' => $latestComment->user->name,
+                ] : null,
+                'created_at' => $latestComment->created_at?->toIso8601String(),
+            ] : null,
         ];
 
         if ($full) {

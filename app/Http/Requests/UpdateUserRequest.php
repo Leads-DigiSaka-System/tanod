@@ -25,6 +25,7 @@ class UpdateUserRequest extends FormRequest
             'password' => 'nullable|string|min:8|confirmed',
             'role' => 'required|string|exists:roles,name',
             'is_active' => 'boolean',
+            'tps_assign_all_tractors' => 'boolean',
             'profile_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ];
     }

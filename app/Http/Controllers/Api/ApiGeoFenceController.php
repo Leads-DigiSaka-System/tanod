@@ -14,7 +14,7 @@ class ApiGeoFenceController extends Controller
     /**
      * List geofences relevant to the authenticated user.
      * - admin: all
-     * - tps: geofences for devices in their group tractors
+     * - tps: geofences for devices in their accessible tractor scope
      * - fca: geofences for devices on their distributed tractors
      */
     public function index(Request $request)
@@ -250,14 +250,15 @@ class ApiGeoFenceController extends Controller
             return;
         }
 
-        if ($user->hasRole('tps')) {
-            $query->whereHas('devices.tractor.groups.users', fn (Builder $q) => $q->where('users.id', $user->id));
-        } elseif ($user->hasRole('fca')) {
-            $query->whereHas('devices.tractor.distributions', fn (Builder $q) => $q->where('distributed_to', $user->id)
-                ->where('status', 'distributed'));
-        } else {
+        $tractorIds = $user->accessibleTractorIds();
+
+        if (empty($tractorIds)) {
             $query->whereRaw('0 = 1');
+
+            return;
         }
+
+        $query->whereHas('devices.tractor', fn (Builder $tractorQuery) => $tractorQuery->whereIn('tractors.id', $tractorIds));
     }
 
     /**
@@ -271,19 +272,8 @@ class ApiGeoFenceController extends Controller
             return Device::where('is_active', true)->pluck('id');
         }
 
-        if ($user->hasRole('tps')) {
-            return Device::where('is_active', true)
-                ->whereHas('tractor.groups.users', fn (Builder $q) => $q->where('users.id', $user->id))
-                ->pluck('id');
-        }
-
-        if ($user->hasRole('fca')) {
-            return Device::where('is_active', true)
-                ->whereHas('tractor.distributions', fn (Builder $q) => $q->where('distributed_to', $user->id)
-                    ->where('status', 'distributed'))
-                ->pluck('id');
-        }
-
-        return collect();
+        return Device::where('is_active', true)
+            ->whereHas('tractor', fn (Builder $tractorQuery) => $tractorQuery->whereIn('tractors.id', $user->accessibleTractorIds()))
+            ->pluck('id');
     }
 }

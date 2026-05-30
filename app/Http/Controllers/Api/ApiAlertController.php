@@ -12,19 +12,36 @@ class ApiAlertController extends Controller
     /**
      * List alerts filtered by the authenticated user's role.
      * - super-admin / sub-admin: all alerts
-     * - tps: alerts for tractors in their groups
+     * - tps: alerts for tractors in their accessible scope
      * - fca: alerts for tractors distributed to them
      * - farmer: alerts for tractors distributed to their FCA
      *
-     * Optional filters: ?type=speed&unacknowledged=true
+     * Optional filters: ?type=speed&unacknowledged=true&search=query
      */
     public function index(Request $request)
     {
         $user = $request->user();
+        $search = trim((string) $request->input('search', ''));
 
         $query = Alert::with(['tractor:id,no_plate,brand,model', 'device:id,device_name,imei'])
             ->when($request->filled('type'), fn (Builder $q) => $q->where('type', $request->type))
             ->when($request->boolean('unacknowledged'), fn (Builder $q) => $q->unacknowledged())
+            ->when($search !== '', function (Builder $query) use ($search) {
+                $query->where(function (Builder $searchQuery) use ($search) {
+                    $searchQuery->where('type', 'like', "%{$search}%")
+                        ->orWhere('title', 'like', "%{$search}%")
+                        ->orWhere('message', 'like', "%{$search}%")
+                        ->orWhereHas('device', function (Builder $deviceQuery) use ($search) {
+                            $deviceQuery->where('device_name', 'like', "%{$search}%")
+                                ->orWhere('imei', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('tractor', function (Builder $tractorQuery) use ($search) {
+                            $tractorQuery->where('brand', 'like', "%{$search}%")
+                                ->orWhere('model', 'like', "%{$search}%")
+                                ->orWhere('no_plate', 'like', "%{$search}%");
+                        });
+                });
+            })
             ->latest();
 
         $this->scopeByRole($query, $user);
@@ -77,16 +94,14 @@ class ApiAlertController extends Controller
             return;
         }
 
-        if ($user->hasRole('tps')) {
-            $query->whereHas('tractor.groups.users', fn (Builder $q) => $q->where('users.id', $user->id));
-        } elseif ($user->hasRole('fca')) {
-            $query->whereHas('tractor.distributions', fn (Builder $q) => $q->where('distributed_to', $user->id)
-                ->where('status', 'distributed'));
-        } elseif ($user->hasRole('farmer')) {
-            $query->whereHas('tractor.distributions', fn (Builder $q) => $q->where('distributed_to', $user->fca_id)
-                ->where('status', 'distributed'));
-        } else {
+        $tractorIds = $user->accessibleTractorIds();
+
+        if (empty($tractorIds)) {
             $query->whereRaw('0 = 1');
+
+            return;
         }
+
+        $query->whereIn('tractor_id', $tractorIds);
     }
 }

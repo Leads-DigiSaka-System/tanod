@@ -133,8 +133,11 @@ class TicketController extends Controller
     {
         $request->validate([
             'body' => 'required_without:attachment|nullable|string|max:5000',
+            'socket_id' => 'nullable|string|max:100',
             'attachment' => 'required_without:body|nullable|file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf',
         ]);
+
+        $socketId = $request->header('X-Socket-ID') ?: $request->string('socket_id')->toString();
 
         $attachmentPath = null;
         if ($request->hasFile('attachment')) {
@@ -150,7 +153,10 @@ class TicketController extends Controller
 
         $comment->load(['user', 'ticket.assignees']);
 
-        TicketCommentAdded::dispatch($comment);
+        $event = new TicketCommentAdded($comment);
+        $event->socket = $socketId !== '' ? $socketId : null;
+
+        event($event);
 
         return back()->with('success', 'Comment added.');
     }

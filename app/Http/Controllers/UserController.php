@@ -6,6 +6,7 @@ use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -73,12 +74,18 @@ class UserController extends Controller
         $role = $data['role'];
         unset($data['role']);
 
+        $data['tps_assign_all_tractors'] = $role === 'tps' && $request->boolean('tps_assign_all_tractors');
+
         if ($role !== 'farmer') {
             unset($data['fca_id']);
         }
 
         $user = User::create($data);
         $user->assignRole($role);
+
+        if ($role !== 'tps' || $user->tps_assign_all_tractors) {
+            $this->clearTpsGroupAssignments($user);
+        }
 
         return redirect()->route('users.index')
             ->with('success', 'User created successfully.');
@@ -127,8 +134,14 @@ class UserController extends Controller
         $role = $data['role'];
         unset($data['role']);
 
+        $data['tps_assign_all_tractors'] = $role === 'tps' && $request->boolean('tps_assign_all_tractors');
+
         $user->update($data);
         $user->syncRoles([$role]);
+
+        if ($role !== 'tps' || $user->tps_assign_all_tractors) {
+            $this->clearTpsGroupAssignments($user);
+        }
 
         return redirect()->route('users.show', $user)
             ->with('success', 'User updated successfully.');
@@ -154,5 +167,13 @@ class UserController extends Controller
 
         return redirect()->route('users.index')
             ->with('success', 'User deleted successfully.');
+    }
+
+    private function clearTpsGroupAssignments(User $user): void
+    {
+        DB::table('group_user')
+            ->where('user_id', $user->id)
+            ->where('role', 'tps')
+            ->delete();
     }
 }

@@ -86,10 +86,7 @@ class ApiReportController extends Controller
      */
     private function tpsReport(User $user): array
     {
-        $tractorIds = Tractor::whereHas(
-            'groups.users',
-            fn (Builder $q) => $q->where('users.id', $user->id),
-        )->pluck('id')->all();
+        $tractorIds = $user->accessibleTractorIds();
 
         $bookingQuery = Booking::whereIn('tractor_id', $tractorIds);
         $maintenanceQuery = Maintenance::whereIn('tractor_id', $tractorIds);

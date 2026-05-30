@@ -17,7 +17,7 @@ class ApiFeedbackController extends Controller
      * List feedbacks visible to the user.
      * - farmer: own feedbacks
      * - fca: feedbacks on tractors distributed to them
-     * - tps: feedbacks on tractors in their groups
+     * - tps: feedbacks on assigned tractors or the full fleet when enabled
      * - admin: all
      */
     public function index(Request $request)
@@ -37,17 +37,7 @@ class ApiFeedbackController extends Controller
             $query->whereHas('tractor.distributions', fn (Builder $q) => $q->where('distributed_to', $user->id)
                 ->where('status', 'distributed'));
         } elseif ($user->hasRole('tps')) {
-            $tractorIds = Tractor::whereHas('groups.users', fn (Builder $q) => $q->where('users.id', $user->id))
-                ->pluck('id')
-                ->merge(
-                    \App\Models\TractorDistribution::where('tps_id', $user->id)
-                        ->where('status', 'distributed')
-                        ->pluck('tractor_id')
-                )
-                ->unique()
-                ->values()
-                ->all();
-            $query->whereIn('tractor_id', $tractorIds);
+            $query->whereIn('tractor_id', $user->accessibleTractorIds());
         } else {
             $query->whereRaw('0 = 1');
         }
@@ -130,11 +120,7 @@ class ApiFeedbackController extends Controller
             ->unique()
             ->all();
 
-        // TPS users in groups linked to this tractor
-        $tpsIds = User::whereHas('groups', fn (Builder $q) => $q->whereHas('tractors', fn (Builder $q2) => $q2->where('tractors.id', $tractor->id)))
-            ->role('tps')
-            ->pluck('id')
-            ->all();
+        $tpsIds = User::tpsIdsForTractor($tractor->id);
 
         $recipientIds = collect([...$fcaIds, ...$tpsIds])
             ->unique()

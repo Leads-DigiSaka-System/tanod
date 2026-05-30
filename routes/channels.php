@@ -20,13 +20,5 @@ Broadcast::channel('notifications.{id}', function ($user, $id) {
 Broadcast::channel('ticket.{ticketId}', function ($user, $ticketId) {
     $ticket = \App\Models\Ticket::find($ticketId);
 
-    if (! $ticket) {
-        return false;
-    }
-
-    // Admins, submitter, or assigned TPS can listen
-    return $user->hasAnyRole(['super-admin', 'sub-admin'])
-        || $ticket->submitted_by === $user->id
-        || $ticket->assigned_to === $user->id
-        || $ticket->assignees()->where('user_id', $user->id)->exists();
+    return $ticket?->userCanAccessChannel($user) ?? false;
 });

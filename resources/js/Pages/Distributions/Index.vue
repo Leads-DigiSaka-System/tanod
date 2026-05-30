@@ -127,10 +127,10 @@
 
           <!-- TPS -->
           <div>
-            <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">TPS</label>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Responsible TPS</label>
             <select v-model="form.tps_id"
               class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-              <option value="">Select TPS (optional)</option>
+              <option value="">Select responsible TPS (optional)</option>
               <option v-for="u in tpsUsers" :key="u.id" :value="u.id">{{ u.name }} ({{ u.email }})</option>
             </select>
             <p v-if="form.errors.tps_id" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.tps_id }}</p>

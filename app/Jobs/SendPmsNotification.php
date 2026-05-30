@@ -174,8 +174,9 @@ class SendPmsNotification implements ShouldQueue
      */
     private function getTpsUsersForTractor(Tractor $tractor): \Illuminate\Support\Collection
     {
-        return $tractor->groups
-            ->flatMap(fn ($group) => $group->tpsUsers)
+        return User::query()
+            ->whereIn('id', User::tpsIdsForTractor($tractor->id))
+            ->get()
             ->unique('id')
             ->values();
     }

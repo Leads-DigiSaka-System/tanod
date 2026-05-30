@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Ticket extends Model
@@ -63,8 +65,54 @@ class Ticket extends Model
         return $this->belongsTo(User::class, 'resolved_by');
     }
 
-    public function comments()
+    public function comments(): HasMany
     {
         return $this->hasMany(TicketComment::class)->oldest();
+    }
+
+    public function latestComment(): HasOne
+    {
+        return $this->hasOne(TicketComment::class)->latestOfMany();
+    }
+
+    public function userCanAccessChannel(User $user): bool
+    {
+        if ($user->hasAnyRole(['super-admin', 'sub-admin'])) {
+            return true;
+        }
+
+        if (
+            $this->submitted_by === $user->id ||
+            $this->assigned_to === $user->id ||
+            $this->assignees()->where('users.id', $user->id)->exists()
+        ) {
+            return true;
+        }
+
+        if (! $this->tractor_id) {
+            return false;
+        }
+
+        if ($user->hasRole('tps')) {
+            return in_array($this->tractor_id, $user->accessibleTractorIds(), true);
+        }
+
+        if ($user->hasRole('fca')) {
+            return TractorDistribution::query()
+                ->where('tractor_id', $this->tractor_id)
+                ->where('distributed_to', $user->id)
+                ->where('status', 'distributed')
+                ->exists();
+        }
+
+        if ($user->hasRole('farmer')) {
+            return TractorDistribution::query()
+                ->where('tractor_id', $this->tractor_id)
+                ->where('distributed_to', $user->fca_id)
+                ->where('status', 'distributed')
+                ->exists();
+        }
+
+        return false;
     }
 }

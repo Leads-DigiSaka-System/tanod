@@ -20,6 +20,7 @@ class StoreGroupRequest extends FormRequest
             'is_active' => 'boolean',
             'tractor_ids' => 'nullable|array',
             'tractor_ids.*' => 'exists:tractors,id',
+            'assign_all_tps' => 'boolean',
             'tps_user_ids' => 'nullable|array',
             'tps_user_ids.*' => 'exists:users,id',
         ];

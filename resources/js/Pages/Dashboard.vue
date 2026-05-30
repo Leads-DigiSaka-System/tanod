@@ -228,10 +228,11 @@
           </div>
         </div>
 
-        <!-- My Assigned Tractors (TPS) -->
+        <!-- My TPS Responsibilities -->
         <div v-if="myTractors?.length" class="bg-white rounded-lg border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <div class="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">My Assigned Tractors</h3>
+          <div class="p-5 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">My TPS Responsibilities</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Your assigned tractors for coordination. The full fleet remains available in the Tractors module.</p>
           </div>
           <div class="p-5 space-y-3">
             <div v-for="tractor in myTractors" :key="tractor.id" class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700">

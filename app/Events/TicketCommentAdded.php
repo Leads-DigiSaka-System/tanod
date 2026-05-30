@@ -3,7 +3,6 @@
 namespace App\Events;
 
 use App\Models\TicketComment;
-use App\Models\TractorDistribution;
 use App\Models\User;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
@@ -37,17 +36,7 @@ class TicketCommentAdded implements ShouldBroadcastNow, ShouldDispatchAfterCommi
         // TPS users via tractor group membership
         $tpsIds = collect();
         if ($ticket->tractor_id) {
-            $tpsIds = User::role('tps')
-                ->where('is_active', true)
-                ->whereHas('groups.tractors', fn ($q) => $q->where('tractors.id', $ticket->tractor_id))
-                ->pluck('id');
-
-            // TPS users via active distribution
-            $distTpsIds = TractorDistribution::where('tractor_id', $ticket->tractor_id)
-                ->where('status', 'distributed')
-                ->pluck('tps_id');
-
-            $tpsIds = $tpsIds->merge($distTpsIds);
+            $tpsIds = collect(User::tpsIdsForTractor($ticket->tractor_id));
         }
 
         return $ticket->assignees()->pluck('users.id')

@@ -55,6 +55,17 @@
             <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Joined</dt>
             <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatDate(user.created_at) }}</dd>
           </div>
+          <div v-if="user.roles?.[0]?.name === 'tps'">
+            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Tractor Access</dt>
+            <dd class="mt-1">
+              <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
+                :class="user.tps_assign_all_tractors
+                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                  : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'">
+                {{ user.tps_assign_all_tractors ? 'Full fleet access' : 'Group responsibilities only' }}
+              </span>
+            </dd>
+          </div>
         </dl>
       </div>
     </div>

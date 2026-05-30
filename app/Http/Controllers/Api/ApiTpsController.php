@@ -22,41 +22,63 @@ class ApiTpsController extends Controller
     public function dashboard(Request $request)
     {
         $user = $request->user();
-        $tractorIds = $this->tractorIdsForTps($user);
+        $visibleTractorIds = $this->visibleTractorIdsForTps($user);
+        $manageableTractorIds = $this->manageableTractorIdsForTps($user);
 
         return response()->json([
-            'tractors_count' => Tractor::whereIn('id', $tractorIds)->count(),
-            'open_tickets' => Ticket::whereIn('tractor_id', $tractorIds)->whereIn('status', ['open', 'in_progress'])->count(),
-            'pending_maintenance' => Maintenance::whereIn('tractor_id', $tractorIds)->where('status', 'pending')->count(),
-            'active_distributions' => TractorDistribution::whereIn('tractor_id', $tractorIds)->where('status', 'distributed')->count(),
+            'tractors_count' => count($visibleTractorIds),
+            'open_tickets' => Ticket::whereIn('tractor_id', $visibleTractorIds)->whereIn('status', ['open', 'in_progress'])->count(),
+            'pending_maintenance' => Maintenance::whereIn('tractor_id', $visibleTractorIds)->where('status', 'pending')->count(),
+            'active_distributions' => TractorDistribution::whereIn('tractor_id', $manageableTractorIds)->where('status', 'distributed')->count(),
         ]);
     }
 
     /**
-     * List tickets for tractors in TPS user's groups.
+     * List tickets visible to the TPS user.
      */
     public function tickets(Request $request)
     {
-        $user = $request->user();
-        $tractorIds = $this->tractorIdsForTps($user);
+        $tractorIds = $this->visibleTractorIdsForTps($request->user());
+        $search = trim((string) $request->input('search', ''));
 
-        $tickets = Ticket::with(['tractor:id,no_plate,brand,model', 'submitter:id,name', 'assignee:id,name'])
+        $tickets = Ticket::query()
+            ->with([
+                'tractor:id,no_plate,brand,model',
+                'submitter:id,name',
+                'assignee:id,name',
+                'latestComment.user:id,name',
+            ])
+            ->withMax('comments', 'created_at')
             ->whereIn('tractor_id', $tractorIds)
             ->when($request->filled('status'), fn (Builder $q) => $q->where('status', $request->status))
             ->when($request->filled('priority'), fn (Builder $q) => $q->where('priority', $request->priority))
-            ->latest()
+            ->when($search !== '', function (Builder $query) use ($search) {
+                $query->where(function (Builder $searchQuery) use ($search) {
+                    $searchQuery->where('subject', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhereHas('tractor', fn (Builder $tractorQuery) => $tractorQuery
+                            ->where('no_plate', 'like', "%{$search}%")
+                            ->orWhere('brand', 'like', "%{$search}%")
+                            ->orWhere('model', 'like', "%{$search}%"))
+                        ->orWhereHas('submitter', fn (Builder $submitterQuery) => $submitterQuery
+                            ->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('assignee', fn (Builder $assigneeQuery) => $assigneeQuery
+                            ->where('name', 'like', "%{$search}%"));
+                });
+            })
+            ->orderByRaw('coalesce(comments_max_created_at, tickets.created_at) desc')
+            ->orderByDesc('tickets.id')
             ->paginate($request->per_page ?? 15);
 
         return response()->json($tickets);
     }
 
     /**
-     * List maintenances (PMS) for tractors in TPS user's groups.
+     * List maintenances (PMS) visible to the TPS user.
      */
     public function maintenances(Request $request)
     {
-        $user = $request->user();
-        $tractorIds = $this->tractorIdsForTps($user);
+        $tractorIds = $this->visibleTractorIdsForTps($request->user());
 
         $maintenances = Maintenance::with(['tractor:id,no_plate,brand,model', 'issueType:id,name', 'performer:id,name'])
             ->whereIn('tractor_id', $tractorIds)
@@ -68,16 +90,30 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * List farmer feedbacks for tractors in TPS user's groups.
+     * List farmer feedbacks visible to the TPS user.
      */
     public function feedbacks(Request $request)
     {
-        $user = $request->user();
-        $tractorIds = $this->tractorIdsForTps($user);
+        $tractorIds = $this->visibleTractorIdsForTps($request->user());
+        $search = trim((string) $request->input('search', ''));
 
         $feedbacks = FarmerFeedback::with(['tractor:id,no_plate,brand,model', 'submitter:id,name', 'booking:id,booking_date,purpose'])
             ->whereIn('tractor_id', $tractorIds)
             ->when($request->filled('status'), fn (Builder $q) => $q->where('status', $request->status))
+            ->when($search !== '', function (Builder $query) use ($search) {
+                $query->where(function (Builder $searchQuery) use ($search) {
+                    $searchQuery->where('feedback', 'like', "%{$search}%")
+                        ->orWhere('category', 'like', "%{$search}%")
+                        ->orWhereHas('tractor', fn (Builder $tractorQuery) => $tractorQuery
+                            ->where('no_plate', 'like', "%{$search}%")
+                            ->orWhere('brand', 'like', "%{$search}%")
+                            ->orWhere('model', 'like', "%{$search}%"))
+                        ->orWhereHas('submitter', fn (Builder $submitterQuery) => $submitterQuery
+                            ->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('booking', fn (Builder $bookingQuery) => $bookingQuery
+                            ->where('purpose', 'like', "%{$search}%"));
+                });
+            })
             ->latest()
             ->paginate($request->per_page ?? 15);
 
@@ -85,16 +121,28 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * List tractors assigned to TPS user (via groups).
+     * List tractors visible on the TPS account.
      */
     public function tractors(Request $request)
     {
-        $user = $request->user();
-        $tractorIds = $this->tractorIdsForTps($user);
+        $tractorIds = $this->visibleTractorIdsForTps($request->user());
+        $search = trim((string) $request->input('search', ''));
 
         $tractors = Tractor::with(['device:id,imei,device_name', 'groups:id,name'])
             ->whereIn('id', $tractorIds)
-            ->when($request->filled('search'), fn (Builder $q) => $q->where('no_plate', 'like', "%{$request->search}%"))
+            ->when($search !== '', function (Builder $query) use ($search) {
+                $query->where(function (Builder $searchQuery) use ($search) {
+                    $searchQuery->where('no_plate', 'like', "%{$search}%")
+                        ->orWhere('imei', 'like', "%{$search}%")
+                        ->orWhere('brand', 'like', "%{$search}%")
+                        ->orWhere('model', 'like', "%{$search}%")
+                        ->orWhereHas('groups', fn (Builder $groupQuery) => $groupQuery
+                            ->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('device', fn (Builder $deviceQuery) => $deviceQuery
+                            ->where('imei', 'like', "%{$search}%")
+                            ->orWhere('device_name', 'like', "%{$search}%"));
+                });
+            })
             ->latest()
             ->paginate($request->per_page ?? 15);
 
@@ -102,16 +150,30 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * List distributions for tractors in TPS user's groups.
+     * List distributions for tractors in TPS user's assigned scope.
      */
     public function distributions(Request $request)
     {
         $user = $request->user();
-        $tractorIds = $this->tractorIdsForTps($user);
+        $tractorIds = $this->manageableTractorIdsForTps($user);
+        $search = trim((string) $request->input('search', ''));
 
         $distributions = TractorDistribution::with(['tractor:id,no_plate,brand,model', 'distributedToUser:id,name,email'])
             ->whereIn('tractor_id', $tractorIds)
             ->when($request->filled('status'), fn (Builder $q) => $q->where('status', $request->status), fn (Builder $q) => $q->where('status', '!=', 'returned'))
+            ->when($search !== '', function (Builder $query) use ($search) {
+                $query->where(function (Builder $searchQuery) use ($search) {
+                    $searchQuery->where('area', 'like', "%{$search}%")
+                        ->orWhere('notes', 'like', "%{$search}%")
+                        ->orWhereHas('tractor', fn (Builder $tractorQuery) => $tractorQuery
+                            ->where('no_plate', 'like', "%{$search}%")
+                            ->orWhere('brand', 'like', "%{$search}%")
+                            ->orWhere('model', 'like', "%{$search}%"))
+                        ->orWhereHas('distributedToUser', fn (Builder $userQuery) => $userQuery
+                            ->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%"));
+                });
+            })
             ->latest()
             ->paginate($request->per_page ?? 15);
 
@@ -119,20 +181,23 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * Get tractor IDs that belong to the TPS user's groups.
+     * Get tractor IDs visible to all TPS users.
      *
      * @return array<int>
      */
-    private function tractorIdsForTps(\App\Models\User $user): array
+    private function visibleTractorIdsForTps(User $user): array
     {
-        $groupTractorIds = Tractor::whereHas('groups.users', fn (Builder $q) => $q->where('users.id', $user->id))
-            ->pluck('id');
+        return $user->accessibleTractorIds();
+    }
 
-        $distributionTractorIds = TractorDistribution::where('tps_id', $user->id)
-            ->where('status', 'distributed')
-            ->pluck('tractor_id');
-
-        return $groupTractorIds->merge($distributionTractorIds)->unique()->values()->all();
+    /**
+     * Get tractor IDs that remain manageable for the TPS user.
+     *
+     * @return array<int>
+     */
+    private function manageableTractorIdsForTps(\App\Models\User $user): array
+    {
+        return $user->accessibleTractorIds();
     }
 
     /**
@@ -140,8 +205,7 @@ class ApiTpsController extends Controller
      */
     public function ticketFormData(Request $request)
     {
-        $user = $request->user();
-        $tractorIds = $this->tractorIdsForTps($user);
+        $tractorIds = $this->visibleTractorIdsForTps($request->user());
 
         $tractors = Tractor::whereIn('id', $tractorIds)
             ->select('id', 'no_plate', 'brand', 'model')
@@ -156,7 +220,7 @@ class ApiTpsController extends Controller
     public function ticketDetail(Request $request, Ticket $ticket)
     {
         $user = $request->user();
-        $tractorIds = $this->tractorIdsForTps($user);
+        $tractorIds = $this->visibleTractorIdsForTps($user);
 
         abort_unless(
             in_array($ticket->tractor_id, $tractorIds) || $ticket->submitted_by === $user->id,
@@ -182,7 +246,7 @@ class ApiTpsController extends Controller
     public function requestAssistance(Request $request, Ticket $ticket)
     {
         $user = $request->user();
-        $tractorIds = $this->tractorIdsForTps($user);
+        $tractorIds = $this->visibleTractorIdsForTps($user);
 
         abort_unless(
             in_array($ticket->tractor_id, $tractorIds) || $ticket->submitted_by === $user->id,
@@ -237,6 +301,9 @@ class ApiTpsController extends Controller
      */
     private function formatTicket(Ticket $ticket): array
     {
+        $latestComment = $ticket->latestComment;
+        $lastActivityAt = $latestComment?->created_at ?? $ticket->created_at;
+
         $data = [
             'id' => $ticket->id,
             'subject' => $ticket->subject,
@@ -256,6 +323,18 @@ class ApiTpsController extends Controller
                 'name' => $ticket->submitter->name,
             ] : null,
             'created_at' => $ticket->created_at?->toIso8601String(),
+            'last_activity_at' => $lastActivityAt?->toIso8601String(),
+            'last_comment' => $latestComment ? [
+                'id' => $latestComment->id,
+                'ticket_id' => $latestComment->ticket_id,
+                'body' => $latestComment->body,
+                'attachment_url' => $this->storageUrl($latestComment->attachment_path),
+                'user' => $latestComment->user ? [
+                    'id' => $latestComment->user->id,
+                    'name' => $latestComment->user->name,
+                ] : null,
+                'created_at' => $latestComment->created_at?->toIso8601String(),
+            ] : null,
             'resolution_notes' => $ticket->resolution_notes,
             'resolution_photo_url' => $this->storageUrl($ticket->resolution_photo_path),
             'resolved_by' => $ticket->resolver ? [
@@ -297,7 +376,7 @@ class ApiTpsController extends Controller
     public function distributionFormData(Request $request)
     {
         $user = $request->user();
-        $tractorIds = $this->tractorIdsForTps($user);
+        $tractorIds = $this->manageableTractorIdsForTps($user);
 
         // Tractors already actively distributed
         $distributedTractorIds = TractorDistribution::whereIn('tractor_id', $tractorIds)
@@ -332,7 +411,7 @@ class ApiTpsController extends Controller
     public function storeDistribution(Request $request)
     {
         $user = $request->user();
-        $tractorIds = $this->tractorIdsForTps($user);
+        $tractorIds = $this->manageableTractorIdsForTps($user);
 
         $validated = $request->validate([
             'tractor_id' => ['required', 'integer', 'exists:tractors,id'],
@@ -345,9 +424,9 @@ class ApiTpsController extends Controller
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
 
-        // Ensure the tractor belongs to this TPS user's group
+        // Distribution remains limited to the TPS user's assignment scope.
         if (! in_array((int) $validated['tractor_id'], $tractorIds)) {
-            return response()->json(['message' => 'This tractor is not assigned to your group.'], 403);
+            return response()->json(['message' => 'You can view this tractor, but only tractors in your TPS assignment scope can be distributed.'], 403);
         }
 
         // Ensure the tractor is not already actively distributed

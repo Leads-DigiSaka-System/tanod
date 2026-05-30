@@ -6,7 +6,7 @@
     <div class="sm:flex sm:items-center sm:justify-between mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Tractor Groups</h1>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Organize tractors into groups and assign TPS personnel.</p>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Organize tractors into groups and define TPS responsibility areas.</p>
       </div>
       <button @click="openCreateDrawer"
         class="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 mt-4 sm:mt-0"
@@ -77,7 +77,7 @@
     <Modal :show="showDelete" @close="showDelete = false" maxWidth="sm">
       <div class="p-6 dark:bg-gray-800">
         <div class="flex items-center gap-3 mb-4">
-          <div class="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
+          <div class="shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
             <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
           </div>
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Delete Group</h3>
@@ -179,13 +179,13 @@
                 <p v-else class="text-sm text-gray-400 dark:text-gray-500 text-center py-4">No tractors assigned.</p>
               </div>
 
-              <!-- TPS Users -->
+              <!-- TPS Responsibility Users -->
               <div>
-                <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Assigned TPS ({{ selectedGroup?.tps_users?.length || 0 }})</h3>
+                <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Responsible TPS ({{ selectedGroup?.tps_users?.length || 0 }})</h3>
                 <div v-if="selectedGroup?.tps_users?.length" class="space-y-2">
                   <div v-for="u in selectedGroup.tps_users" :key="u.id"
                     class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                    <div class="h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold text-white" style="background-color: #007f3d;">
+                    <div class="h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-sm font-semibold text-white" style="background-color: #007f3d;">
                       {{ u.name?.charAt(0).toUpperCase() }}
                     </div>
                     <div class="min-w-0">
@@ -194,7 +194,7 @@
                     </div>
                   </div>
                 </div>
-                <p v-else class="text-sm text-gray-400 dark:text-gray-500 text-center py-4">No TPS assigned.</p>
+                <p v-else class="text-sm text-gray-400 dark:text-gray-500 text-center py-4">No TPS responsibility set.</p>
               </div>
             </div>
 
@@ -243,7 +243,7 @@
                     <div>
                       <label class="relative inline-flex items-center cursor-pointer">
                         <input v-model="form.is_active" type="checkbox" class="sr-only peer" />
-                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 dark:peer-focus:ring-emerald-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:after:border-gray-500 peer-checked:bg-emerald-600"></div>
+                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 dark:peer-focus:ring-emerald-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:inset-s-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:after:border-gray-500 peer-checked:bg-emerald-600"></div>
                         <span class="ms-3 text-sm font-medium text-gray-700 dark:text-gray-300">Active</span>
                       </label>
                     </div>
@@ -308,42 +308,64 @@
                   </div>
                 </div>
 
-                <!-- Assign TPS Users -->
+                <!-- Set TPS Responsibilities -->
                 <div>
                   <div class="mb-3">
-                    <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Assign TPS Users</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ form.tps_user_ids.length }} selected</p>
+                    <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Set TPS Responsibilities</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      {{ form.assign_all_tps
+                        ? `All ${allTpsCount} TPS users will be assigned to this group when you save.`
+                        : `${form.tps_user_ids.length} selected. These assignments control responsibility, not overall fleet visibility. TPS users already set to all tractors are managed from Users and will not appear here.` }}
+                    </p>
                   </div>
-                  <input v-model="tpsSearch" type="text" placeholder="Search by name or email..."
-                    class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 mb-3" />
-                  <div class="max-h-48 overflow-y-auto space-y-2">
-                    <label v-for="u in filteredTpsUsers" :key="u.id"
-                      class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all"
-                      :class="form.tps_user_ids.includes(u.id)
-                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-400'
-                        : 'border-gray-200 hover:border-gray-300 dark:border-gray-600 dark:hover:border-gray-500'">
-                      <input type="checkbox" :value="u.id" v-model="form.tps_user_ids" class="sr-only" />
-                      <span class="shrink-0 flex items-center justify-center w-10 h-10 rounded-full text-sm font-semibold text-white" style="background-color: #007f3d;">
-                        {{ u.name.charAt(0).toUpperCase() }}
-                      </span>
-                      <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ u.name }}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ u.email }}</p>
-                      </div>
-                      <div class="shrink-0">
-                        <div class="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors"
-                          :class="form.tps_user_ids.includes(u.id)
-                            ? 'bg-emerald-600 border-emerald-600'
-                            : 'border-gray-300 dark:border-gray-500'">
-                          <svg v-if="form.tps_user_ids.includes(u.id)" class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
+                  <div class="space-y-4">
+                    <label class="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-800 dark:bg-emerald-900/20">
+                      <input v-model="form.assign_all_tps" type="checkbox" value="1" :disabled="!allTpsCount"
+                        class="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700" />
+                      <div>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">Assign this group to all TPS</p>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Every current TPS user will be linked to the tractors in this group. Turn this off to choose specific TPS users instead.</p>
+                        <p v-if="!allTpsCount" class="mt-1 text-xs text-amber-600 dark:text-amber-400">No TPS users are available yet.</p>
                       </div>
                     </label>
-                    <p v-if="!filteredTpsUsers.length" class="text-center py-6 text-sm text-gray-400 dark:text-gray-500">
-                      {{ tpsSearch ? 'No TPS users match your search.' : 'No TPS users available.' }}
-                    </p>
+
+                    <div v-if="form.assign_all_tps" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
+                      All {{ allTpsCount }} TPS users will be assigned automatically when this group is saved.
+                    </div>
+
+                    <template v-else>
+                      <input v-model="tpsSearch" type="text" placeholder="Search by name or email..."
+                        class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
+                      <div class="max-h-48 overflow-y-auto space-y-2">
+                        <label v-for="u in filteredTpsUsers" :key="u.id"
+                          class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all"
+                          :class="form.tps_user_ids.includes(u.id)
+                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-400'
+                            : 'border-gray-200 hover:border-gray-300 dark:border-gray-600 dark:hover:border-gray-500'">
+                          <input type="checkbox" :value="u.id" v-model="form.tps_user_ids" class="sr-only" />
+                          <span class="shrink-0 flex items-center justify-center w-10 h-10 rounded-full text-sm font-semibold text-white" style="background-color: #007f3d;">
+                            {{ u.name.charAt(0).toUpperCase() }}
+                          </span>
+                          <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ u.name }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ u.email }}</p>
+                          </div>
+                          <div class="shrink-0">
+                            <div class="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors"
+                              :class="form.tps_user_ids.includes(u.id)
+                                ? 'bg-emerald-600 border-emerald-600'
+                                : 'border-gray-300 dark:border-gray-500'">
+                              <svg v-if="form.tps_user_ids.includes(u.id)" class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          </div>
+                        </label>
+                        <p v-if="!filteredTpsUsers.length" class="text-center py-6 text-sm text-gray-400 dark:text-gray-500">
+                          {{ tpsSearch ? 'No TPS users match your search.' : 'No TPS users available.' }}
+                        </p>
+                      </div>
+                    </template>
                   </div>
                 </div>
               </div>
@@ -403,10 +425,12 @@ const drawerMode = ref('create'); // 'create' | 'edit' | 'show'
 const selectedGroup = ref(null);
 const tractorSearch = ref('');
 const tpsSearch = ref('');
+const allTpsCount = computed(() => props.tpsUsers?.length || 0);
+const hasAllTpsAssigned = (assignedUsers = []) => allTpsCount.value > 0 && assignedUsers.length === allTpsCount.value;
 
 const form = useForm({
   name: '', area: '', description: '', is_active: true,
-  tractor_ids: [], tps_user_ids: [],
+  tractor_ids: [], tps_user_ids: [], assign_all_tps: false,
 });
 
 const drawerTitle = computed(() => {
@@ -472,6 +496,7 @@ const openEditDrawer = (group) => {
   form.is_active = group.is_active;
   form.tractor_ids = group.tractors?.map(t => t.id) || [];
   form.tps_user_ids = group.tps_users?.map(u => u.id) || [];
+  form.assign_all_tps = hasAllTpsAssigned(group.tps_users || []);
   drawerOpen.value = true;
 };
 

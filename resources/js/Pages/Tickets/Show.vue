@@ -396,7 +396,14 @@ const addComment = () => {
   if (!commentForm.body.trim() && !selectedFile.value) return;
 
   const formData = new FormData();
+  const socketId = window.Echo?.socketId?.();
+  logTicketChat('posting comment', {
+    socketId,
+    hasBody: Boolean(commentForm.body.trim()),
+    hasAttachment: Boolean(selectedFile.value),
+  });
   formData.append('body', commentForm.body || '');
+  if (socketId) formData.append('socket_id', socketId);
   if (selectedFile.value) formData.append('attachment', selectedFile.value);
 
   router.post(`/tickets/${props.ticket.id}/comment`, formData, {
@@ -429,9 +436,14 @@ const sendTyping = () => {
   if (typingThrottle) return;
   if (!echoChannel) return;
   const user = page.props.auth?.user;
+  logTicketChat('sending typing whisper', {
+    userId: user?.id,
+    role: displayRole(user?.roles),
+  });
   echoChannel.whisper('typing', {
     name: user?.name || 'Someone',
     role: displayRole(user?.roles),
+    user_id: user?.id,
   });
   typingThrottle = setTimeout(() => { typingThrottle = null; }, 2000);
 };
@@ -458,13 +470,21 @@ const assignTicket = () => {
 
 // Real-time comments via Echo
 let echoChannel = null;
+const logTicketChat = (message, context = {}) => {
+  console.debug(`[ticket-chat:${props.ticket.id}] ${message}`, context);
+};
 
 onMounted(() => {
   scrollToBottom();
 
   if (window.Echo) {
+    logTicketChat('subscribing to realtime room');
     echoChannel = window.Echo.private(`ticket.${props.ticket.id}`);
     echoChannel.listen('TicketCommentAdded', (e) => {
+      logTicketChat('received comment event', {
+        commentId: e.comment?.id,
+        userId: e.comment?.user?.id,
+      });
       // Avoid duplicates
       if (!localComments.value.find(c => c.id === e.comment.id)) {
         localComments.value.push(e.comment);
@@ -472,8 +492,9 @@ onMounted(() => {
       }
     });
     echoChannel.listenForWhisper('typing', (e) => {
+      logTicketChat('received typing whisper', e);
       // Don't show typing indicator for own user
-      if (e.name === page.props.auth?.user?.name) return;
+      if (e.user_id && e.user_id === page.props.auth?.user?.id) return;
       typingUser.value = { name: e.name, role: e.role };
       clearTimeout(typingTimeout);
       typingTimeout = setTimeout(() => { typingUser.value = null; }, 3000);
@@ -484,6 +505,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (echoChannel) {
+    logTicketChat('leaving realtime room');
     echoChannel.stopListening('TicketCommentAdded');
     echoChannel.stopListeningForWhisper('typing');
     window.Echo?.leave(`ticket.${props.ticket.id}`);

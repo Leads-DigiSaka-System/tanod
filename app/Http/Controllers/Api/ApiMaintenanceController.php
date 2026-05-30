@@ -228,21 +228,6 @@ class ApiMaintenanceController extends Controller
      */
     private function accessibleTractorIds(\App\Models\User $user): array
     {
-        if ($user->hasAnyRole(['super-admin', 'sub-admin'])) {
-            return Tractor::pluck('id')->all();
-        }
-
-        if ($user->hasRole('tps')) {
-            return Tractor::whereHas('groups.users', fn ($q) => $q->where('users.id', $user->id))
-                ->pluck('id')->all();
-        }
-
-        if ($user->hasRole('fca')) {
-            return Tractor::whereHas('distributions', fn ($q) => $q->where('distributed_to', $user->id)
-                ->where('status', 'distributed'))
-                ->pluck('id')->all();
-        }
-
-        return [];
+        return $user->accessibleTractorIds();
     }
 }

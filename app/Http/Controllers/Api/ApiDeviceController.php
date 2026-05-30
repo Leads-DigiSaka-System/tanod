@@ -25,8 +25,9 @@ class ApiDeviceController extends Controller
         return DeviceResource::collection($devices);
     }
 
-    public function show(Device $device)
+    public function show(Request $request, Device $device)
     {
+        $device = $this->findAccessibleDevice($request->user(), $device->id);
         $device->load(['latestLocation', 'tractor']);
 
         return new DeviceResource($device);
@@ -45,6 +46,8 @@ class ApiDeviceController extends Controller
 
     public function locationHistory(Request $request, Device $device)
     {
+        $device = $this->findAccessibleDevice($request->user(), $device->id);
+
         $request->validate([
             'from' => 'required|date',
             'to' => 'required|date|after_or_equal:from',
@@ -71,7 +74,7 @@ class ApiDeviceController extends Controller
             'duration' => 'nullable|integer|min:1|max:72',
         ]);
 
-        $device = Device::with('tractor')->findOrFail($request->device_id);
+        $device = $this->findAccessibleDevice($request->user(), (int) $request->device_id);
         $duration = $request->input('duration', 1);
         $token = Str::random(48);
 
@@ -130,6 +133,8 @@ class ApiDeviceController extends Controller
      */
     public function followDevice(Request $request, Device $device, JimiDeviceService $deviceService)
     {
+        $device = $this->findAccessibleDevice($request->user(), $device->id);
+
         $locations = $deviceService->fetchLocationsRealtime();
         $live = $locations[$device->imei] ?? null;
 
@@ -170,7 +175,7 @@ class ApiDeviceController extends Controller
             'to' => 'nullable|date|required_if:period,custom',
         ]);
 
-        $device = Device::findOrFail($request->device_id);
+        $device = $this->findAccessibleDevice($request->user(), (int) $request->device_id);
 
         [$beginTime, $endTime] = $this->calculateDateRange(
             $request->period,
@@ -213,17 +218,23 @@ class ApiDeviceController extends Controller
             return;
         }
 
-        if ($user->hasRole('tps')) {
-            $query->whereHas('groups.users', fn (Builder $q) => $q->where('users.id', $user->id));
-        } elseif ($user->hasRole('fca')) {
-            $query->whereHas('distributions', fn (Builder $q) => $q->where('distributed_to', $user->id)
-                ->where('status', 'distributed'));
-        } elseif ($user->hasRole('farmer')) {
-            $query->whereHas('distributions', fn (Builder $q) => $q->where('distributed_to', $user->fca_id)
-                ->where('status', 'distributed'));
-        } else {
+        $tractorIds = $user->accessibleTractorIds();
+
+        if (empty($tractorIds)) {
             $query->whereRaw('0 = 1');
+
+            return;
         }
+
+        $query->whereIn('tractors.id', $tractorIds);
+    }
+
+    private function findAccessibleDevice(\App\Models\User $user, int $deviceId): Device
+    {
+        return Device::query()
+            ->whereKey($deviceId)
+            ->whereHas('tractor', fn (Builder $query) => $this->scopeByRole($query, $user))
+            ->firstOrFail();
     }
 
     private function calculateDateRange(string $period, ?string $from, ?string $to): array

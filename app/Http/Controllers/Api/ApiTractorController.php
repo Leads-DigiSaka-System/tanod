@@ -13,35 +13,29 @@ class ApiTractorController extends Controller
     {
         /** @var \App\Models\User $user */
         $user = $request->user();
+        $search = trim((string) $request->input('search', ''));
 
         $tractors = Tractor::with(['device.latestLocation', 'groups', 'assignee', 'images'])
             ->withSum('trackRecords', 'mileage')
             ->withSum('trackRecords', 'run_time_seconds')
-            ->when(! $user->hasAnyRole(['super-admin', 'sub-admin']), function ($q) use ($user) {
-                if ($user->hasRole('tps')) {
-                    $q->whereHas('groups.users', fn ($q) => $q->where('users.id', $user->id));
-                } elseif ($user->hasRole('fca')) {
-                    $q->whereHas('distributions', fn ($q) => $q->where('distributed_to', $user->id)
-                        ->where('status', 'distributed'));
-                } elseif ($user->hasRole('farmer')) {
-                    $q->whereHas('distributions', fn ($q) => $q->where('distributed_to', $user->fca_id)
-                        ->where('status', 'distributed'));
-                } else {
-                    $q->whereRaw('0 = 1');
-                }
+            ->when(! $user->hasAnyRole(['super-admin', 'sub-admin']), fn ($q) => $q->whereIn('tractors.id', $user->accessibleTractorIds()))
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($query) use ($search) {
+                    $query->where('no_plate', 'like', "%{$search}%")
+                        ->orWhere('imei', 'like', "%{$search}%")
+                        ->orWhereHas('assignee', fn ($assigneeQuery) => $assigneeQuery->where('name', 'like', "%{$search}%"));
+                });
             })
-            ->when($request->search, fn ($q, $s) => $q->where(function ($q) use ($s) {
-                $q->where('no_plate', 'like', "%{$s}%")
-                    ->orWhere('imei', 'like', "%{$s}%");
-            }))
             ->when($request->group_id, fn ($q, $g) => $q->whereHas('groups', fn ($q) => $q->where('tractor_groups.id', $g)))
             ->paginate($request->per_page ?? 15);
 
         return TractorResource::collection($tractors);
     }
 
-    public function show(Tractor $tractor)
+    public function show(Request $request, Tractor $tractor)
     {
+        abort_unless(in_array($tractor->id, $request->user()->accessibleTractorIds(), true), 403);
+
         $tractor->loadSum('trackRecords', 'mileage');
         $tractor->loadSum('trackRecords', 'run_time_seconds');
         $tractor->load([
