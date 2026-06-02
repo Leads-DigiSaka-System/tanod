@@ -52,10 +52,10 @@ class DashboardController extends Controller
         $offlineTractors = $tractorStatus['offlineTractors'];
         $inactiveTractors = $tractorStatus['inactiveTractors'];
 
-        // ── PMS (Preventive Maintenance) — single query, filter once ──
-        $allTractorsForMaintenance = Tractor::with(['device', 'maintenances' => fn ($q) => $q->where('status', 'completed')->latest('maintenance_date')])->get();
-        $maintenanceDueTractors = $allTractorsForMaintenance->filter(fn ($t) => $t->isMaintenanceDue());
-        $maintenanceDueCount = $maintenanceDueTractors->count();
+        // ── Tractor usage & PMS (report-style 100‑hr schedule) ──
+        $usage = $this->tractorUsageSummary();
+        $maintenanceDueCount = $usage['pmsDue'];
+        $maintenanceDueTractors = $usage['pmsDueList'];
 
         $maintenanceByStatus = Maintenance::select('status', DB::raw('count(*) as count'))
             ->groupBy('status')->pluck('count', 'status')->toArray();
@@ -136,6 +136,16 @@ class DashboardController extends Controller
                 'onlineTractors' => $onlineTractors,
                 'offlineTractors' => $offlineTractors,
                 'inactiveTractors' => $inactiveTractors,
+                'totalDistance' => $usage['totalDistance'],
+                'avgDistancePerTractor' => $usage['avgDistancePerTractor'],
+                'totalRunningHours' => $usage['totalRunningHours'],
+                'avgHoursPerTractor' => $usage['avgHoursPerTractor'],
+                'tractorsWithUsageData' => $usage['tractorsWithUsageData'],
+                'usageDataPercent' => $usage['usageDataPercent'],
+                'pmsDue' => $usage['pmsDue'],
+                'pmsOk' => $usage['pmsOk'],
+                'pmsNoData' => $usage['pmsNoData'],
+                'totalMaintenanceRecords' => $usage['totalMaintenanceRecords'],
                 'totalDevices' => $totalDevices,
                 'onlineDevices' => $onlineDevices,
                 'totalUsers' => User::count(),
@@ -153,6 +163,11 @@ class DashboardController extends Controller
                     'online' => $onlineTractors,
                     'offline' => $offlineTractors,
                     'inactive' => $inactiveTractors,
+                ],
+                'pmsBreakdown' => [
+                    'due' => $usage['pmsDue'],
+                    'ok' => $usage['pmsOk'],
+                    'noData' => $usage['pmsNoData'],
                 ],
                 'maintenanceByStatus' => $maintenanceByStatus,
                 'alertsByType' => $alertsByType,
@@ -211,6 +226,85 @@ class DashboardController extends Controller
             'offlineTractors' => max($activeTractorCount - $onlineTractors, 0),
             'inactiveTractors' => max($totalTractors - $activeTractorCount, 0),
             'onlineDevices' => $onlineDevices,
+        ];
+    }
+
+    /**
+     * Compute tractor usage metrics and PMS status using the same
+     * 100‑hour schedule logic as /reports/tractor-usage.
+     *
+     * @return array{totalDistance:float, avgDistancePerTractor:float,
+     *               totalRunningHours:float, avgHoursPerTractor:float,
+     *               tractorsWithUsageData:int, usageDataPercent:float,
+     *               pmsDue:int, pmsOk:int, pmsNoData:int,
+     *               totalMaintenanceRecords:int, pmsDueList:Collection}
+     */
+    private function tractorUsageSummary(): array
+    {
+        $tractors = Tractor::with(['maintenances' => fn ($q) => $q->where('status', 'completed')->latest('maintenance_date')])->get();
+
+        $totalDistance = 0;
+        $totalRunningHours = 0;
+        $tractorsWithUsageData = 0;
+        $pmsDue = 0;
+        $pmsOk = 0;
+        $pmsNoData = 0;
+        $pmsDueList = collect();
+
+        foreach ($tractors as $t) {
+            $distance = (float) ($t->total_distance ?? 0);
+            $hours = (float) ($t->running_hours ?? 0);
+
+            // Fallback: if implied speed > 40 km/h, estimate hours from distance
+            if ($distance > 0 && ($hours <= 0 || $distance / $hours > 40)) {
+                $hours = round($distance / 15, 2);
+            }
+
+            $totalDistance += $distance;
+            $totalRunningHours += $hours;
+
+            if ($distance > 0) {
+                $tractorsWithUsageData++;
+            }
+
+            // PMS schedule: every 100 hrs
+            $maintenancesDone = $t->maintenances->count();
+            $pmsCount = $hours > 0 ? (int) floor($hours / 100) : 0;
+
+            if ($hours == 0) {
+                $pmsStatus = 'no_data';
+                $pmsNoData++;
+            } elseif ($pmsCount > $maintenancesDone) {
+                $pmsStatus = 'due';
+                $pmsDue++;
+                $pmsDueList->push($t);
+            } else {
+                $nextPms = ($maintenancesDone + 1) * 100;
+                $hrsLeft = round($nextPms - $hours, 1);
+                $pmsStatus = $hrsLeft <= 0 ? 'due' : 'ok';
+                if ($hrsLeft <= 0) {
+                    $pmsDue++;
+                    $pmsDueList->push($t);
+                } else {
+                    $pmsOk++;
+                }
+            }
+        }
+
+        $totalTractors = $tractors->count();
+
+        return [
+            'totalDistance' => round($totalDistance, 2),
+            'avgDistancePerTractor' => $totalTractors > 0 ? round($totalDistance / $totalTractors, 2) : 0,
+            'totalRunningHours' => round($totalRunningHours, 2),
+            'avgHoursPerTractor' => $totalTractors > 0 ? round($totalRunningHours / $totalTractors, 2) : 0,
+            'tractorsWithUsageData' => $tractorsWithUsageData,
+            'usageDataPercent' => $totalTractors > 0 ? round(($tractorsWithUsageData / $totalTractors) * 100, 1) : 0,
+            'pmsDue' => $pmsDue,
+            'pmsOk' => $pmsOk,
+            'pmsNoData' => $pmsNoData,
+            'totalMaintenanceRecords' => Maintenance::count(),
+            'pmsDueList' => $pmsDueList,
         ];
     }
 

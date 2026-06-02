@@ -44,6 +44,8 @@ class DashboardLiveStatusTest extends TestCase
             'brand' => 'Kubota',
             'model' => 'L4708',
             'is_active' => true,
+            'total_distance' => 450.5,
+            'running_hours' => 110.0,
         ]);
 
         $offlineDevice = Device::create([
@@ -58,6 +60,8 @@ class DashboardLiveStatusTest extends TestCase
             'brand' => 'Kubota',
             'model' => 'L5018',
             'is_active' => true,
+            'total_distance' => 200.0,
+            'running_hours' => 55.0,
         ]);
 
         $inactiveDevice = Device::create([
@@ -99,8 +103,23 @@ class DashboardLiveStatusTest extends TestCase
                 ->where('stats.offlineTractors', 1)
                 ->where('stats.inactiveTractors', 1)
                 ->where('stats.onlineDevices', 1)
+                // Usage summary
+                ->where('stats.totalDistance', 650.5)
+                ->where('stats.avgDistancePerTractor', round(650.5 / 3, 2))
+                ->where('stats.totalRunningHours', 165)
+                ->where('stats.avgHoursPerTractor', 55)
+                ->where('stats.tractorsWithUsageData', 2)
+                ->where('stats.usageDataPercent', round((2 / 3) * 100, 1))
+                ->where('stats.pmsDue', 1)
+                ->where('stats.pmsOk', 1)
+                ->where('stats.pmsNoData', 1)
+                ->where('stats.totalMaintenanceRecords', 0)
+                // Charts
                 ->where('charts.tractorStatus.online', 1)
                 ->where('charts.tractorStatus.offline', 1)
-                ->where('charts.tractorStatus.inactive', 1));
+                ->where('charts.tractorStatus.inactive', 1)
+                ->where('charts.pmsBreakdown.due', 1)
+                ->where('charts.pmsBreakdown.ok', 1)
+                ->where('charts.pmsBreakdown.noData', 1));
     }
 }

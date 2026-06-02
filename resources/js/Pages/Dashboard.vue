@@ -3,135 +3,196 @@
     <Head title="Dashboard" />
 
     <!-- Page header -->
-    <div class="mb-6">
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Welcome back, {{ $page.props.auth?.user?.name }}. Here's your overview.</p>
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+        <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Welcome back, {{ $page.props.auth?.user?.name }} · {{ todayDate }}</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <Link href="/reports/tractor-usage" class="inline-flex items-center gap-1.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Reports
+        </Link>
+        <Link href="/live-view" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg>
+          Live View
+        </Link>
+      </div>
     </div>
 
     <!-- ═══════════ ADMIN / SUB-ADMIN DASHBOARD ═══════════ -->
     <template v-if="charts">
 
-      <!-- KPI Stat Cards – Row 1: Tractors -->
-      <div class="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5 dark:bg-gray-800 dark:border-gray-700">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Tractors</span>
-            <div class="bg-indigo-500 rounded-lg p-2"><svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 6h3l4 4v6h-2"/></svg></div>
+      <!-- KPI Row 1: Tractor Usage Summary (pill cards) -->
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5 mb-4">
+        <!-- Total Tractors -->
+        <div class="flex items-center gap-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 px-4 py-3.5 border border-indigo-200/60 dark:border-indigo-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10"/></svg>
           </div>
-          <h3 class="text-3xl font-bold text-gray-900 dark:text-white">{{ stats.totalTractors }}</h3>
-          <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">All registered tractors</p>
+          <div class="min-w-0">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Tractors</p>
+            <p class="text-xl font-bold text-gray-900 dark:text-white">{{ Number(stats.totalTractors).toLocaleString() }}</p>
+            <p class="text-[11px] font-medium mt-0.5"><span class="text-green-600 dark:text-green-400">{{ stats.onlineTractors }} online</span><span class="text-gray-300 dark:text-gray-600 mx-1.5">·</span><span class="text-red-500 dark:text-red-400">{{ stats.offlineTractors }} offline</span></p>
+          </div>
         </div>
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5 dark:bg-gray-800 dark:border-gray-700">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Online</span>
-            <div class="bg-green-500 rounded-lg p-2"><svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="6"/></svg></div>
+        <!-- Total Distance -->
+        <div class="flex items-center gap-3 rounded-2xl bg-blue-50 dark:bg-blue-950/30 px-4 py-3.5 border border-blue-200/60 dark:border-blue-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
           </div>
-          <h3 class="text-3xl font-bold text-green-600 dark:text-green-400">{{ stats.onlineTractors }}</h3>
-          <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Currently transmitting GPS</p>
+          <div class="min-w-0">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Distance</p>
+            <p class="text-xl font-bold text-gray-900 dark:text-white">{{ Number(stats.totalDistance || 0).toLocaleString(undefined, { maximumFractionDigits: 1 }) }} <span class="text-sm font-normal text-gray-400">km</span></p>
+            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Avg {{ Number(stats.avgDistancePerTractor || 0).toLocaleString(undefined, { maximumFractionDigits: 1 }) }} km / tractor</p>
+          </div>
         </div>
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5 dark:bg-gray-800 dark:border-gray-700">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Offline</span>
-            <div class="bg-red-500 rounded-lg p-2"><svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd"/></svg></div>
+        <!-- Running Hours -->
+        <div class="flex items-center gap-3 rounded-2xl bg-cyan-50 dark:bg-cyan-950/30 px-4 py-3.5 border border-cyan-200/60 dark:border-cyan-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyan-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2"/></svg>
           </div>
-          <h3 class="text-3xl font-bold text-red-600 dark:text-red-400">{{ stats.offlineTractors }}</h3>
-          <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Device offline / no signal</p>
+          <div class="min-w-0">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Running Hours</p>
+            <p class="text-xl font-bold text-gray-900 dark:text-white">{{ Number(stats.totalRunningHours || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) }} <span class="text-sm font-normal text-gray-400">hrs</span></p>
+            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Avg {{ Number(stats.avgHoursPerTractor || 0).toLocaleString(undefined, { maximumFractionDigits: 1 }) }} hrs / tractor</p>
+          </div>
         </div>
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-5 dark:bg-gray-800 dark:border-gray-700">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Inactive</span>
-            <div class="bg-gray-400 rounded-lg p-2"><svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg></div>
+        <!-- With Usage Data -->
+        <div class="flex items-center gap-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 px-4 py-3.5 border border-emerald-200/60 dark:border-emerald-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
           </div>
-          <h3 class="text-3xl font-bold text-gray-500 dark:text-gray-400">{{ stats.inactiveTractors }}</h3>
-          <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">No device / no location data</p>
+          <div class="min-w-0 flex-1">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">W/ Usage Data</p>
+            <p class="text-xl font-bold text-gray-900 dark:text-white">{{ Number(stats.tractorsWithUsageData || 0).toLocaleString() }} <span class="text-sm font-normal text-emerald-600 dark:text-emerald-400">{{ stats.usageDataPercent }}%</span></p>
+            <div class="mt-1 h-1 w-full rounded-full bg-emerald-200 dark:bg-emerald-800"><div class="h-1 rounded-full bg-emerald-500 transition-all duration-500" :style="{ width: stats.usageDataPercent + '%' }"></div></div>
+          </div>
+        </div>
+        <!-- PMS Due -->
+        <div class="flex items-center gap-3 rounded-2xl bg-orange-50 dark:bg-orange-950/30 px-4 py-3.5 border border-orange-200/60 dark:border-orange-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">PMS Due</p>
+            <p class="text-xl font-bold text-orange-600 dark:text-orange-400">{{ stats.pmsDue }}</p>
+            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">{{ Number(stats.totalMaintenanceRecords || 0).toLocaleString() }} maintenance records</p>
+          </div>
         </div>
       </div>
 
-      <!-- KPI Stat Cards – Row 2: Operations -->
-      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-7 mb-6">
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700">
-          <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total Machine Hours</span>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ Number(stats.totalMachineHours || 0).toLocaleString(undefined, { maximumFractionDigits: 1 }) }}</p>
-          <p class="text-xs text-indigo-600 dark:text-indigo-400"></p>
+      <!-- KPI Row 2: Operational Stats (pill cards) -->
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7 mb-6">
+        <div class="flex items-center gap-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 px-3.5 py-3 border border-indigo-200/60 dark:border-indigo-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
+          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2"/></svg>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Machine Hours</p>
+            <p class="text-lg font-bold text-gray-900 dark:text-white">{{ Number(stats.totalMachineHours || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }}</p>
+          </div>
         </div>
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700">
-          <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Devices</span>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ stats.totalDevices }}</p>
-          <p class="text-xs text-green-600 dark:text-green-400">{{ stats.onlineDevices }} online</p>
+        <div class="flex items-center gap-2.5 rounded-2xl bg-green-50 dark:bg-green-950/30 px-3.5 py-3 border border-green-200/60 dark:border-green-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
+          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 21h8M12 17v4"/></svg>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Devices</p>
+            <p class="text-lg font-bold text-gray-900 dark:text-white">{{ stats.totalDevices }} <span class="text-xs font-medium text-green-600 dark:text-green-400">{{ stats.onlineDevices }} on</span></p>
+          </div>
         </div>
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700">
-          <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Users</span>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ stats.totalUsers }}</p>
+        <div class="flex items-center gap-2.5 rounded-2xl bg-violet-50 dark:bg-violet-950/30 px-3.5 py-3 border border-violet-200/60 dark:border-violet-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
+          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Users</p>
+            <p class="text-lg font-bold text-gray-900 dark:text-white">{{ Number(stats.totalUsers).toLocaleString() }}</p>
+          </div>
         </div>
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700">
-          <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Pending Bookings</span>
-          <p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mt-1">{{ stats.pendingBookings }}</p>
+        <div class="flex items-center gap-2.5 rounded-2xl bg-yellow-50 dark:bg-yellow-950/30 px-3.5 py-3 border border-yellow-200/60 dark:border-yellow-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
+          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Bookings</p>
+            <p class="text-lg font-bold text-yellow-600 dark:text-yellow-400">{{ stats.pendingBookings }}</p>
+          </div>
         </div>
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700">
-          <span class="text-xs font-medium text-gray-500 dark:text-gray-400">PMS Due</span>
-          <p class="text-2xl font-bold text-orange-600 dark:text-orange-400 mt-1">{{ stats.maintenanceDue }}</p>
+        <div class="flex items-center gap-2.5 rounded-2xl bg-orange-50 dark:bg-orange-950/30 px-3.5 py-3 border border-orange-200/60 dark:border-orange-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
+          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">PMS</p>
+            <p class="text-lg font-bold text-gray-900 dark:text-white">{{ stats.pmsDue }} <span class="text-[10px] font-medium text-gray-400 dark:text-gray-500"><span class="text-orange-500">due</span> · {{ stats.pmsOk }} ok</span></p>
+          </div>
         </div>
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700">
-          <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Alerts</span>
-          <p class="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">{{ stats.unacknowledgedAlerts }}</p>
-          <p class="text-xs text-gray-400 dark:text-gray-500">of {{ stats.totalAlerts }} total</p>
+        <div class="flex items-center gap-2.5 rounded-2xl bg-red-50 dark:bg-red-950/30 px-3.5 py-3 border border-red-200/60 dark:border-red-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
+          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
+            <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Alerts</p>
+            <p class="text-lg font-bold text-red-600 dark:text-red-400">{{ stats.unacknowledgedAlerts }} <span class="text-[10px] font-medium text-gray-400 dark:text-gray-500">/ {{ stats.totalAlerts }}</span></p>
+          </div>
         </div>
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700">
-          <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Geo-Fences</span>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ stats.totalGeoFences }}</p>
-          <p class="text-xs text-green-600 dark:text-green-400">{{ stats.activeGeoFences }} active</p>
+        <div class="flex items-center gap-2.5 rounded-2xl bg-sky-50 dark:bg-sky-950/30 px-3.5 py-3 border border-sky-200/60 dark:border-sky-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
+          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Geo-Fences</p>
+            <p class="text-lg font-bold text-gray-900 dark:text-white">{{ stats.totalGeoFences }} <span class="text-[10px] font-medium text-green-600 dark:text-green-400">{{ stats.activeGeoFences }} active</span></p>
+          </div>
         </div>
       </div>
 
-      <!-- Charts Row 1: Tractor Status Donut + Alerts Trend Line -->
+      <!-- Charts Row 1: Tractor Status Donut + Alerts Trend -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 mb-6">
-        <!-- Tractor Status Donut -->
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 dark:bg-gray-800 dark:border-gray-700">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Tractor Status</h3>
+        <div class="rounded-2xl bg-white dark:bg-gray-800 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Tractor Status</h3>
+            <span class="text-xs text-gray-400 dark:text-gray-500">{{ stats.totalTractors }} total</span>
+          </div>
           <apexchart type="donut" height="280" :options="tractorDonutOptions" :series="tractorDonutSeries" />
         </div>
-
-        <!-- Alerts Trend (7 days) -->
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 dark:bg-gray-800 dark:border-gray-700">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Alerts &mdash; Last 7 Days</h3>
+        <div class="rounded-2xl bg-white dark:bg-gray-800 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Alerts — Last 7 Days</h3>
+            <span class="text-xs text-red-500 font-medium">{{ charts.alertsTrend?.reduce((s, d) => s + d.count, 0) || 0 }} total</span>
+          </div>
           <apexchart type="area" height="280" :options="alertsTrendOptions" :series="alertsTrendSeries" />
         </div>
       </div>
 
-      <!-- Charts Row 2: Bookings Status Bar + Bookings Trend -->
+      <!-- Charts Row 2: Bookings Bar + Bookings Trend -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 mb-6">
-        <!-- Bookings by Status -->
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 dark:bg-gray-800 dark:border-gray-700">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Bookings by Status</h3>
+        <div class="rounded-2xl bg-white dark:bg-gray-800 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
+          <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Bookings by Status</h3>
           <apexchart type="bar" height="280" :options="bookingBarOptions" :series="bookingBarSeries" />
         </div>
-
-        <!-- Bookings Trend (7 days) -->
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 dark:bg-gray-800 dark:border-gray-700">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Bookings &mdash; Last 7 Days</h3>
+        <div class="rounded-2xl bg-white dark:bg-gray-800 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
+          <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Bookings — Last 7 Days</h3>
           <apexchart type="line" height="280" :options="bookingsTrendOptions" :series="bookingsTrendSeries" />
         </div>
       </div>
 
-      <!-- Charts Row 3: Maintenance Status + Alerts by Type + Tractors by Group -->
+      <!-- Charts Row 3: PMS Breakdown + Alerts by Type + Tractors by Group -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 mb-6">
-        <!-- PMS by Status -->
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 dark:bg-gray-800 dark:border-gray-700">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">PMS by Status</h3>
-          <apexchart v-if="maintenancePieSeries.length" type="pie" height="260" :options="maintenancePieOptions" :series="maintenancePieSeries" />
-          <div v-else class="flex items-center justify-center h-48 text-sm text-gray-400 dark:text-gray-500">No maintenance data</div>
+        <div class="rounded-2xl bg-white dark:bg-gray-800 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
+          <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-4">PMS Schedule</h3>
+          <apexchart v-if="pmsBreakdownTotal" type="donut" height="260" :options="pmsBreakdownOptions" :series="pmsBreakdownSeries" />
+          <div v-else class="flex items-center justify-center h-48 text-sm text-gray-400 dark:text-gray-500">No usage data available</div>
         </div>
-
-        <!-- Alerts by Type -->
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 dark:bg-gray-800 dark:border-gray-700">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Alerts by Type</h3>
+        <div class="rounded-2xl bg-white dark:bg-gray-800 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
+          <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Alerts by Type</h3>
           <apexchart v-if="alertTypePieSeries.length" type="pie" height="260" :options="alertTypePieOptions" :series="alertTypePieSeries" />
           <div v-else class="flex items-center justify-center h-48 text-sm text-gray-400 dark:text-gray-500">No alert data</div>
         </div>
-
-        <!-- Tractors by Group -->
-        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 dark:bg-gray-800 dark:border-gray-700">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Tractors by Group</h3>
+        <div class="rounded-2xl bg-white dark:bg-gray-800 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
+          <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Tractors by Group</h3>
           <apexchart v-if="charts.tractorsByGroup?.length" type="bar" height="260" :options="groupBarOptions" :series="groupBarSeries" />
           <div v-else class="flex items-center justify-center h-48 text-sm text-gray-400 dark:text-gray-500">No group data</div>
         </div>
@@ -140,61 +201,63 @@
       <!-- Data Tables Row -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <!-- Recent Alerts -->
-        <div v-if="recentAlerts?.length" class="bg-white rounded-lg border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <div class="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+        <div v-if="recentAlerts?.length" class="rounded-2xl bg-white dark:bg-gray-800 overflow-hidden border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
+          <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700 bg-red-50/50 dark:bg-red-950/20">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-red-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]"></span>
               Unacknowledged Alerts
             </h3>
-            <Link href="/alerts" class="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">View all</Link>
+            <Link href="/alerts" class="text-xs font-semibold text-red-600 hover:text-red-500 dark:text-red-400 transition-colors">View all →</Link>
           </div>
-          <div class="p-5 space-y-3">
-            <div v-for="alert in recentAlerts" :key="alert.id" class="flex items-start gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/20">
-              <svg class="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+          <div class="p-4 space-y-2">
+            <div v-for="alert in recentAlerts" :key="alert.id" class="flex items-start gap-3 p-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer">
+              <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/40">
+                <svg class="h-4 w-4 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+              </div>
               <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-red-800 dark:text-red-400 truncate">{{ alert.title }}</p>
-                <p class="text-xs text-red-600 dark:text-red-500">{{ alert.device?.device_name || alert.tractor?.no_plate }} &mdash; {{ timeAgo(alert.created_at) }}</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ alert.title }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ alert.device?.device_name || alert.tractor?.no_plate }} · {{ timeAgo(alert.created_at) }}</p>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Recent Bookings -->
-        <div v-if="recentBookings?.length" class="bg-white rounded-lg border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <div class="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <svg class="w-5 h-5 text-indigo-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+        <div v-if="recentBookings?.length" class="rounded-2xl bg-white dark:bg-gray-800 overflow-hidden border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
+          <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700 bg-indigo-50/50 dark:bg-indigo-950/20">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-indigo-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]"></span>
               Recent Bookings
             </h3>
-            <Link href="/bookings" class="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">View all</Link>
+            <Link href="/bookings" class="text-xs font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 transition-colors">View all →</Link>
           </div>
-          <div class="p-5 space-y-3">
-            <div v-for="booking in recentBookings" :key="booking.id" class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+          <div class="p-4 space-y-2">
+            <div v-for="booking in recentBookings" :key="booking.id" class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer">
               <div>
                 <p class="text-sm font-medium text-gray-900 dark:text-white">{{ booking.tractor?.no_plate }}</p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">{{ booking.booked_by?.name }} &mdash; {{ booking.booking_date }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ booking.booked_by?.name }} · {{ booking.booking_date }}</p>
               </div>
               <StatusBadge :status="booking.status" />
             </div>
           </div>
         </div>
 
-        <!-- Maintenance Due -->
-        <div v-if="maintenanceDueList?.length" class="bg-white rounded-lg border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <div class="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
-              PMS Due
+        <!-- PMS Due List -->
+        <div v-if="maintenanceDueList?.length" class="rounded-2xl bg-white dark:bg-gray-800 overflow-hidden border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] lg:col-span-2">
+          <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700 bg-orange-50/50 dark:bg-orange-950/20">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-orange-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]"></span>
+              PMS Due — {{ maintenanceDueList.length }} tractors
             </h3>
-            <Link href="/maintenance" class="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">View all</Link>
+            <Link href="/maintenance" class="text-xs font-semibold text-orange-600 hover:text-orange-500 dark:text-orange-400 transition-colors">View all →</Link>
           </div>
-          <div class="p-5 space-y-3">
-            <div v-for="tractor in maintenanceDueList" :key="tractor.id" class="flex items-center justify-between p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+          <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div v-for="tractor in maintenanceDueList" :key="tractor.id" class="flex items-center justify-between p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors cursor-pointer">
               <div>
-                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ tractor.no_plate }}</p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">{{ tractor.brand }} {{ tractor.model }} &mdash; {{ tractor.total_distance?.toLocaleString() }} km</p>
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ tractor.no_plate }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ tractor.brand }} {{ tractor.model }} · {{ Number(tractor.total_distance || 0).toLocaleString() }} km</p>
               </div>
-              <span class="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded-full dark:bg-orange-900 dark:text-orange-300">Due</span>
+              <span class="inline-flex items-center rounded-full bg-orange-200 dark:bg-orange-800 px-2.5 py-0.5 text-xs font-semibold text-orange-800 dark:text-orange-200">Due</span>
             </div>
           </div>
         </div>
@@ -304,6 +367,7 @@ const props = defineProps({
 });
 
 // ── Helper ──
+const todayDate = computed(() => new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }));
 const timeAgo = (dateStr) => {
   if (!dateStr) return '';
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -345,15 +409,16 @@ const alertsTrendSeries = computed(() => [{
   data: (props.charts?.alertsTrend || []).map(d => d.count),
 }]);
 const alertsTrendOptions = computed(() => ({
-  chart: { type: 'area', foreColor: chartForeColor, toolbar: { show: false }, sparkline: { enabled: false } },
-  xaxis: { categories: (props.charts?.alertsTrend || []).map(d => d.date) },
-  yaxis: { min: 0, forceNiceScale: true },
+  chart: { type: 'area', foreColor: chartForeColor, toolbar: { show: false }, sparkline: { enabled: false }, fontFamily: 'inherit' },
+  xaxis: { categories: (props.charts?.alertsTrend || []).map(d => d.date), labels: { style: { fontSize: '11px' } } },
+  yaxis: { min: 0, forceNiceScale: true, labels: { style: { fontSize: '11px' } } },
   colors: ['#ef4444'],
-  fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 100] } },
-  stroke: { curve: 'smooth', width: 2 },
+  fill: { type: 'gradient', gradient: { shade: 'dark', type: 'vertical', shadeIntensity: 0.4, gradientToColors: ['#f87171'], inverseColors: false, opacityFrom: 0.5, opacityTo: 0.05, stops: [0, 100] } },
+  stroke: { curve: 'smooth', width: 2.5 },
   dataLabels: { enabled: false },
-  grid: { borderColor: '#374151', strokeDashArray: 4 },
-  tooltip: { theme: 'dark' },
+  grid: { borderColor: '#e5e7eb', strokeDashArray: 4, padding: { left: 0, right: 0 } },
+  tooltip: { theme: 'light', fillSeriesColor: false, marker: { show: true } },
+  markers: { size: 0, strokeWidth: 0, hover: { size: 5 } },
 }));
 
 // ── Bookings by Status (Bar) ──
@@ -367,15 +432,15 @@ const bookingBarOptions = computed(() => {
   const labels = Object.keys(bs).map(k => k.replace(/_/g, ' '));
   const colors = Object.keys(bs).map(k => bookingStatusColors[k] || '#6366f1');
   return {
-    chart: { type: 'bar', foreColor: chartForeColor, toolbar: { show: false } },
-    plotOptions: { bar: { borderRadius: 4, horizontal: false, distributed: true, columnWidth: '55%' } },
-    xaxis: { categories: labels },
-    yaxis: { min: 0, forceNiceScale: true },
+    chart: { type: 'bar', foreColor: chartForeColor, toolbar: { show: false }, fontFamily: 'inherit' },
+    plotOptions: { bar: { borderRadius: 6, horizontal: false, distributed: true, columnWidth: '55%' } },
+    xaxis: { categories: labels, labels: { style: { fontSize: '11px' } } },
+    yaxis: { min: 0, forceNiceScale: true, labels: { style: { fontSize: '11px' } } },
     colors: colors,
     legend: { show: false },
-    dataLabels: { enabled: true, style: { fontSize: '12px', fontWeight: 700 } },
-    grid: { borderColor: '#374151', strokeDashArray: 4 },
-    tooltip: { theme: 'dark' },
+    dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 600 } },
+    grid: { borderColor: '#e5e7eb', strokeDashArray: 4, padding: { left: 0, right: 0 } },
+    tooltip: { theme: 'light' },
   };
 });
 
@@ -385,15 +450,32 @@ const bookingsTrendSeries = computed(() => [{
   data: (props.charts?.bookingsTrend || []).map(d => d.count),
 }]);
 const bookingsTrendOptions = computed(() => ({
-  chart: { type: 'line', foreColor: chartForeColor, toolbar: { show: false } },
-  xaxis: { categories: (props.charts?.bookingsTrend || []).map(d => d.date) },
-  yaxis: { min: 0, forceNiceScale: true },
+  chart: { type: 'line', foreColor: chartForeColor, toolbar: { show: false }, fontFamily: 'inherit' },
+  xaxis: { categories: (props.charts?.bookingsTrend || []).map(d => d.date), labels: { style: { fontSize: '11px' } } },
+  yaxis: { min: 0, forceNiceScale: true, labels: { style: { fontSize: '11px' } } },
   colors: ['#6366f1'],
   stroke: { curve: 'smooth', width: 3 },
-  markers: { size: 4, colors: ['#6366f1'], strokeColors: '#fff', strokeWidth: 2 },
+  fill: { type: 'gradient', gradient: { shade: 'dark', type: 'vertical', gradientToColors: ['#818cf8'], opacityFrom: 0.2, opacityTo: 0, stops: [0, 100] } },
+  markers: { size: 5, colors: ['#6366f1'], strokeColors: '#fff', strokeWidth: 2, hover: { size: 7 } },
   dataLabels: { enabled: false },
-  grid: { borderColor: '#374151', strokeDashArray: 4 },
-  tooltip: { theme: 'dark' },
+  grid: { borderColor: '#e5e7eb', strokeDashArray: 4, padding: { left: 0, right: 0 } },
+  tooltip: { theme: 'light', fillSeriesColor: false },
+}));
+
+// ── PMS Breakdown (100‑hr schedule — due / ok / no data) ──
+const pmsBreakdownTotal = computed(() => (props.charts?.pmsBreakdown?.due || 0) + (props.charts?.pmsBreakdown?.ok || 0) + (props.charts?.pmsBreakdown?.noData || 0));
+const pmsBreakdownSeries = computed(() => {
+  const b = props.charts?.pmsBreakdown || {};
+  return [b.due || 0, b.ok || 0, b.noData || 0];
+});
+const pmsBreakdownOptions = computed(() => ({
+  chart: { type: 'donut', foreColor: chartForeColor },
+  labels: ['Due', 'OK', 'No Data'],
+  colors: ['#f97316', '#10b981', '#9ca3af'],
+  plotOptions: { pie: { donut: { size: '60%', labels: { show: true, name: { show: true }, value: { show: true, fontSize: '18px', fontWeight: 700 }, total: { show: true, label: 'Tractors', fontSize: '13px' } } } } },
+  legend: { position: 'bottom', labels: { colors: chartForeColor } },
+  stroke: { width: 0 },
+  dataLabels: { enabled: false },
 }));
 
 // ── PMS by Status (Pie) ──
@@ -431,13 +513,13 @@ const groupBarSeries = computed(() => [{
   data: (props.charts?.tractorsByGroup || []).map(g => g.count),
 }]);
 const groupBarOptions = computed(() => ({
-  chart: { type: 'bar', foreColor: chartForeColor, toolbar: { show: false } },
-  plotOptions: { bar: { borderRadius: 4, horizontal: true } },
-  xaxis: { categories: (props.charts?.tractorsByGroup || []).map(g => g.name.length > 18 ? g.name.substring(0, 18) + '...' : g.name) },
-  yaxis: { labels: { style: { fontSize: '11px' } } },
-  colors: ['#6366f1'],
-  dataLabels: { enabled: true, style: { fontSize: '11px' } },
-  grid: { borderColor: '#374151', strokeDashArray: 4 },
-  tooltip: { theme: 'dark' },
+  chart: { type: 'bar', foreColor: chartForeColor, toolbar: { show: false }, fontFamily: 'inherit' },
+  plotOptions: { bar: { borderRadius: 4, horizontal: true, barHeight: '70%' } },
+  xaxis: { categories: (props.charts?.tractorsByGroup || []).map(g => g.name.length > 18 ? g.name.substring(0, 18) + '...' : g.name), labels: { style: { fontSize: '10px' } } },
+  yaxis: { labels: { style: { fontSize: '10px' } } },
+  colors: ['#818cf8'],
+  dataLabels: { enabled: true, style: { fontSize: '10px', fontWeight: 600 } },
+  grid: { borderColor: '#e5e7eb', strokeDashArray: 4 },
+  tooltip: { theme: 'light' },
 }));
 </script>
