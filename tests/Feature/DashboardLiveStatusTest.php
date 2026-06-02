@@ -122,4 +122,75 @@ class DashboardLiveStatusTest extends TestCase
                 ->where('charts.pmsBreakdown.ok', 1)
                 ->where('charts.pmsBreakdown.noData', 1));
     }
+
+    #[Test]
+    public function jimi_status_field_overrides_heartbeat_threshold(): void
+    {
+        Role::findOrCreate('super-admin');
+
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole('super-admin');
+
+        // Device A: recent heartbeat (2 min) but JIMI says offline (status=0)
+        $deviceA = Device::create([
+            'imei' => '869066063771910',
+            'device_name' => 'JIMI-OFFLINE',
+            'is_active' => true,
+        ]);
+        Tractor::create([
+            'device_id' => $deviceA->id,
+            'imei' => $deviceA->imei,
+            'no_plate' => 'JIMI-OFFLINE',
+            'brand' => 'Kubota',
+            'model' => 'Test',
+            'is_active' => true,
+        ]);
+
+        // Device B: stale heartbeat (15 min) but JIMI says online (status=1)
+        $deviceB = Device::create([
+            'imei' => '869066063771911',
+            'device_name' => 'JIMI-ONLINE',
+            'is_active' => true,
+        ]);
+        Tractor::create([
+            'device_id' => $deviceB->id,
+            'imei' => $deviceB->imei,
+            'no_plate' => 'JIMI-ONLINE',
+            'brand' => 'Kubota',
+            'model' => 'Test',
+            'is_active' => true,
+        ]);
+
+        $this->mock(JimiDeviceService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('fetchLiveLocations')
+                ->once()
+                ->andReturn([
+                    '869066063771910' => [
+                        'hbTime' => now()->utc()->subMinutes(2)->toIso8601String(),
+                        'speed' => 0,
+                        'status' => 0, // JIMI says offline despite recent heartbeat
+                    ],
+                    '869066063771911' => [
+                        'hbTime' => now()->utc()->subMinutes(15)->toIso8601String(),
+                        'speed' => 5,
+                        'status' => 1, // JIMI says online despite stale heartbeat
+                    ],
+                ]);
+        });
+
+        $response = $this->actingAs($admin)->get(route('dashboard', [], false));
+
+        $response->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Dashboard')
+                // Device A: JIMI status=0 → offline (despite 2-min heartbeat)
+                // Device B: JIMI status=1 → online (despite 15-min heartbeat)
+                ->where('stats.onlineTractors', 1)
+                ->where('stats.offlineTractors', 1)
+                ->where('stats.inactiveTractors', 0)
+                ->where('stats.onlineDevices', 1)
+                ->where('charts.tractorStatus.online', 1)
+                ->where('charts.tractorStatus.offline', 1)
+                ->where('charts.tractorStatus.inactive', 0));
+    }
 }

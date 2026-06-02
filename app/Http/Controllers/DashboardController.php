@@ -313,6 +313,16 @@ class DashboardController extends Controller
      */
     private function isLiveLocationOnline(?array $apiData): bool
     {
+        if (! $apiData) {
+            return false;
+        }
+
+        // Prefer JIMI's own online/offline determination (status=1 → online).
+        // Fall back to heartbeat-age threshold only when status is missing.
+        if (array_key_exists('status', $apiData)) {
+            return (int) $apiData['status'] === 1;
+        }
+
         $heartbeatAt = $this->parseHeartbeat($apiData['hbTime'] ?? null);
 
         if (! $heartbeatAt) {

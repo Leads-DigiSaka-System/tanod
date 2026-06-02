@@ -315,7 +315,16 @@ class LiveViewController extends Controller
             $gpsNum = (int) ($apiData['gpsNum'] ?? 0);
             $mileage = $apiData['mileage'] ?? null;
 
-            if ($minutesAgo <= $this->onlineThresholdMinutes()) {
+            // Prefer JIMI's own online/offline determination (status=1 → online).
+            // Fall back to heartbeat-age threshold only when the status field
+            // is missing from the API response, which can happen with older devices.
+            $jimiStatus = array_key_exists('status', $apiData) ? (int) $apiData['status'] : null;
+
+            if ($jimiStatus === 1) {
+                $status = $speed > 0 ? 'moving' : 'idle';
+            } elseif ($jimiStatus === 0) {
+                $status = 'offline';
+            } elseif ($minutesAgo <= $this->onlineThresholdMinutes()) {
                 $status = $speed > 0 ? 'moving' : 'idle';
             }
         }
