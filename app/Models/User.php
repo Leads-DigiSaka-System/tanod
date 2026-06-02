@@ -64,6 +64,11 @@ class User extends Authenticatable
         return $this->hasMany(User::class, 'fca_id');
     }
 
+    public function fcaProfile()
+    {
+        return $this->hasOne(UserFca::class);
+    }
+
     public function groups()
     {
         return $this->belongsToMany(TractorGroup::class, 'group_user', 'user_id', 'tractor_group_id')

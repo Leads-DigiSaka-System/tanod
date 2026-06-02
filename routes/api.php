@@ -245,6 +245,16 @@ Route::prefix('v1')->group(function () {
             Route::post('tickets/{ticket}/request-assistance', [ApiTpsController::class, 'requestAssistance']);
             Route::get('maintenances', [ApiTpsController::class, 'maintenances']);
             Route::get('feedbacks', [ApiTpsController::class, 'feedbacks']);
+            Route::get('users', [ApiTpsController::class, 'users']);
+            Route::get('fca-locations/provinces', [ApiTpsController::class, 'fcaLocationProvinces']);
+            Route::get('fca-locations/cities', [ApiTpsController::class, 'fcaLocationCities']);
+            Route::get('fca-locations/barangays', [ApiTpsController::class, 'fcaLocationBarangays']);
+            Route::post('fca-drafts', [ApiTpsController::class, 'storeFcaDraft']);
+            Route::delete('fca-drafts/{draft}', [ApiTpsController::class, 'destroyFcaDraft']);
+            Route::get('fcas', [ApiTpsController::class, 'fcas']);
+            Route::get('fcas/{fca}', [ApiTpsController::class, 'showFca']);
+            Route::post('fcas', [ApiTpsController::class, 'storeFca']);
+            Route::put('fcas/{fca}', [ApiTpsController::class, 'updateFca']);
             Route::get('tractors', [ApiTpsController::class, 'tractors']);
             Route::get('distributions', [ApiTpsController::class, 'distributions']);
             Route::get('distributions/form-data', [ApiTpsController::class, 'distributionFormData']);
