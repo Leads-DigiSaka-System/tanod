@@ -31,4 +31,10 @@ return [
     // Minutes since the last heartbeat before a device is treated as offline
     // (fallback only — JIMI API 'status' field takes priority when available)
     'online_threshold_minutes' => env('JIMI_ONLINE_THRESHOLD_MINUTES', 8),
+
+    // Coordinate system for location data:
+    //   GOOGLE — WGS-84 coordinates (standard GPS, default)
+    //   GCJ02  — Chinese offset coords (try if devices show ~300m shift;
+    //            use with the GPS Correction toggle on /live-view)
+    'map_type' => env('JIMI_MAP_TYPE', 'GOOGLE'),
 ];

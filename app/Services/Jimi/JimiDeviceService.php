@@ -123,7 +123,7 @@ class JimiDeviceService
     {
         $response = $this->auth->call('jimi.user.device.location.list', [
             'target' => config('jimi.user_id'),
-            'map_type' => 'GOOGLE',
+            'map_type' => config('jimi.map_type', 'WGS84'),
         ]);
 
         if (((int) ($response['code'] ?? -1)) !== 0) {
@@ -153,7 +153,7 @@ class JimiDeviceService
     {
         $response = $this->auth->call('jimi.user.device.location.list', [
             'target' => config('jimi.user_id'),
-            'map_type' => 'GOOGLE',
+            'map_type' => config('jimi.map_type', 'WGS84'),
         ]);
 
         if (((int) ($response['code'] ?? -1)) !== 0) {
@@ -207,7 +207,7 @@ class JimiDeviceService
     {
         $response = $this->auth->call('jimi.device.location.get', [
             'imei' => $imei,
-            'map_type' => 'GOOGLE',
+            'map_type' => config('jimi.map_type', 'WGS84'),
         ]);
 
         if (((int) ($response['code'] ?? -1)) !== 0) {

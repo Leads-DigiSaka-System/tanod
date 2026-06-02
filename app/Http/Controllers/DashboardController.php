@@ -47,7 +47,8 @@ class DashboardController extends Controller
     {
         // ── Tractor status breakdown ──
         $totalTractors = Tractor::count();
-        $tractorStatus = $this->liveTractorStatusSummary($totalTractors);
+        $liveLocations = $this->jimiDeviceService->fetchLiveLocations();
+        $tractorStatus = $this->liveTractorStatusSummary($totalTractors, $liveLocations);
         $onlineTractors = $tractorStatus['onlineTractors'];
         $offlineTractors = $tractorStatus['offlineTractors'];
         $inactiveTractors = $tractorStatus['inactiveTractors'];
@@ -130,6 +131,9 @@ class DashboardController extends Controller
         // ── Machine hours: use cached value only, never block the page load ──
         $totalMachineHours = (float) \Illuminate\Support\Facades\Cache::get('jimi_total_machine_hours', 0);
 
+        // ── Offline breakdown by duration ──
+        $offlineBreakdown = $this->offlineBreakdown($liveLocations);
+
         return [
             'stats' => [
                 'totalTractors' => $totalTractors,
@@ -157,12 +161,24 @@ class DashboardController extends Controller
                 'activeGeoFences' => $activeGeoFences,
                 'totalFeedback' => $totalFeedback,
                 'totalMachineHours' => $totalMachineHours,
+                'offlineLessThanDay' => $offlineBreakdown['lessThanDay'],
+                'offline1to7Days' => $offlineBreakdown['oneToSevenDays'],
+                'offline7to30Days' => $offlineBreakdown['sevenToThirtyDays'],
+                'offline30to100Days' => $offlineBreakdown['thirtyToHundredDays'],
+                'offlineMoreThan100Days' => $offlineBreakdown['moreThanHundredDays'],
             ],
             'charts' => [
                 'tractorStatus' => [
                     'online' => $onlineTractors,
                     'offline' => $offlineTractors,
                     'inactive' => $inactiveTractors,
+                ],
+                'offlineBreakdown' => [
+                    'lessThanDay' => $offlineBreakdown['lessThanDay'],
+                    'oneToSevenDays' => $offlineBreakdown['oneToSevenDays'],
+                    'sevenToThirtyDays' => $offlineBreakdown['sevenToThirtyDays'],
+                    'thirtyToHundredDays' => $offlineBreakdown['thirtyToHundredDays'],
+                    'moreThanHundredDays' => $offlineBreakdown['moreThanHundredDays'],
                 ],
                 'pmsBreakdown' => [
                     'due' => $usage['pmsDue'],
@@ -192,7 +208,7 @@ class DashboardController extends Controller
     /**
      * @return array{onlineTractors:int, offlineTractors:int, inactiveTractors:int, onlineDevices:int}
      */
-    private function liveTractorStatusSummary(int $totalTractors): array
+    private function liveTractorStatusSummary(int $totalTractors, array $liveLocations): array
     {
         $activeDevices = Device::query()
             ->select(['id', 'imei'])
@@ -200,7 +216,6 @@ class DashboardController extends Controller
             ->where('is_active', true)
             ->get();
 
-        $liveLocations = $this->jimiDeviceService->fetchLiveLocations();
         $activeTractorCount = 0;
         $onlineTractors = 0;
         $onlineDevices = 0;
@@ -306,6 +321,66 @@ class DashboardController extends Controller
             'totalMaintenanceRecords' => Maintenance::count(),
             'pmsDueList' => $pmsDueList,
         ];
+    }
+
+    /**
+     * Categorize offline tractors by how long since their last heartbeat.
+     *
+     * @return array{lessThanDay:int, oneToSevenDays:int,
+     *               sevenToThirtyDays:int, thirtyToHundredDays:int,
+     *               moreThanHundredDays:int}
+     */
+    private function offlineBreakdown(array $liveLocations): array
+    {
+        $result = [
+            'lessThanDay' => 0,
+            'oneToSevenDays' => 0,
+            'sevenToThirtyDays' => 0,
+            'thirtyToHundredDays' => 0,
+            'moreThanHundredDays' => 0,
+        ];
+
+        $activeDevices = Device::query()
+            ->select(['id', 'imei'])
+            ->with(['tractor:id,device_id', 'latestLocation'])
+            ->where('is_active', true)
+            ->get();
+
+        foreach ($activeDevices as $device) {
+            if (! $device->tractor) {
+                continue;
+            }
+
+            // Already counted as online? Skip.
+            if ($this->isLiveLocationOnline($liveLocations[$device->imei] ?? null)) {
+                continue;
+            }
+
+            $heartbeatAt = $device->latestLocation?->heartbeat_at;
+
+            if (! $heartbeatAt) {
+                // No heartbeat ever recorded — treat as long-term offline (>100 days)
+                $result['moreThanHundredDays']++;
+
+                continue;
+            }
+
+            $daysAgo = (int) $heartbeatAt->diffInDays(now()->utc());
+
+            if ($daysAgo < 1) {
+                $result['lessThanDay']++;
+            } elseif ($daysAgo < 7) {
+                $result['oneToSevenDays']++;
+            } elseif ($daysAgo < 30) {
+                $result['sevenToThirtyDays']++;
+            } elseif ($daysAgo < 100) {
+                $result['thirtyToHundredDays']++;
+            } else {
+                $result['moreThanHundredDays']++;
+            }
+        }
+
+        return $result;
     }
 
     /**

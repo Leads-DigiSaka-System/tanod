@@ -22,7 +22,7 @@ class JimiTrackingService
      * Uses jimi.device.track.mileage with sliding 365-day windows.
      * Cached for 60 minutes to avoid excessive API calls.
      *
-     * @param bool $forceRefresh Bypass cache
+     * @param  bool  $forceRefresh  Bypass cache
      * @return float Total hours rounded to 2 decimals
      */
     public function getTotalMachineHours(bool $forceRefresh = false): float
@@ -72,7 +72,7 @@ class JimiTrackingService
                         $totalSeconds += (int) ($trip['runTimeSecond'] ?? 0);
                     }
                 } catch (\Exception $e) {
-                    Log::error('Failed to fetch machine hours batch: ' . $e->getMessage());
+                    Log::error('Failed to fetch machine hours batch: '.$e->getMessage());
                 }
 
                 usleep(300000); // 300ms delay between batches
@@ -114,9 +114,8 @@ class JimiTrackingService
      *
      * Stores each trip record in device_track_records.
      *
-     * @param string $imei
-     * @param string $beginTime  Y-m-d H:i:s (GMT)
-     * @param string $endTime    Y-m-d H:i:s (GMT)
+     * @param  string  $beginTime  Y-m-d H:i:s (GMT)
+     * @param  string  $endTime  Y-m-d H:i:s (GMT)
      * @return array Raw API result
      */
     public function fetchTrackMileage(string $imei, string $beginTime, string $endTime): array
@@ -129,6 +128,7 @@ class JimiTrackingService
 
         if (((int) ($response['code'] ?? -1)) !== 0) {
             Log::warning("Jimi track mileage failed for {$imei}", ['response' => $response]);
+
             return [];
         }
 
@@ -148,7 +148,7 @@ class JimiTrackingService
             'imei' => $imei,
             'begin_time' => $beginTime,
             'end_time' => $endTime,
-            'map_type' => 'GOOGLE',
+            'map_type' => config('jimi.map_type', 'WGS84'),
         ]);
 
         if (((int) ($response['code'] ?? -1)) !== 0) {
@@ -166,9 +166,6 @@ class JimiTrackingService
      *   endMileage    – cumulative odometer in meters
      *   runTimeSecond – trip runtime in seconds
      *
-     * @param array $imeis
-     * @param string $beginTime
-     * @param string $endTime
      * @return array IMEI => ['distance_km' => float, 'runtime_seconds' => int, 'odometer_km' => float]
      */
     public function fetchBatchMileage(array $imeis, string $beginTime, string $endTime): array
@@ -186,7 +183,8 @@ class JimiTrackingService
                     'end_time' => $endTime,
                 ]);
             } catch (\Exception $e) {
-                Log::warning('fetchBatchMileage: API error: ' . $e->getMessage());
+                Log::warning('fetchBatchMileage: API error: '.$e->getMessage());
+
                 continue;
             }
 
@@ -196,9 +194,11 @@ class JimiTrackingService
 
             foreach ($response['result'] ?? [] as $record) {
                 $recordImei = $record['imei'] ?? null;
-                if (!$recordImei) continue;
+                if (! $recordImei) {
+                    continue;
+                }
 
-                if (!isset($results[$recordImei])) {
+                if (! isset($results[$recordImei])) {
                     $results[$recordImei] = ['distance_km' => 0, 'runtime_seconds' => 0, 'odometer_km' => 0];
                 }
 
@@ -227,7 +227,9 @@ class JimiTrackingService
     private function storeTrackRecords(string $imei, array $records): void
     {
         $device = Device::where('imei', $imei)->first();
-        if (!$device) return;
+        if (! $device) {
+            return;
+        }
 
         foreach ($records as $record) {
             DeviceTrackRecord::create([
@@ -240,10 +242,10 @@ class JimiTrackingService
                 'mileage' => (float) ($record['distance'] ?? 0) / 1000,
                 'run_time_seconds' => (int) ($record['runTimeSecond'] ?? 0),
                 'max_speed' => (float) ($record['maxSpeed'] ?? 0),
-                'start_time' => !empty($record['startTime'])
+                'start_time' => ! empty($record['startTime'])
                     ? Carbon::parse($record['startTime'])
                     : null,
-                'end_time' => !empty($record['endTime'])
+                'end_time' => ! empty($record['endTime'])
                     ? Carbon::parse($record['endTime'])
                     : null,
                 'raw_data' => $record,

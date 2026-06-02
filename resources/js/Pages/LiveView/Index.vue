@@ -4,31 +4,40 @@
 
     <div class="flex h-[calc(100vh-4rem)] overflow-hidden -m-4 sm:-m-6 lg:-m-8">
       <!-- Left Panel -->
-      <div class="w-80 shrink-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+      <div class="w-80 shrink-0 bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-sm border-r border-gray-200/70 dark:border-gray-700/50 flex flex-col overflow-hidden">
         <!-- Header -->
-        <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-            </svg>
-            Live View
-          </h2>
+        <div class="px-4 py-3.5 border-b border-gray-200/70 dark:border-gray-700/50 bg-white/60 dark:bg-gray-800/60">
+          <div class="flex items-center gap-2.5">
+            <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-linear-to-br from-indigo-500 to-indigo-600 shadow-md shadow-indigo-500/20">
+              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-base font-bold text-gray-900 dark:text-white">Live View</h2>
+              <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ deviceList.length }} devices tracked</p>
+            </div>
+          </div>
         </div>
 
         <!-- Tabs: Objects / Tracks -->
-        <div class="flex border-b border-gray-200 dark:border-gray-700">
+        <div class="flex px-3 pt-3 pb-0 gap-1.5">
           <button @click="activeTab = 'objects'"
-            :class="['flex-1 py-2.5 text-sm font-medium text-center border-b-2 transition-colors',
-              activeTab === 'objects' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300']">
-            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            :class="['flex-1 py-2 text-xs font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5',
+              activeTab === 'objects'
+                ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm ring-1 ring-gray-200/70 dark:ring-gray-700/50'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-800/50']">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
             Objects
           </button>
           <button @click="activeTab = 'tracks'"
-            :class="['flex-1 py-2.5 text-sm font-medium text-center border-b-2 transition-colors',
-              activeTab === 'tracks' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300']">
-            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            :class="['flex-1 py-2 text-xs font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5',
+              activeTab === 'tracks'
+                ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm ring-1 ring-gray-200/70 dark:ring-gray-700/50'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-800/50']">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
             </svg>
             Tracks
@@ -38,103 +47,116 @@
         <!-- ═══════════════ OBJECTS TAB ═══════════════ -->
         <div v-show="activeTab === 'objects'" class="flex-1 flex flex-col overflow-hidden">
           <!-- Search -->
-          <div class="px-3 py-2.5">
+          <div class="px-3 pt-3 pb-2">
             <div class="relative">
-              <div class="absolute inset-y-0 inset-s-0 flex items-center ps-3 pointer-events-none">
-                <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <svg class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
               <input v-model="deviceSearch" type="text" placeholder="Search IMEI, name, plate..."
-                class="block w-full ps-10 p-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" />
+                class="block w-full pl-9 pr-3 py-2 bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/50 text-gray-900 text-xs rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:placeholder-gray-500 dark:text-white shadow-sm transition-all" />
             </div>
           </div>
 
           <!-- State Filter Pills -->
           <div class="flex px-3 gap-1.5 pb-2.5 flex-wrap">
             <button @click="activeState = 'all'"
-              :class="['px-2.5 py-1 text-xs rounded-full font-medium transition-colors',
-                activeState === 'all' ? 'bg-indigo-600 text-white dark:bg-indigo-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600']">
-              All ({{ deviceList.length }})
+              :class="['px-2.5 py-1 text-[11px] rounded-full font-semibold transition-all duration-200',
+                activeState === 'all'
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/25'
+                  : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 ring-1 ring-gray-200/70 dark:ring-gray-700/50']">
+              All {{ deviceList.length }}
             </button>
             <button @click="activeState = 'moving'"
-              :class="['px-2.5 py-1 text-xs rounded-full font-medium transition-colors flex items-center gap-1',
-                activeState === 'moving' ? 'bg-green-600 text-white dark:bg-green-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600']">
+              :class="['px-2.5 py-1 text-[11px] rounded-full font-semibold transition-all duration-200 flex items-center gap-1',
+                activeState === 'moving'
+                  ? 'bg-green-600 text-white shadow-sm shadow-green-500/25'
+                  : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-green-50 dark:hover:bg-green-950/30 ring-1 ring-gray-200/70 dark:ring-gray-700/50']">
               <span class="w-1.5 h-1.5 rounded-full" :class="activeState === 'moving' ? 'bg-green-200' : 'bg-green-500'"></span>
-              Online ({{ onlineCount }})
+              {{ onlineCount }} online
             </button>
             <button @click="activeState = 'idle'"
-              :class="['px-2.5 py-1 text-xs rounded-full font-medium transition-colors flex items-center gap-1',
-                activeState === 'idle' ? 'bg-yellow-500 text-white dark:bg-yellow-400 dark:text-gray-900' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600']">
-              <span class="w-1.5 h-1.5 rounded-full" :class="activeState === 'idle' ? 'bg-yellow-200' : 'bg-yellow-500'"></span>
-              Idle ({{ idleCount }})
+              :class="['px-2.5 py-1 text-[11px] rounded-full font-semibold transition-all duration-200 flex items-center gap-1',
+                activeState === 'idle'
+                  ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/25'
+                  : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 ring-1 ring-gray-200/70 dark:ring-gray-700/50']">
+              <span class="w-1.5 h-1.5 rounded-full" :class="activeState === 'idle' ? 'bg-amber-200' : 'bg-amber-500'"></span>
+              {{ idleCount }} idle
             </button>
             <button @click="activeState = 'offline'"
-              :class="['px-2.5 py-1 text-xs rounded-full font-medium transition-colors flex items-center gap-1',
-                activeState === 'offline' ? 'bg-red-600 text-white dark:bg-red-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600']">
+              :class="['px-2.5 py-1 text-[11px] rounded-full font-semibold transition-all duration-200 flex items-center gap-1',
+                activeState === 'offline'
+                  ? 'bg-red-600 text-white shadow-sm shadow-red-500/25'
+                  : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-950/30 ring-1 ring-gray-200/70 dark:ring-gray-700/50']">
               <span class="w-1.5 h-1.5 rounded-full" :class="activeState === 'offline' ? 'bg-red-200' : 'bg-red-500'"></span>
-              Offline ({{ offlineCount }})
+              {{ offlineCount }} offline
             </button>
           </div>
 
           <!-- Group Filter & Device List -->
           <div class="flex-1 overflow-y-auto px-3 pb-3 space-y-1.5">
             <select v-model="selectedGroup"
-              class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2 mb-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+              class="w-full bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 text-xs rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 p-2 shadow-sm transition-all">
               <option value="">All Groups</option>
               <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
             </select>
 
-            <div v-if="devicesLoading && !deviceList.length" class="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-center dark:border-gray-600 dark:bg-gray-800/60">
-              <svg class="mx-auto h-8 w-8 animate-pulse text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-              <p class="mt-2 text-sm font-medium text-gray-700 dark:text-gray-200">Loading tractors...</p>
-              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Fetching live locations and preparing the map.</p>
+            <div v-if="devicesLoading && !deviceList.length" class="rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 p-6 text-center">
+              <div class="flex h-12 w-12 mx-auto items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 mb-3">
+                <svg class="h-6 w-6 animate-spin text-indigo-500" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              </div>
+              <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">Loading tractors...</p>
+              <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Fetching live locations and preparing the map.</p>
             </div>
 
             <template v-else>
               <div v-for="device in filteredDevices" :key="device.id"
                 @click="selectDevice(device)"
-                :class="['p-3 rounded-lg cursor-pointer border transition-all duration-200',
+                :class="['p-3 rounded-xl cursor-pointer transition-all duration-200 border',
                   selectedDevice?.id === device.id
-                    ? 'border-indigo-500 bg-indigo-50 shadow-sm dark:bg-indigo-900/30 dark:border-indigo-400'
-                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm dark:bg-gray-800 dark:border-gray-700 dark:hover:border-gray-600']">
+                    ? 'border-indigo-300 dark:border-indigo-600 bg-indigo-50/80 dark:bg-indigo-950/30 shadow-sm'
+                    : 'border-gray-100 dark:border-gray-700/50 bg-white dark:bg-gray-800 hover:border-gray-200 dark:hover:border-gray-600 hover:shadow-sm']">
                 <div class="flex items-center gap-2.5">
-                  <div :class="['w-9 h-9 rounded-lg flex items-center justify-center shrink-0',
-                    device.status === 'moving' ? 'bg-green-100 dark:bg-green-900/50' :
-                    device.status === 'idle' ? 'bg-yellow-100 dark:bg-yellow-900/50' : 'bg-red-100 dark:bg-red-900/50']">
+                  <div :class="['w-9 h-9 rounded-xl flex items-center justify-center shrink-0',
+                    device.status === 'moving' ? 'bg-green-100 dark:bg-green-900/40' :
+                    device.status === 'idle' ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-red-100 dark:bg-red-900/40']">
                     <svg class="w-4 h-4" :class="device.status === 'moving' ? 'text-green-600 dark:text-green-400' :
-                      device.status === 'idle' ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'" fill="currentColor" viewBox="0 0 20 20">
+                      device.status === 'idle' ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
                       <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1v-1h3.05a2.5 2.5 0 014.9 0H19a1 1 0 001-1v-5a1 1 0 00-.293-.707l-3-3A1 1 0 0016 4H3z" />
                     </svg>
                   </div>
                   <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between">
-                      <span class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    <div class="flex items-center justify-between gap-1.5">
+                      <span class="text-[13px] font-semibold text-gray-900 dark:text-white truncate">
                         {{ device.tractor?.no_plate || device.device_name || device.imei }}
                       </span>
-                      <span :class="['inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium',
-                        device.status === 'moving' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
-                        device.status === 'idle' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300']">
+                      <span :class="['inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0',
+                        device.status === 'moving' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' :
+                        device.status === 'idle' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300']">
                         {{ device.status === 'moving' ? 'Moving' : device.status === 'idle' ? 'Idle' : 'Offline' }}
                       </span>
                     </div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ device.imei }}</p>
-                    <div v-if="device.speed > 0" class="text-xs text-gray-400 dark:text-gray-500 mt-0.5 flex items-center gap-1">
-                      <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" /></svg>
+                    <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 font-mono tracking-tight">{{ device.imei }}</p>
+                    <div v-if="device.speed > 0" class="text-[11px] text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1 font-medium">
+                      <svg class="w-3 h-3 text-indigo-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" /></svg>
                       {{ device.speed }} km/h
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div v-if="!filteredDevices.length" class="text-center py-10">
-                <svg class="mx-auto w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p class="text-sm text-gray-500 dark:text-gray-400">No devices found.</p>
+              <div v-if="!filteredDevices.length" class="text-center py-12">
+                <div class="flex h-12 w-12 mx-auto items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800 mb-3">
+                  <svg class="w-6 h-6 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p class="text-sm font-medium text-gray-400 dark:text-gray-500">No devices found.</p>
               </div>
             </template>
           </div>
@@ -142,12 +164,12 @@
 
         <!-- ═══════════════ TRACKS TAB ═══════════════ -->
         <div v-show="activeTab === 'tracks'" class="flex-1 flex flex-col overflow-hidden">
-          <div class="p-3 space-y-3 border-b border-gray-200 dark:border-gray-700">
+          <div class="p-3 space-y-3">
             <!-- Device select -->
             <div>
-              <label class="block mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Device</label>
+              <label class="block mb-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Device</label>
               <select v-model="trackDeviceId"
-                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                class="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 text-xs rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 block w-full p-2.5 shadow-sm transition-all">
                 <option value="" disabled>Select Device</option>
                 <option v-for="d in deviceList" :key="d.id" :value="d.id">
                   {{ d.tractor?.no_plate || d.device_name || d.imei }}
@@ -157,9 +179,9 @@
 
             <!-- Period select -->
             <div>
-              <label class="block mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Period</label>
+              <label class="block mb-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Period</label>
               <select v-model="trackPeriod"
-                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                class="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 text-xs rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 block w-full p-2.5 shadow-sm transition-all">
                 <option value="today">Today</option>
                 <option value="yesterday">Yesterday</option>
                 <option value="3days">Last 3 Days</option>
@@ -172,27 +194,27 @@
             <!-- Custom date range -->
             <div v-if="trackPeriod === 'custom'" class="grid grid-cols-2 gap-2">
               <div>
-                <label class="block mb-1 text-xs text-gray-500 dark:text-gray-400">From</label>
+                <label class="block mb-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">From</label>
                 <input v-model="trackFrom" type="date"
-                  class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                  class="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 text-xs rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 block w-full p-2.5 shadow-sm transition-all" />
               </div>
               <div>
-                <label class="block mb-1 text-xs text-gray-500 dark:text-gray-400">To</label>
+                <label class="block mb-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">To</label>
                 <input v-model="trackTo" type="date"
-                  class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                  class="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 text-xs rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 block w-full p-2.5 shadow-sm transition-all" />
               </div>
             </div>
 
             <!-- Search / Clear Buttons -->
-            <div class="flex gap-2">
+            <div class="flex gap-2 pt-1">
               <button @click="searchTracks" :disabled="!trackDeviceId || trackLoading || (trackPeriod === 'custom' && (!trackFrom || !trackTo))"
-                class="flex-1 text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300 font-medium rounded-lg text-sm px-4 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-indigo-500 dark:hover:bg-indigo-600 dark:focus:ring-indigo-800 flex items-center justify-center gap-2 transition-colors">
-                <svg v-if="trackLoading" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                class="flex-1 text-white bg-indigo-600 hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-semibold rounded-xl text-xs px-4 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 transition-all shadow-sm shadow-indigo-500/20">
+                <svg v-if="trackLoading" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 {{ trackLoading ? 'Loading...' : 'Search' }}
               </button>
               <button v-if="trackData" @click="clearTracks"
-                class="px-4 py-2.5 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 font-medium rounded-lg text-sm dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 transition-colors">
+                class="px-4 py-2.5 text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold rounded-xl text-xs transition-all shadow-sm">
                 Clear
               </button>
             </div>
@@ -326,24 +348,50 @@
           </div>
         </div>
 
-        <!-- Refresh countdown pill -->
-        <div class="absolute bottom-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center gap-2 z-10">
-          <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          <span>{{ refreshCountdown }}s</span>
+        <!-- Refresh interval control -->
+        <div class="absolute bottom-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10 flex items-center">
+          <button @click="manualRefresh"
+            :disabled="devicesLoading"
+            class="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-l-lg transition-colors disabled:opacity-50"
+            title="Refresh now">
+            <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400" :class="{ 'animate-spin': devicesLoading }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span class="tabular-nums w-5 text-right">{{ refreshCountdown }}</span><span class="text-xs text-gray-400 ml-0.5">s</span>
+          </button>
+          <div class="w-px h-5 bg-gray-200 dark:bg-gray-600"></div>
+          <select v-model.number="refreshIntervalSec" @change="changeRefreshInterval"
+            class="appearance-none bg-transparent text-xs font-medium text-gray-500 dark:text-gray-400 py-2 pl-2.5 pr-7 rounded-r-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            <option :value="5">5s</option>
+            <option :value="10">10s</option>
+            <option :value="20">20s</option>
+            <option :value="30">30s</option>
+            <option :value="60">60s</option>
+          </select>
         </div>
 
         <!-- Map type controls -->
-        <div class="absolute top-4 right-4 inline-flex rounded-lg shadow-lg z-10" role="group">
-          <button v-for="(mt, idx) in mapTypes" :key="mt.id" @click="setMapType(mt.id)"
-            :class="['px-4 py-2 text-xs font-medium border transition-colors',
-              idx === 0 ? 'rounded-s-lg' : '',
-              idx === mapTypes.length - 1 ? 'rounded-e-lg' : '',
-              currentMapType === mt.id
-                ? 'bg-indigo-700 text-white border-indigo-700 dark:bg-indigo-600 dark:border-indigo-600'
-                : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-100 hover:text-indigo-700 dark:bg-gray-800 dark:text-white dark:border-gray-700 dark:hover:bg-gray-700']">
-            {{ mt.label }}
+        <div class="absolute top-4 right-4 flex flex-col gap-2 z-10">
+          <div class="inline-flex rounded-lg shadow-lg" role="group">
+            <button v-for="(mt, idx) in mapTypes" :key="mt.id" @click="setMapType(mt.id)"
+              :class="['px-4 py-2 text-xs font-medium border transition-colors',
+                idx === 0 ? 'rounded-s-lg' : '',
+                idx === mapTypes.length - 1 ? 'rounded-e-lg' : '',
+                currentMapType === mt.id
+                  ? 'bg-indigo-700 text-white border-indigo-700 dark:bg-indigo-600 dark:border-indigo-600'
+                  : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-100 hover:text-indigo-700 dark:bg-gray-800 dark:text-white dark:border-gray-700 dark:hover:bg-gray-700']">
+              {{ mt.label }}
+            </button>
+          </div>
+          <!-- GPS Correction Toggle -->
+          <button @click="gpsCorrection = !gpsCorrection; updateMarkers()"
+            :class="['self-end rounded-lg shadow-lg px-3 py-1.5 text-[11px] font-semibold border transition-colors flex items-center gap-1.5',
+              gpsCorrection
+                ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/60 dark:text-amber-300 dark:border-amber-700'
+                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700 dark:hover:bg-gray-700']"
+            title="Corrects ~300m GCJ-02 offset if device coordinates appear shifted from roads">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            {{ gpsCorrection ? 'GPS Corrected' : 'GPS Correction' }}
           </button>
         </div>
 
@@ -351,15 +399,15 @@
         <transition name="slide-right">
           <div v-if="showDetailSidebar && selectedDevice" class="absolute top-0 right-0 w-96 h-full bg-white dark:bg-gray-800 shadow-2xl z-20 overflow-y-auto border-l border-gray-200 dark:border-gray-700">
             <!-- Header -->
-            <div class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between z-10">
+            <div class="sticky top-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-b border-gray-200/70 dark:border-gray-700/50 px-4 py-3 flex items-center justify-between z-10">
               <div>
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+                <h3 class="text-sm font-bold text-gray-900 dark:text-white">
                   {{ selectedDevice.tractor?.no_plate || selectedDevice.device_name || 'Unknown' }}
                 </h3>
-                <p class="text-xs text-gray-500 dark:text-gray-400">{{ selectedDevice.imei }}</p>
+                <p class="text-[11px] text-gray-400 dark:text-gray-500 font-mono tracking-tight">{{ selectedDevice.imei }}</p>
               </div>
-              <button @click="showDetailSidebar = false" class="text-gray-400 hover:bg-gray-200 hover:text-gray-900 rounded-lg p-1.5 inline-flex items-center dark:hover:bg-gray-600 dark:hover:text-white transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button @click="showDetailSidebar = false" class="text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 rounded-xl p-1.5 inline-flex items-center transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -591,6 +639,8 @@ const showDetailSidebar = ref(false);
 const deviceAddress = ref('');
 const isFollowing = ref(false);
 const refreshCountdown = ref(20);
+const refreshIntervalSec = ref(20);
+const gpsCorrection = ref(false);
 const currentMapType = ref('roadmap');
 
 // Tracks
@@ -656,6 +706,67 @@ const mapTypes = [
 const GOOGLE_MAP_DEMO_ID = 'DEMO_MAP_ID';
 const DISPLAY_TIME_ZONE = 'Asia/Manila';
 const currentHost = computed(() => window.location.origin);
+
+// ═══════════════ GCJ-02 → WGS-84 CORRECTION ═══════════════
+// Many GPS trackers (especially Chinese-made) use GCJ-02 coordinates
+// which are offset ~100-700m from WGS-84. Google Maps uses WGS-84.
+// This converts GCJ-02 back to WGS-84 so markers appear on the road.
+const PI = Math.PI;
+const X_PI = (PI * 3000.0) / 180.0;
+const A = 6378245.0; // semi-major axis
+const EE = 0.00669342162296594323; // eccentricity squared
+
+function isOutOfChina(lat, lng) {
+  return lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271;
+}
+
+function transformLat(x, y) {
+  let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+  ret += ((20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0) / 3.0;
+  ret += ((20.0 * Math.sin(y * PI) + 40.0 * Math.sin((y / 3.0) * PI)) * 2.0) / 3.0;
+  ret += ((160.0 * Math.sin((y / 12.0) * PI) + 320.0 * Math.sin((y * PI) / 30.0)) * 2.0) / 3.0;
+  return ret;
+}
+
+function transformLng(x, y) {
+  let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+  ret += ((20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0) / 3.0;
+  ret += ((20.0 * Math.sin(x * PI) + 40.0 * Math.sin((x / 3.0) * PI)) * 2.0) / 3.0;
+  ret += ((150.0 * Math.sin((x / 12.0) * PI) + 300.0 * Math.sin((x / 30.0) * PI)) * 2.0) / 3.0;
+  return ret;
+}
+
+/**
+ * Convert GCJ-02 (Mars) coordinates to WGS-84.
+ * Returns { lat, lng } — pass-through if already outside China.
+ */
+function gcj02ToWgs84(lat, lng) {
+  if (isOutOfChina(lat, lng)) {
+    return { lat, lng };
+  }
+
+  let dLat = transformLat(lng - 105.0, lat - 35.0);
+  let dLng = transformLng(lng - 105.0, lat - 35.0);
+  const radLat = (lat / 180.0) * PI;
+  let magic = Math.sin(radLat);
+  magic = 1 - EE * magic * magic;
+  const sqrtMagic = Math.sqrt(magic);
+  dLat = (dLat * 180.0) / (((A * (1 - EE)) / (magic * sqrtMagic)) * PI);
+  dLng = (dLng * 180.0) / ((A / sqrtMagic) * Math.cos(radLat) * PI);
+
+  return {
+    lat: lat - dLat,
+    lng: lng - dLng,
+  };
+}
+
+/**
+ * Apply GPS correction to coordinates if enabled.
+ */
+function correctCoords(lat, lng) {
+  if (!gpsCorrection.value) return { lat, lng };
+  return gcj02ToWgs84(lat, lng);
+}
 
 // ═══════════════ COMPUTED ═══════════════
 const onlineCount = computed(() => deviceList.value.filter(d => d.status === 'moving' || d.status === 'idle').length);
@@ -1099,12 +1210,13 @@ function createMarkers() {
       const lat = parseFloat(device.lat);
       const lng = parseFloat(device.lng);
       const heading = parseFloat(device.direction) || 0;
+      const corrected = correctCoords(lat, lng);
 
-      previousPositions[device.imei] = { lat, lng };
+      previousPositions[device.imei] = { lat: corrected.lat, lng: corrected.lng };
 
       const { element } = createStatusTractorMarkerContent(device.status);
       const marker = createAdvancedMarker({
-        position: { lat, lng },
+        position: corrected,
         title: device.tractor?.no_plate || device.device_name || device.imei,
         content: element,
         clickable: true,
@@ -1117,7 +1229,7 @@ function createMarkers() {
         if (found) {
           selectedDevice.value = found;
           showDetailSidebar.value = true;
-          reverseGeocode(found.lat, found.lng);
+          reverseGeocode(corrected.lat, corrected.lng);
         }
       });
 
@@ -1209,8 +1321,9 @@ function selectDevice(device) {
   selectedDevice.value = device;
   showDetailSidebar.value = true;
   if (device.lat && device.lng) {
-    reverseGeocode(device.lat, device.lng);
-    if (map) { map.setZoom(16); map.panTo(new google.maps.LatLng(parseFloat(device.lat), parseFloat(device.lng))); }
+    const corrected = correctCoords(parseFloat(device.lat), parseFloat(device.lng));
+    reverseGeocode(corrected.lat, corrected.lng);
+    if (map) { map.setZoom(16); map.panTo(corrected); }
   }
   stopFollow({ resumePolling: isFollowing.value });
   void loadSelectedDevice(device.id);
@@ -1230,8 +1343,9 @@ function liveFollow() {
     map.setZoom(16);
     map.panTo(m.position);
   } else if (map && selectedDevice.value.lat && selectedDevice.value.lng) {
+    const corrected = correctCoords(parseFloat(selectedDevice.value.lat), parseFloat(selectedDevice.value.lng));
     map.setZoom(16);
-    map.panTo({ lat: parseFloat(selectedDevice.value.lat), lng: parseFloat(selectedDevice.value.lng) });
+    map.panTo(corrected);
   }
 
   // Stop the 20s all-device polling while following a single device
@@ -1264,7 +1378,8 @@ async function fetchFollowedDevice(deviceId, currentFollowSessionId) {
 
       if (data.device.lat && data.device.lng) {
         if (map) {
-          map.panTo({ lat: parseFloat(data.device.lat), lng: parseFloat(data.device.lng) });
+          const corrected = correctCoords(parseFloat(data.device.lat), parseFloat(data.device.lng));
+          map.panTo(corrected);
         }
 
         createMarkers();
@@ -1282,13 +1397,25 @@ function stopRefreshLoop() {
 
 function startRefreshLoop({ immediate = false } = {}) {
   stopRefreshLoop();
-  refreshCountdown.value = 20;
+  refreshCountdown.value = refreshIntervalSec.value;
 
   if (immediate) {
     void refreshData();
   }
 
-  refreshInterval = setInterval(refreshData, 20000);
+  refreshInterval = setInterval(refreshData, refreshIntervalSec.value * 1000);
+}
+
+function changeRefreshInterval() {
+  refreshCountdown.value = refreshIntervalSec.value;
+  startRefreshLoop({ immediate: true });
+}
+
+function manualRefresh() {
+  refreshCountdown.value = refreshIntervalSec.value;
+  void refreshData();
+  // Reset the refresh timer so the next auto-refresh is a full interval away
+  startRefreshLoop();
 }
 
 function stopFollow({ resumePolling = true } = {}) {
@@ -1618,7 +1745,11 @@ onMounted(async () => {
   await refreshData();
   startRefreshLoop();
   countdownInterval = setInterval(() => {
-    refreshCountdown.value = Math.max(0, refreshCountdown.value - 1);
+    if (refreshCountdown.value <= 0) {
+      refreshCountdown.value = refreshIntervalSec.value;
+    } else {
+      refreshCountdown.value -= 1;
+    }
   }, 1000);
 });
 

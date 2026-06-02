@@ -120,7 +120,18 @@ class DashboardLiveStatusTest extends TestCase
                 ->where('charts.tractorStatus.inactive', 1)
                 ->where('charts.pmsBreakdown.due', 1)
                 ->where('charts.pmsBreakdown.ok', 1)
-                ->where('charts.pmsBreakdown.noData', 1));
+                ->where('charts.pmsBreakdown.noData', 1)
+                // Offline breakdown: no heartbeat ever → >100 days
+                ->where('stats.offlineLessThanDay', 0)
+                ->where('stats.offline1to7Days', 0)
+                ->where('stats.offline7to30Days', 0)
+                ->where('stats.offline30to100Days', 0)
+                ->where('stats.offlineMoreThan100Days', 1)
+                ->where('charts.offlineBreakdown.lessThanDay', 0)
+                ->where('charts.offlineBreakdown.oneToSevenDays', 0)
+                ->where('charts.offlineBreakdown.sevenToThirtyDays', 0)
+                ->where('charts.offlineBreakdown.thirtyToHundredDays', 0)
+                ->where('charts.offlineBreakdown.moreThanHundredDays', 1));
     }
 
     #[Test]
@@ -191,6 +202,9 @@ class DashboardLiveStatusTest extends TestCase
                 ->where('stats.onlineDevices', 1)
                 ->where('charts.tractorStatus.online', 1)
                 ->where('charts.tractorStatus.offline', 1)
-                ->where('charts.tractorStatus.inactive', 0));
+                ->where('charts.tractorStatus.inactive', 0)
+                // Offline breakdown: Device A has no heartbeat record → >100 days
+                ->where('stats.offlineMoreThan100Days', 1)
+                ->where('charts.offlineBreakdown.moreThanHundredDays', 1));
     }
 }
