@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('fca_machine_hours', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_fca_id')->constrained('users_fca')->cascadeOnDelete();
+            $table->foreignId('user_fca_id');
             $table->unsignedSmallInteger('entry_order')->default(0);
             $table->date('date_visited');
             $table->unsignedInteger('machine_hours');
