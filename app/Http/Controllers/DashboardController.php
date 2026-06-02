@@ -5,12 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Alert;
 use App\Models\Booking;
 use App\Models\Device;
-use App\Models\DeviceLocation;
 use App\Models\FarmerFeedback;
 use App\Models\GeoFence;
 use App\Models\Maintenance;
 use App\Models\Tractor;
 use App\Models\User;
+use App\Services\Jimi\JimiDeviceService;
 use App\Services\Jimi\JimiTrackingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -21,6 +21,7 @@ class DashboardController extends Controller
 {
     public function __construct(
         private JimiTrackingService $jimiTracking,
+        private JimiDeviceService $jimiDeviceService,
     ) {}
 
     public function __invoke(Request $request)
@@ -46,9 +47,10 @@ class DashboardController extends Controller
     {
         // ── Tractor status breakdown ──
         $totalTractors = Tractor::count();
-        $onlineTractors = Tractor::whereHas('device.latestLocation', fn ($q) => $q->where('status', 1))->count();
-        $offlineTractors = Tractor::whereHas('device.latestLocation', fn ($q) => $q->where('status', '!=', 1))->count();
-        $inactiveTractors = $totalTractors - $onlineTractors - $offlineTractors;
+        $tractorStatus = $this->liveTractorStatusSummary($totalTractors);
+        $onlineTractors = $tractorStatus['onlineTractors'];
+        $offlineTractors = $tractorStatus['offlineTractors'];
+        $inactiveTractors = $tractorStatus['inactiveTractors'];
 
         // ── PMS (Preventive Maintenance) — single query, filter once ──
         $allTractorsForMaintenance = Tractor::with(['device', 'maintenances' => fn ($q) => $q->where('status', 'completed')->latest('maintenance_date')])->get();
@@ -103,7 +105,7 @@ class DashboardController extends Controller
 
         // ── Devices ──
         $totalDevices = Device::count();
-        $onlineDevices = Device::whereHas('latestLocation', fn ($q) => $q->where('status', 1))->count();
+        $onlineDevices = $tractorStatus['onlineDevices'];
 
         // ── Groups distribution (top 10) ──
         $tractorsByGroup = DB::table('group_tractor')
@@ -170,6 +172,74 @@ class DashboardController extends Controller
                 ->get(),
             'maintenanceDueList' => $maintenanceDueTractors->take(5)->values(),
         ];
+    }
+
+    /**
+     * @return array{onlineTractors:int, offlineTractors:int, inactiveTractors:int, onlineDevices:int}
+     */
+    private function liveTractorStatusSummary(int $totalTractors): array
+    {
+        $activeDevices = Device::query()
+            ->select(['id', 'imei'])
+            ->with('tractor:id,device_id')
+            ->where('is_active', true)
+            ->get();
+
+        $liveLocations = $this->jimiDeviceService->fetchLiveLocations();
+        $activeTractorCount = 0;
+        $onlineTractors = 0;
+        $onlineDevices = 0;
+
+        foreach ($activeDevices as $device) {
+            if ($device->tractor !== null) {
+                $activeTractorCount++;
+            }
+
+            if (! $this->isLiveLocationOnline($liveLocations[$device->imei] ?? null)) {
+                continue;
+            }
+
+            $onlineDevices++;
+
+            if ($device->tractor !== null) {
+                $onlineTractors++;
+            }
+        }
+
+        return [
+            'onlineTractors' => $onlineTractors,
+            'offlineTractors' => max($activeTractorCount - $onlineTractors, 0),
+            'inactiveTractors' => max($totalTractors - $activeTractorCount, 0),
+            'onlineDevices' => $onlineDevices,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $apiData
+     */
+    private function isLiveLocationOnline(?array $apiData): bool
+    {
+        $heartbeatAt = $this->parseHeartbeat($apiData['hbTime'] ?? null);
+
+        if (! $heartbeatAt) {
+            return false;
+        }
+
+        return $heartbeatAt->diffInMinutes(now()->utc()) <= $this->onlineThresholdMinutes();
+    }
+
+    private function parseHeartbeat(?string $heartbeatAt): ?Carbon
+    {
+        if (blank($heartbeatAt)) {
+            return null;
+        }
+
+        return Carbon::parse($heartbeatAt, 'UTC')->utc();
+    }
+
+    private function onlineThresholdMinutes(): int
+    {
+        return max((int) config('jimi.online_threshold_minutes', 10), 1);
     }
 
     private function tpsDashboard(User $user): array

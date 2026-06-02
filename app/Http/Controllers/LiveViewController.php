@@ -17,8 +17,6 @@ use Inertia\Inertia;
 
 class LiveViewController extends Controller
 {
-    private const ONLINE_THRESHOLD_MINUTES = 10;
-
     public function index(Request $request)
     {
         $groups = TractorGroup::query()
@@ -237,7 +235,7 @@ class LiveViewController extends Controller
             : 999;
 
         $status = 'offline';
-        if ($minutesAgo <= self::ONLINE_THRESHOLD_MINUTES && $loc) {
+        if ($minutesAgo <= $this->onlineThresholdMinutes() && $loc) {
             $status = ($loc->speed ?? 0) > 0 ? 'moving' : 'idle';
         }
 
@@ -317,7 +315,7 @@ class LiveViewController extends Controller
             $gpsNum = (int) ($apiData['gpsNum'] ?? 0);
             $mileage = $apiData['mileage'] ?? null;
 
-            if ($minutesAgo <= self::ONLINE_THRESHOLD_MINUTES) {
+            if ($minutesAgo <= $this->onlineThresholdMinutes()) {
                 $status = $speed > 0 ? 'moving' : 'idle';
             }
         }
@@ -370,6 +368,11 @@ class LiveViewController extends Controller
         }
 
         return Carbon::parse($heartbeatAt, 'UTC')->utc();
+    }
+
+    private function onlineThresholdMinutes(): int
+    {
+        return max((int) config('jimi.online_threshold_minutes', 10), 1);
     }
 
     private function accessibleDevicesQuery(Request $request): Builder

@@ -27,4 +27,7 @@ return [
 
     // Cache TTL in minutes for device list
     'device_cache_ttl' => env('JIMI_DEVICE_CACHE_TTL', 30),
+
+    // Minutes since the last heartbeat before a device is treated as offline
+    'online_threshold_minutes' => env('JIMI_ONLINE_THRESHOLD_MINUTES', 10),
 ];
