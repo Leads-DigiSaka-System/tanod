@@ -17,6 +17,9 @@ use Inertia\Inertia;
 
 class LiveViewController extends Controller
 {
+    /** Speed in km/h below which an online device is considered idle (filters GPS drift). */
+    private const MOVING_SPEED_THRESHOLD = 3.0;
+
     public function index(Request $request)
     {
         $groups = TractorGroup::query()
@@ -236,7 +239,7 @@ class LiveViewController extends Controller
 
         $status = 'offline';
         if ($minutesAgo <= $this->onlineThresholdMinutes() && $loc) {
-            $status = ($loc->speed ?? 0) > 0 ? 'moving' : 'idle';
+            $status = ((float) ($loc->speed ?? 0)) >= self::MOVING_SPEED_THRESHOLD ? 'moving' : 'idle';
         }
 
         $base = [
@@ -321,11 +324,11 @@ class LiveViewController extends Controller
             $jimiStatus = array_key_exists('status', $apiData) ? (int) $apiData['status'] : null;
 
             if ($jimiStatus === 1) {
-                $status = $speed > 0 ? 'moving' : 'idle';
+                $status = $speed >= self::MOVING_SPEED_THRESHOLD ? 'moving' : 'idle';
             } elseif ($jimiStatus === 0) {
                 $status = 'offline';
             } elseif ($minutesAgo <= $this->onlineThresholdMinutes()) {
-                $status = $speed > 0 ? 'moving' : 'idle';
+                $status = $speed >= self::MOVING_SPEED_THRESHOLD ? 'moving' : 'idle';
             }
         }
 

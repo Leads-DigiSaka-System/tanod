@@ -25,15 +25,36 @@
 
       <!-- KPI Row 1: Tractor Usage Summary (pill cards) -->
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5 mb-4">
-        <!-- Total Tractors -->
-        <div class="flex items-center gap-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 px-4 py-3.5 border border-indigo-200/60 dark:border-indigo-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
+        <!-- Total Tractors (spans 2 cols, includes Offline by Duration) -->
+        <div class="xl:col-span-2 flex items-start gap-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 px-4 py-3.5 border border-indigo-200/60 dark:border-indigo-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
           <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
             <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10"/></svg>
           </div>
-          <div class="min-w-0">
-            <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Tractors</p>
-            <p class="text-xl font-bold text-gray-900 dark:text-white">{{ Number(stats.totalTractors).toLocaleString() }}</p>
-            <p class="text-[11px] font-medium mt-0.5"><span class="text-green-600 dark:text-green-400">{{ stats.onlineTractors }} online</span><span class="text-gray-300 dark:text-gray-600 mx-1.5">·</span><span class="text-red-500 dark:text-red-400">{{ stats.offlineTractors }} offline</span></p>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Tractors</p>
+                <p class="text-xl font-bold text-gray-900 dark:text-white">{{ Number(stats.totalTractors).toLocaleString() }}</p>
+              </div>
+              <div class="flex items-center gap-3 text-[11px] font-medium">
+                <span class="text-green-600 dark:text-green-400">{{ stats.onlineTractors }} online</span>
+                <span class="text-gray-300 dark:text-gray-600">·</span>
+                <span class="text-gray-400 dark:text-gray-500">{{ stats.offlineTractors }} offline</span>
+                <span class="text-gray-300 dark:text-gray-600">·</span>
+                <span class="text-gray-400 dark:text-gray-500">{{ stats.inactiveTractors }} inactive</span>
+              </div>
+            </div>
+            <!-- Offline by Duration (compact) -->
+            <div v-if="stats.offlineTractors > 0" class="mt-2.5 pt-2.5 border-t border-indigo-200/50 dark:border-indigo-800/30">
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Offline:</span>
+                <span v-if="stats.offlineLessThanDay" class="text-[10px] font-semibold text-red-500 dark:text-red-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>&lt;1d {{ stats.offlineLessThanDay }}</span>
+                <span v-if="stats.offline1to7Days" class="text-[10px] font-semibold text-amber-500 dark:text-amber-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>&lt;7d {{ stats.offline1to7Days }}</span>
+                <span v-if="stats.offline7to30Days" class="text-[10px] font-semibold text-yellow-600 dark:text-yellow-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-yellow-600"></span>&lt;30d {{ stats.offline7to30Days }}</span>
+                <span v-if="stats.offline30to100Days" class="text-[10px] font-semibold text-orange-500 dark:text-orange-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-orange-400"></span>&lt;100d {{ stats.offline30to100Days }}</span>
+                <span v-if="stats.offlineMoreThan100Days" class="text-[10px] font-semibold text-gray-400 dark:text-gray-500 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>100d+ {{ stats.offlineMoreThan100Days }}</span>
+              </div>
+            </div>
           </div>
         </div>
         <!-- Total Distance -->
@@ -58,17 +79,6 @@
             <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Avg {{ Number(stats.avgHoursPerTractor || 0).toLocaleString(undefined, { maximumFractionDigits: 1 }) }} hrs / tractor · {{ Number(stats.totalMachineHours || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }} total fleet</p>
           </div>
         </div>
-        <!-- With Usage Data -->
-        <div class="flex items-center gap-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 px-4 py-3.5 border border-emerald-200/60 dark:border-emerald-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
-          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-          </div>
-          <div class="min-w-0 flex-1">
-            <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">W/ Usage Data</p>
-            <p class="text-xl font-bold text-gray-900 dark:text-white">{{ Number(stats.tractorsWithUsageData || 0).toLocaleString() }} <span class="text-sm font-normal text-emerald-600 dark:text-emerald-400">{{ stats.usageDataPercent }}%</span></p>
-            <div class="mt-1 h-1 w-full rounded-full bg-emerald-200 dark:bg-emerald-800"><div class="h-1 rounded-full bg-emerald-500 transition-all duration-500" :style="{ width: stats.usageDataPercent + '%' }"></div></div>
-          </div>
-        </div>
         <!-- PMS Due -->
         <div class="flex items-center gap-3 rounded-2xl bg-orange-50 dark:bg-orange-950/30 px-4 py-3.5 border border-orange-200/60 dark:border-orange-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
           <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
@@ -83,23 +93,7 @@
       </div>
 
       <!-- KPI Row 2: Operational Stats (pill cards) -->
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7 mb-6">
-        <div class="flex items-center gap-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 px-3.5 py-3 border border-indigo-200/60 dark:border-indigo-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
-          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
-            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          </div>
-          <div class="min-w-0">
-            <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Offline</p>
-            <p class="text-lg font-bold text-gray-900 dark:text-white">{{ stats.offlineTractors }} <span class="text-[10px] font-medium text-gray-400 dark:text-gray-500">tractors</span></p>
-            <div class="flex flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
-              <span v-if="stats.offlineLessThanDay" class="text-[10px] font-semibold text-red-500 dark:text-red-400">{{ stats.offlineLessThanDay }} &lt;1d</span>
-              <span v-if="stats.offline1to7Days" class="text-[10px] font-semibold text-amber-500 dark:text-amber-400">{{ stats.offline1to7Days }} &lt;7d</span>
-              <span v-if="stats.offline7to30Days" class="text-[10px] font-semibold text-yellow-600 dark:text-yellow-400">{{ stats.offline7to30Days }} &lt;30d</span>
-              <span v-if="stats.offline30to100Days" class="text-[10px] font-semibold text-orange-500 dark:text-orange-400">{{ stats.offline30to100Days }} &lt;100d</span>
-              <span v-if="stats.offlineMoreThan100Days" class="text-[10px] font-semibold text-gray-400 dark:text-gray-500">{{ stats.offlineMoreThan100Days }} 100d+</span>
-            </div>
-          </div>
-        </div>
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6 mb-6">
         <div class="flex items-center gap-2.5 rounded-2xl bg-green-50 dark:bg-green-950/30 px-3.5 py-3 border border-green-200/60 dark:border-green-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
           <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
             <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 21h8M12 17v4"/></svg>
@@ -138,11 +132,11 @@
         </div>
         <div class="flex items-center gap-2.5 rounded-2xl bg-red-50 dark:bg-red-950/30 px-3.5 py-3 border border-red-200/60 dark:border-red-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
           <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
-            <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
           </div>
           <div class="min-w-0">
-            <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Alerts</p>
-            <p class="text-lg font-bold text-red-600 dark:text-red-400">{{ stats.unacknowledgedAlerts }} <span class="text-[10px] font-medium text-gray-400 dark:text-gray-500">/ {{ stats.totalAlerts }}</span></p>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Tickets</p>
+            <p class="text-lg font-bold text-red-600 dark:text-red-400">{{ stats.openTickets ?? 0 }} <span class="text-[10px] font-medium text-gray-400 dark:text-gray-500">/ {{ stats.totalTickets ?? 0 }} open</span></p>
           </div>
         </div>
         <div class="flex items-center gap-2.5 rounded-2xl bg-sky-50 dark:bg-sky-950/30 px-3.5 py-3 border border-sky-200/60 dark:border-sky-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
@@ -156,64 +150,12 @@
         </div>
       </div>
 
-      <!-- Charts Row 1: Tractor Status Donut + Alerts Trend -->
+      <!-- Charts Row 1: Alerts by Type Bar + Alerts Trend -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 mb-6">
         <div class="rounded-2xl bg-white dark:bg-gray-800 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Tractor Status</h3>
-            <span class="text-xs text-gray-400 dark:text-gray-500">{{ stats.totalTractors }} total</span>
-          </div>
-          <div class="flex gap-5">
-            <!-- Donut chart: 2/3 -->
-            <div class="w-2/3">
-              <apexchart type="donut" height="280" :options="tractorDonutOptions" :series="tractorDonutSeries" />
-            </div>
-            <!-- Offline breakdown: 1/3 -->
-            <div v-if="stats.offlineTractors > 0" class="w-1/3 border-l border-gray-100 dark:border-gray-700 pl-5 flex flex-col justify-center">
-              <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">Offline by Duration</p>
-              <div class="space-y-2.5">
-                <div v-if="stats.offlineLessThanDay" class="flex items-center justify-between text-xs">
-                  <div class="flex items-center gap-2 min-w-0">
-                    <span class="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0"></span>
-                    <span class="text-gray-500 dark:text-gray-400 truncate">&lt; 1 day</span>
-                  </div>
-                  <span class="font-semibold text-red-600 dark:text-red-400 ml-2 shrink-0">{{ stats.offlineLessThanDay }}</span>
-                </div>
-                <div v-if="stats.offline1to7Days" class="flex items-center justify-between text-xs">
-                  <div class="flex items-center gap-2 min-w-0">
-                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
-                    <span class="text-gray-500 dark:text-gray-400 truncate">1 – 7 days</span>
-                  </div>
-                  <span class="font-semibold text-amber-600 dark:text-amber-400 ml-2 shrink-0">{{ stats.offline1to7Days }}</span>
-                </div>
-                <div v-if="stats.offline7to30Days" class="flex items-center justify-between text-xs">
-                  <div class="flex items-center gap-2 min-w-0">
-                    <span class="w-2.5 h-2.5 rounded-full bg-yellow-600 shrink-0"></span>
-                    <span class="text-gray-500 dark:text-gray-400 truncate">7 – 30 days</span>
-                  </div>
-                  <span class="font-semibold text-yellow-700 dark:text-yellow-400 ml-2 shrink-0">{{ stats.offline7to30Days }}</span>
-                </div>
-                <div v-if="stats.offline30to100Days" class="flex items-center justify-between text-xs">
-                  <div class="flex items-center gap-2 min-w-0">
-                    <span class="w-2.5 h-2.5 rounded-full bg-orange-400 shrink-0"></span>
-                    <span class="text-gray-500 dark:text-gray-400 truncate">30 – 100 days</span>
-                  </div>
-                  <span class="font-semibold text-orange-600 dark:text-orange-400 ml-2 shrink-0">{{ stats.offline30to100Days }}</span>
-                </div>
-                <div v-if="stats.offlineMoreThan100Days" class="flex items-center justify-between text-xs">
-                  <div class="flex items-center gap-2 min-w-0">
-                    <span class="w-2.5 h-2.5 rounded-full bg-gray-400 shrink-0"></span>
-                    <span class="text-gray-500 dark:text-gray-400 truncate">&gt; 100 days</span>
-                  </div>
-                  <span class="font-semibold text-gray-500 dark:text-gray-400 ml-2 shrink-0">{{ stats.offlineMoreThan100Days }}</span>
-                </div>
-              </div>
-            </div>
-            <!-- No offline: empty 1/3 spacer -->
-            <div v-else class="w-1/3 flex items-center justify-center">
-              <p class="text-xs text-gray-400 dark:text-gray-500">All tractors online</p>
-            </div>
-          </div>
+          <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Alerts by Type</h3>
+          <apexchart v-if="alertsTypeBarSeries.length" type="bar" height="280" :options="alertsTypeBarOptions" :series="alertsTypeBarSeries" />
+          <div v-else class="flex items-center justify-center h-48 text-sm text-gray-400 dark:text-gray-500">No alert data</div>
         </div>
         <div class="rounded-2xl bg-white dark:bg-gray-800 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
           <div class="flex items-center justify-between mb-4">
@@ -236,17 +178,12 @@
         </div>
       </div>
 
-      <!-- Charts Row 3: PMS Breakdown + Alerts by Type + Tractors by Group -->
-      <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 mb-6">
+      <!-- Charts Row 3: PMS Breakdown + Tractors by Group -->
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 mb-6">
         <div class="rounded-2xl bg-white dark:bg-gray-800 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
           <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-4">PMS Schedule</h3>
           <apexchart v-if="pmsBreakdownTotal" type="donut" height="260" :options="pmsBreakdownOptions" :series="pmsBreakdownSeries" />
           <div v-else class="flex items-center justify-center h-48 text-sm text-gray-400 dark:text-gray-500">No usage data available</div>
-        </div>
-        <div class="rounded-2xl bg-white dark:bg-gray-800 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
-          <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Alerts by Type</h3>
-          <apexchart v-if="alertTypePieSeries.length" type="pie" height="260" :options="alertTypePieOptions" :series="alertTypePieSeries" />
-          <div v-else class="flex items-center justify-center h-48 text-sm text-gray-400 dark:text-gray-500">No alert data</div>
         </div>
         <div class="rounded-2xl bg-white dark:bg-gray-800 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
           <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Tractors by Group</h3>
@@ -445,20 +382,27 @@ const getStatColor = (key) => {
 // ── Shared chart theme ──
 const chartForeColor = '#9ca3af';
 
-// ── Tractor Status Donut ──
-const tractorDonutSeries = computed(() => {
-  const ts = props.charts?.tractorStatus || {};
-  return [ts.online || 0, ts.offline || 0, ts.inactive || 0];
+// ── Alerts by Type (Bar) ──
+const alertsTypeBarSeries = computed(() => [{
+  name: 'Alerts',
+  data: Object.values(props.charts?.alertsByType || {}),
+}]);
+const alertsTypeBarOptions = computed(() => {
+  const at = props.charts?.alertsByType || {};
+  const labels = Object.keys(at).map(k => k.replace(/_/g, ' '));
+  const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#ec4899'];
+  return {
+    chart: { type: 'bar', foreColor: chartForeColor, toolbar: { show: false }, fontFamily: 'inherit' },
+    plotOptions: { bar: { borderRadius: 6, horizontal: false, distributed: true, columnWidth: '60%' } },
+    xaxis: { categories: labels, labels: { style: { fontSize: '10px' } } },
+    yaxis: { min: 0, forceNiceScale: true, labels: { style: { fontSize: '11px' } } },
+    colors: colors.slice(0, labels.length),
+    legend: { show: false },
+    dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 600 } },
+    grid: { borderColor: '#e5e7eb', strokeDashArray: 4, padding: { left: 0, right: 0 } },
+    tooltip: { theme: 'light' },
+  };
 });
-const tractorDonutOptions = computed(() => ({
-  chart: { type: 'donut', foreColor: chartForeColor },
-  labels: ['Online', 'Offline', 'Inactive'],
-  colors: ['#10b981', '#ef4444', '#9ca3af'],
-  plotOptions: { pie: { donut: { size: '60%', labels: { show: true, name: { show: true }, value: { show: true, fontSize: '22px', fontWeight: 700 }, total: { show: true, label: 'Total', fontSize: '14px' } } } } },
-  legend: { position: 'bottom', labels: { colors: chartForeColor } },
-  stroke: { width: 0 },
-  dataLabels: { enabled: false },
-}));
 
 // ── Alerts Trend (Area) ──
 const alertsTrendSeries = computed(() => [{
@@ -534,35 +478,6 @@ const pmsBreakdownOptions = computed(() => ({
   stroke: { width: 0 },
   dataLabels: { enabled: false },
 }));
-
-// ── PMS by Status (Pie) ──
-const maintenancePieSeries = computed(() => Object.values(props.charts?.maintenanceByStatus || {}));
-const maintenanceStatusColors = { documentation: '#f59e0b', scheduled: '#3b82f6', in_progress: '#8b5cf6', completed: '#10b981', cancelled: '#6b7280' };
-const maintenancePieOptions = computed(() => {
-  const ms = props.charts?.maintenanceByStatus || {};
-  return {
-    chart: { type: 'pie', foreColor: chartForeColor },
-    labels: Object.keys(ms).map(k => k.replace(/_/g, ' ')),
-    colors: Object.keys(ms).map(k => maintenanceStatusColors[k] || '#6366f1'),
-    legend: { position: 'bottom', labels: { colors: chartForeColor } },
-    stroke: { width: 0 },
-    dataLabels: { enabled: true, formatter: (val) => val.toFixed(0) + '%' },
-  };
-});
-
-// ── Alerts by Type (Pie) ──
-const alertTypePieSeries = computed(() => Object.values(props.charts?.alertsByType || {}));
-const alertTypePieOptions = computed(() => {
-  const at = props.charts?.alertsByType || {};
-  return {
-    chart: { type: 'pie', foreColor: chartForeColor },
-    labels: Object.keys(at).map(k => k.replace(/_/g, ' ')),
-    colors: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#ec4899'],
-    legend: { position: 'bottom', labels: { colors: chartForeColor } },
-    stroke: { width: 0 },
-    dataLabels: { enabled: true, formatter: (val) => val.toFixed(0) + '%' },
-  };
-});
 
 // ── Tractors by Group (Horizontal Bar) ──
 const groupBarSeries = computed(() => [{

@@ -8,6 +8,7 @@ use App\Models\Device;
 use App\Models\FarmerFeedback;
 use App\Models\GeoFence;
 use App\Models\Maintenance;
+use App\Models\Ticket;
 use App\Models\Tractor;
 use App\Models\User;
 use App\Services\Jimi\JimiDeviceService;
@@ -128,6 +129,10 @@ class DashboardController extends Controller
         $totalGeoFences = GeoFence::count();
         $activeGeoFences = GeoFence::where('is_active', true)->count();
 
+        // ── Tickets ──
+        $openTickets = Ticket::whereNotIn('status', ['resolved', 'closed'])->count();
+        $totalTickets = Ticket::count();
+
         // ── Machine hours: use cached value only, never block the page load ──
         $totalMachineHours = (float) \Illuminate\Support\Facades\Cache::get('jimi_total_machine_hours', 0);
 
@@ -160,6 +165,8 @@ class DashboardController extends Controller
                 'totalGeoFences' => $totalGeoFences,
                 'activeGeoFences' => $activeGeoFences,
                 'totalFeedback' => $totalFeedback,
+                'openTickets' => $openTickets,
+                'totalTickets' => $totalTickets,
                 'totalMachineHours' => $totalMachineHours,
                 'offlineLessThanDay' => $offlineBreakdown['lessThanDay'],
                 'offline1to7Days' => $offlineBreakdown['oneToSevenDays'],

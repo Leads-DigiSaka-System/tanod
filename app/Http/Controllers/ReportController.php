@@ -3,13 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Exports\TractorUsageExport;
+use App\Models\Alert;
 use App\Models\Booking;
 use App\Models\Device;
-use App\Models\DeviceTrackRecord;
 use App\Models\Maintenance;
+use App\Models\Ticket;
 use App\Models\Tractor;
-use App\Services\Jimi\JimiTrackingService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -58,7 +59,7 @@ class ReportController extends Controller
             } else {
                 $nextPms = ($maintenancesDone + 1) * 100;
                 $hrsLeft = round($nextPms - $hours, 1);
-                $pmsStatus = $hrsLeft <= 0 ? 'Due' : $hrsLeft . ' hrs left';
+                $pmsStatus = $hrsLeft <= 0 ? 'Due' : $hrsLeft.' hrs left';
             }
 
             $lastPms = $t->maintenances->first();
@@ -160,28 +161,132 @@ class ReportController extends Controller
         return Inertia::render('Reports/BookingSummary', [
             'bookings' => $bookings,
             'summary' => $summary,
-            'filters' => $request->only(['from', 'to']),
+            'filterData' => $request->only(['from', 'to']),
         ]);
     }
 
     public function deviceStatus()
     {
-        $devices = Device::with(['latestLocation', 'tractor:id,device_id,no_plate'])
+        $devices = Device::with(['latestLocation', 'tractor:id,device_id,no_plate,brand,model'])
             ->where('is_active', true)
             ->get()
             ->map(fn ($d) => [
                 'id' => $d->id,
                 'imei' => $d->imei,
-                'name' => $d->device_name,
-                'tractor' => $d->tractor?->no_plate,
-                'online' => $d->isOnline(),
-                'last_heartbeat' => $d->latestLocation?->heartbeat_at,
-                'lat' => $d->latestLocation?->lat,
-                'lng' => $d->latestLocation?->lng,
+                'device_name' => $d->device_name,
+                'tractor' => $d->tractor ? [
+                    'brand' => $d->tractor->brand,
+                    'model' => $d->tractor->model,
+                    'no_plate' => $d->tractor->no_plate,
+                ] : null,
+                'is_online' => $d->isOnline(),
+                'latest_location' => $d->latestLocation ? [
+                    'heartbeat_at' => $d->latestLocation->heartbeat_at,
+                ] : null,
+                'sim' => $d->sim ?? null,
+                'expiration_date' => $d->expiration_date ?? null,
             ]);
+
+        $onlineCount = $devices->where('is_online', true)->count();
 
         return Inertia::render('Reports/DeviceStatus', [
             'devices' => $devices,
+            'summary' => [
+                'total' => $devices->count(),
+                'online' => $onlineCount,
+                'offline' => $devices->count() - $onlineCount,
+                'active' => $devices->count(),
+            ],
+        ]);
+    }
+
+    public function alertsReport(Request $request)
+    {
+        $request->validate([
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+            'type' => 'nullable|string',
+            'acknowledged' => 'nullable|in:0,1',
+        ]);
+
+        $query = Alert::with(['tractor:id,no_plate,brand,model', 'device:id,imei,device_name']);
+
+        if ($request->from && $request->to) {
+            $query->whereBetween('created_at', [$request->from, $request->to]);
+        }
+
+        if ($request->type) {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->has('acknowledged')) {
+            $query->where('is_acknowledged', $request->acknowledged === '1');
+        }
+
+        $alerts = $query->latest()->paginate(20)->withQueryString();
+
+        $alertTypes = Alert::select('type', DB::raw('count(*) as count'))
+            ->groupBy('type')
+            ->orderByDesc('count')
+            ->pluck('count', 'type')
+            ->toArray();
+
+        $summary = [
+            'total' => Alert::count(),
+            'unacknowledged' => Alert::where('is_acknowledged', false)->count(),
+            'acknowledged' => Alert::where('is_acknowledged', true)->count(),
+            'by_type' => $alertTypes,
+        ];
+
+        return Inertia::render('Reports/AlertsHistory', [
+            'alerts' => $alerts,
+            'summary' => $summary,
+            'filterData' => $request->only(['from', 'to', 'type', 'acknowledged']),
+        ]);
+    }
+
+    public function ticketReport(Request $request)
+    {
+        $request->validate([
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+            'status' => 'nullable|string',
+            'priority' => 'nullable|string',
+        ]);
+
+        $query = Ticket::with(['tractor:id,no_plate,brand,model', 'submitter:id,name']);
+
+        if ($request->from && $request->to) {
+            $query->whereBetween('created_at', [$request->from, $request->to]);
+        }
+
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->priority) {
+            $query->where('priority', $request->priority);
+        }
+
+        $tickets = $query->latest()->paginate(20)->withQueryString();
+
+        $avgResolution = Ticket::whereNotNull('resolved_at')
+            ->select(DB::raw('AVG(TIMESTAMPDIFF(HOUR, created_at, resolved_at)) as avg_hours'))
+            ->value('avg_hours');
+
+        $summary = [
+            'total' => Ticket::count(),
+            'open' => Ticket::where('status', 'open')->count(),
+            'in_progress' => Ticket::where('status', 'in_progress')->count(),
+            'resolved' => Ticket::where('status', 'resolved')->count(),
+            'closed' => Ticket::where('status', 'closed')->count(),
+            'avg_resolution_hours' => $avgResolution ? round((float) $avgResolution, 1) : null,
+        ];
+
+        return Inertia::render('Reports/TicketSummary', [
+            'tickets' => $tickets,
+            'summary' => $summary,
+            'filterData' => $request->only(['from', 'to', 'status', 'priority']),
         ]);
     }
 
@@ -221,7 +326,7 @@ class ReportController extends Controller
             } else {
                 $nextPms = ($maintenancesDone + 1) * 100;
                 $hrsLeft = round($nextPms - $hours, 1);
-                $pmsStatus = $hrsLeft <= 0 ? 'Due' : $hrsLeft . ' hrs left';
+                $pmsStatus = $hrsLeft <= 0 ? 'Due' : $hrsLeft.' hrs left';
             }
 
             $lastPms = $t->maintenances->first();
@@ -250,7 +355,7 @@ class ReportController extends Controller
             'total_maintenances' => Maintenance::count(),
         ];
 
-        $filename = 'tractor-usage-report-' . now()->format('Y-m-d') . '.xlsx';
+        $filename = 'tractor-usage-report-'.now()->format('Y-m-d').'.xlsx';
 
         return Excel::download(
             new TractorUsageExport($tractors->toArray(), $summary),
@@ -260,8 +365,175 @@ class ReportController extends Controller
 
     public function exportCsv(Request $request)
     {
-        // Placeholder for Excel/CSV export using Maatwebsite
-        // Will dispatch export job and return download
-        return back()->with('info', 'Export feature coming soon.');
+        $type = $request->get('type', 'tractor-usage');
+
+        return match ($type) {
+            'booking-summary' => $this->exportBookingSummary($request),
+            'maintenance-summary' => $this->exportMaintenanceSummary($request),
+            'device-status' => $this->exportDeviceStatus(),
+            'alerts-history' => $this->exportAlertsHistory($request),
+            'ticket-summary' => $this->exportTicketSummary($request),
+            default => $this->exportTractorUsage($request),
+        };
+    }
+
+    private function exportBookingSummary(Request $request)
+    {
+        $query = Booking::with(['tractor:id,no_plate,brand,model', 'bookedBy:id,name']);
+
+        if ($request->from && $request->to) {
+            $query->whereBetween('booking_date', [$request->from, $request->to]);
+        }
+
+        $bookings = $query->latest()->get()->toArray();
+
+        $summary = [
+            'total' => Booking::count(),
+            'approved' => Booking::where('status', 'approved')->count(),
+            'pending' => Booking::where('status', 'pending')->count(),
+            'completed' => Booking::where('status', 'completed')->count(),
+            'rejected' => Booking::where('status', 'rejected')->count(),
+        ];
+
+        return Excel::download(
+            new \App\Exports\BookingSummaryExport($bookings, $summary, $request->only(['from', 'to'])),
+            'booking-summary-'.now()->format('Y-m-d').'.xlsx'
+        );
+    }
+
+    private function exportMaintenanceSummary(Request $request)
+    {
+        $query = Maintenance::with(['tractor:id,no_plate,brand,model', 'performer:id,name', 'issueType:id,name']);
+
+        if ($request->from && $request->to) {
+            $query->whereBetween('maintenance_date', [$request->from, $request->to]);
+        }
+
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+
+        $maintenances = $query->latest('maintenance_date')->get()->toArray();
+
+        $summary = [
+            'total' => Maintenance::count(),
+            'completed' => Maintenance::where('status', 'completed')->count(),
+            'pending' => Maintenance::whereIn('status', ['documentation', 'scheduled', 'in_progress'])->count(),
+            'total_cost' => round(Maintenance::where('status', 'completed')->sum('cost'), 2),
+        ];
+
+        return Excel::download(
+            new \App\Exports\MaintenanceSummaryExport($maintenances, $summary, $request->only(['from', 'to', 'status'])),
+            'maintenance-summary-'.now()->format('Y-m-d').'.xlsx'
+        );
+    }
+
+    private function exportDeviceStatus()
+    {
+        $devices = Device::with(['latestLocation', 'tractor:id,device_id,no_plate,brand,model'])
+            ->where('is_active', true)
+            ->get()
+            ->map(fn ($d) => [
+                'device_name' => $d->device_name,
+                'imei' => $d->imei,
+                'tractor' => $d->tractor ? [
+                    'brand' => $d->tractor->brand,
+                    'model' => $d->tractor->model,
+                    'no_plate' => $d->tractor->no_plate,
+                ] : null,
+                'is_online' => $d->isOnline(),
+                'latest_location' => $d->latestLocation ? ['heartbeat_at' => $d->latestLocation->heartbeat_at] : null,
+                'sim' => $d->sim ?? null,
+                'expiration_date' => $d->expiration_date ?? null,
+            ])->toArray();
+
+        $onlineCount = collect($devices)->where('is_online', true)->count();
+
+        return Excel::download(
+            new \App\Exports\DeviceStatusExport($devices, [
+                'total' => count($devices),
+                'online' => $onlineCount,
+                'offline' => count($devices) - $onlineCount,
+                'active' => count($devices),
+            ]),
+            'device-status-'.now()->format('Y-m-d').'.xlsx'
+        );
+    }
+
+    private function exportAlertsHistory(Request $request)
+    {
+        $query = Alert::with(['tractor:id,no_plate', 'device:id,imei,device_name']);
+
+        if ($request->from && $request->to) {
+            $query->whereBetween('created_at', [$request->from, $request->to]);
+        }
+
+        if ($request->type) {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->has('acknowledged')) {
+            $query->where('is_acknowledged', $request->acknowledged === '1');
+        }
+
+        $alerts = $query->latest()->get()->toArray();
+
+        $summary = [
+            'total' => Alert::count(),
+            'unacknowledged' => Alert::where('is_acknowledged', false)->count(),
+            'acknowledged' => Alert::where('is_acknowledged', true)->count(),
+        ];
+
+        return Excel::download(
+            new \App\Exports\AlertsHistoryExport($alerts, $summary, $request->only(['from', 'to', 'type', 'acknowledged'])),
+            'alerts-history-'.now()->format('Y-m-d').'.xlsx'
+        );
+    }
+
+    private function exportTicketSummary(Request $request)
+    {
+        $query = Ticket::with(['tractor:id,no_plate', 'submitter:id,name']);
+
+        if ($request->from && $request->to) {
+            $query->whereBetween('created_at', [$request->from, $request->to]);
+        }
+
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->priority) {
+            $query->where('priority', $request->priority);
+        }
+
+        $tickets = $query->latest()->get()->map(fn ($t) => [
+            'id' => $t->id,
+            'subject' => $t->subject,
+            'tractor' => $t->tractor ? ['no_plate' => $t->tractor->no_plate] : null,
+            'priority' => $t->priority,
+            'status' => $t->status,
+            'submitter' => $t->submitter ? ['name' => $t->submitter->name] : null,
+            'created_at' => $t->created_at?->format('Y-m-d'),
+            'resolution_hours' => $t->resolved_at
+                ? round($t->created_at->diffInHours($t->resolved_at), 1)
+                : null,
+        ])->toArray();
+
+        $avgResolution = Ticket::whereNotNull('resolved_at')
+            ->selectRaw('AVG(TIMESTAMPDIFF(HOUR, created_at, resolved_at)) as avg_hours')
+            ->value('avg_hours');
+
+        $summary = [
+            'total' => Ticket::count(),
+            'open' => Ticket::where('status', 'open')->count(),
+            'in_progress' => Ticket::where('status', 'in_progress')->count(),
+            'resolved' => Ticket::where('status', 'resolved')->count(),
+            'avg_resolution_hours' => $avgResolution ? round((float) $avgResolution, 1) : null,
+        ];
+
+        return Excel::download(
+            new \App\Exports\TicketSummaryExport($tickets, $summary, $request->only(['from', 'to', 'status', 'priority'])),
+            'ticket-summary-'.now()->format('Y-m-d').'.xlsx'
+        );
     }
 }

@@ -128,10 +128,16 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('reports/tractor-usage', [ReportController::class, 'tractorUsage'])->name('reports.tractor-usage');
     Route::get('reports/tractor-usage/export', [ReportController::class, 'exportTractorUsage'])->name('reports.tractor-usage.export');
+    Route::get('reports/maintenance-summary/export', [ReportController::class, 'exportCsv'])->name('reports.maintenance-summary.export')->defaults('type', 'maintenance-summary');
+    Route::get('reports/booking-summary/export', [ReportController::class, 'exportCsv'])->name('reports.booking-summary.export')->defaults('type', 'booking-summary');
+    Route::get('reports/device-status/export', [ReportController::class, 'exportCsv'])->name('reports.device-status.export')->defaults('type', 'device-status');
+    Route::get('reports/alerts-history/export', [ReportController::class, 'exportCsv'])->name('reports.alerts-history.export')->defaults('type', 'alerts-history');
+    Route::get('reports/ticket-summary/export', [ReportController::class, 'exportCsv'])->name('reports.ticket-summary.export')->defaults('type', 'ticket-summary');
     Route::get('reports/maintenance-summary', [ReportController::class, 'maintenanceSummary'])->name('reports.maintenance-summary');
     Route::get('reports/booking-summary', [ReportController::class, 'bookingSummary'])->name('reports.booking-summary');
     Route::get('reports/device-status', [ReportController::class, 'deviceStatus'])->name('reports.device-status');
-    Route::get('reports/export', [ReportController::class, 'exportCsv'])->name('reports.export');
+    Route::get('reports/alerts-history', [ReportController::class, 'alertsReport'])->name('reports.alerts-history');
+    Route::get('reports/ticket-summary', [ReportController::class, 'ticketReport'])->name('reports.ticket-summary');
 
     // Users (admin only)
     Route::resource('users', UserController::class)->middleware('permission:users.view');

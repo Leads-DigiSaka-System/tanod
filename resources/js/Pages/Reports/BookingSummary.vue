@@ -8,9 +8,15 @@
         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
         Back to Reports
       </Link>
-      <div class="mt-3">
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Booking Summary</h1>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Overview of tractor bookings by status and usage</p>
+      <div class="mt-3 flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Booking Summary</h1>
+          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Overview of tractor bookings by status and usage</p>
+        </div>
+        <a :href="exportUrl" class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+          Export Excel
+        </a>
       </div>
     </div>
 
@@ -61,17 +67,17 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="b in bookings" :key="b.id" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+          <tr v-for="b in bookings.data" :key="b.id" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
             <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">
               <Link :href="`/bookings/${b.id}`" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">#{{ b.id }}</Link>
             </td>
             <td class="px-6 py-4 text-gray-900 dark:text-white">{{ b.tractor?.brand }} {{ b.tractor?.model }} — {{ b.tractor?.no_plate }}</td>
-            <td class="px-6 py-4">{{ b.booked_by_user?.name || '—' }}</td>
+            <td class="px-6 py-4">{{ b.booked_by?.name || '—' }}</td>
             <td class="px-6 py-4"><StatusBadge :status="b.status" /></td>
             <td class="px-6 py-4">{{ b.start_date ? formatDate(b.start_date) : formatDate(b.created_at) }}</td>
-            <td class="px-6 py-4">{{ b.duration || '—' }}</td>
+            <td class="px-6 py-4">{{ b.start_date && b.end_date ? Math.ceil((new Date(b.end_date) - new Date(b.start_date)) / 86400000) + 'd' : '—' }}</td>
           </tr>
-          <tr v-if="!bookings?.length">
+          <tr v-if="!bookings?.data?.length">
             <td colspan="6" class="px-6 py-12">
               <div class="flex flex-col items-center justify-center text-center">
                 <svg class="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,14 +94,14 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue';
+import { computed, reactive } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import StatCard from '@/Components/StatCard.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
 import { formatDate } from '@/utils/dateFormat';
 
-const props = defineProps({ bookings: Array, summary: Object, filterData: Object });
+const props = defineProps({ bookings: Object, summary: Object, filterData: Object });
 
 const filters = reactive({
   from: props.filterData?.from || '',
@@ -110,4 +116,12 @@ const applyFilter = () => {
     status: filters.status || undefined,
   }, { preserveState: true, replace: true });
 };
+
+const exportUrl = computed(() => {
+  const params = new URLSearchParams();
+  if (filters.from) params.set('from', filters.from);
+  if (filters.to) params.set('to', filters.to);
+  const qs = params.toString();
+  return '/reports/booking-summary/export' + (qs ? '?' + qs : '');
+});
 </script>
