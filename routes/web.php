@@ -125,7 +125,10 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::put('feedback/{feedback}/review', [FeedbackController::class, 'review'])->name('feedback.review');
 
     // Reports
-    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('reports', [ReportController::class, 'subscriptions'])->name('reports.index');
+    Route::post('reports/subscriptions', [ReportController::class, 'storeSubscription'])->name('reports.subscriptions.store');
+    Route::put('reports/subscriptions/{subscription}', [ReportController::class, 'updateSubscription'])->name('reports.subscriptions.update');
+    Route::delete('reports/subscriptions/{subscription}', [ReportController::class, 'destroySubscription'])->name('reports.subscriptions.destroy');
     Route::get('reports/tractor-usage', [ReportController::class, 'tractorUsage'])->name('reports.tractor-usage');
     Route::get('reports/tractor-usage/export', [ReportController::class, 'exportTractorUsage'])->name('reports.tractor-usage.export');
     Route::get('reports/maintenance-summary/export', [ReportController::class, 'exportCsv'])->name('reports.maintenance-summary.export')->defaults('type', 'maintenance-summary');

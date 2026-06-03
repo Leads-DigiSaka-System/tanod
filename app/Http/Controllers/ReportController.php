@@ -7,8 +7,10 @@ use App\Models\Alert;
 use App\Models\Booking;
 use App\Models\Device;
 use App\Models\Maintenance;
+use App\Models\ReportSubscription;
 use App\Models\Ticket;
 use App\Models\Tractor;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -377,7 +379,7 @@ class ReportController extends Controller
         };
     }
 
-    private function exportBookingSummary(Request $request)
+    public function exportBookingSummary(Request $request)
     {
         $query = Booking::with(['tractor:id,no_plate,brand,model', 'bookedBy:id,name']);
 
@@ -401,7 +403,7 @@ class ReportController extends Controller
         );
     }
 
-    private function exportMaintenanceSummary(Request $request)
+    public function exportMaintenanceSummary(Request $request)
     {
         $query = Maintenance::with(['tractor:id,no_plate,brand,model', 'performer:id,name', 'issueType:id,name']);
 
@@ -428,7 +430,7 @@ class ReportController extends Controller
         );
     }
 
-    private function exportDeviceStatus()
+    public function exportDeviceStatus()
     {
         $devices = Device::with(['latestLocation', 'tractor:id,device_id,no_plate,brand,model'])
             ->where('is_active', true)
@@ -460,7 +462,7 @@ class ReportController extends Controller
         );
     }
 
-    private function exportAlertsHistory(Request $request)
+    public function exportAlertsHistory(Request $request)
     {
         $query = Alert::with(['tractor:id,no_plate', 'device:id,imei,device_name']);
 
@@ -490,7 +492,7 @@ class ReportController extends Controller
         );
     }
 
-    private function exportTicketSummary(Request $request)
+    public function exportTicketSummary(Request $request)
     {
         $query = Ticket::with(['tractor:id,no_plate', 'submitter:id,name']);
 
@@ -535,5 +537,177 @@ class ReportController extends Controller
             new \App\Exports\TicketSummaryExport($tickets, $summary, $request->only(['from', 'to', 'status', 'priority'])),
             'ticket-summary-'.now()->format('Y-m-d').'.xlsx'
         );
+    }
+
+    // ═══════════════════════════════════════════
+    // Report Subscriptions
+    // ═══════════════════════════════════════════
+
+    public function subscriptions()
+    {
+        $subscriptions = ReportSubscription::with('user:id,name,email')
+            ->latest()
+            ->get()
+            ->map(fn ($sub) => [
+                'id' => $sub->id,
+                'user_id' => $sub->user_id,
+                'user' => $sub->user ? [
+                    'id' => $sub->user->id,
+                    'name' => $sub->user->name,
+                    'email' => $sub->user->email,
+                ] : null,
+                'report_type' => $sub->report_type,
+                'report_type_label' => $sub->reportTypeLabel(),
+                'interval' => $sub->interval,
+                'interval_label' => $sub->intervalLabel(),
+                'day_of_week' => $sub->day_of_week,
+                'day_of_month' => $sub->day_of_month,
+                'time' => $sub->time,
+                'is_active' => $sub->is_active,
+                'last_sent_at' => $sub->last_sent_at?->toISOString(),
+                'next_scheduled_at' => $sub->next_scheduled_at?->toISOString(),
+            ])
+            ->values();
+
+        // Group by user for the frontend
+        $grouped = $subscriptions->groupBy('user_id')->map(function ($items, $userId) {
+            $first = $items->first();
+
+            return [
+                'user_id' => $userId,
+                'user' => $first['user'],
+                'subscriptions' => $items->values(),
+            ];
+        })->values();
+
+        $users = User::select('id', 'name', 'email')
+            ->where('is_active', true)
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['super-admin', 'sub-admin', 'tps', 'fca']))
+            ->orderBy('name')
+            ->get();
+
+        return Inertia::render('Reports/Index', [
+            'groupedSubscriptions' => $grouped,
+            'allUsers' => $users,
+            'reportTypes' => ReportSubscription::reportTypes(),
+            'intervals' => ReportSubscription::intervals(),
+            'daysOfWeek' => ReportSubscription::daysOfWeek(),
+            'timeOptions' => ReportSubscription::timeOptions(),
+        ]);
+    }
+
+    public function storeSubscription(Request $request)
+    {
+        $validated = $request->validate([
+            'user_ids' => 'required|array|min:1',
+            'user_ids.*' => 'required|integer|exists:users,id',
+            'report_types' => 'required|array|min:1',
+            'report_types.*' => 'required|in:'.implode(',', array_keys(ReportSubscription::reportTypes())),
+            'interval' => 'required|in:daily,weekly,monthly',
+            'day_of_week' => 'nullable|in:'.implode(',', ReportSubscription::daysOfWeek()),
+            'day_of_month' => 'nullable|integer|min:1|max:28',
+            'time' => 'required|in:'.implode(',', ReportSubscription::timeOptions()),
+        ]);
+
+        $created = 0;
+        $skipped = 0;
+
+        foreach ($validated['user_ids'] as $userId) {
+            foreach ($validated['report_types'] as $reportType) {
+                $exists = ReportSubscription::where('user_id', $userId)
+                    ->where('report_type', $reportType)
+                    ->where('interval', $validated['interval'])
+                    ->exists();
+
+                if ($exists) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                $data = [
+                    'user_id' => $userId,
+                    'report_type' => $reportType,
+                    'interval' => $validated['interval'],
+                    'day_of_week' => $validated['day_of_week'] ?? null,
+                    'day_of_month' => $validated['day_of_month'] ?? null,
+                    'time' => $validated['time'],
+                    'is_active' => true,
+                    'next_scheduled_at' => $this->calculateNextSchedule([
+                        'interval' => $validated['interval'],
+                        'day_of_week' => $validated['day_of_week'] ?? 'monday',
+                        'day_of_month' => $validated['day_of_month'] ?? 1,
+                        'time' => $validated['time'],
+                    ]),
+                ];
+
+                ReportSubscription::create($data);
+                $created++;
+            }
+        }
+
+        $msg = "{$created} subscription(s) created.";
+        if ($skipped > 0) {
+            $msg .= " {$skipped} skipped (already exists).";
+        }
+
+        return back()->with('success', $msg);
+    }
+
+    public function updateSubscription(Request $request, ReportSubscription $subscription)
+    {
+        $validated = $request->validate([
+            'interval' => 'required|in:daily,weekly,monthly',
+            'day_of_week' => 'nullable|in:'.implode(',', ReportSubscription::daysOfWeek()),
+            'day_of_month' => 'nullable|integer|min:1|max:28',
+            'time' => 'required|in:'.implode(',', ReportSubscription::timeOptions()),
+            'is_active' => 'boolean',
+        ]);
+
+        $validated['next_scheduled_at'] = $this->calculateNextSchedule(
+            array_merge($subscription->toArray(), $validated)
+        );
+
+        $subscription->update($validated);
+
+        return back()->with('success', 'Report subscription updated.');
+    }
+
+    public function destroySubscription(ReportSubscription $subscription)
+    {
+        $subscription->delete();
+
+        return back()->with('success', 'Report subscription removed.');
+    }
+
+    public function calculateNextSchedule(array $data): \Illuminate\Support\Carbon
+    {
+        [$hour, $minute] = explode(':', $data['time']);
+        $now = now();
+        $next = $now->copy()->setTime((int) $hour, (int) $minute, 0);
+
+        return match ($data['interval']) {
+            'daily' => $next->isPast() ? $next->addDay() : $next,
+            'weekly' => $this->nextWeekly($next, $data['day_of_week'] ?? 'monday'),
+            'monthly' => $this->nextMonthly($next, (int) ($data['day_of_month'] ?? 1)),
+            default => $next->addDay(),
+        };
+    }
+
+    private function nextWeekly(\Illuminate\Support\Carbon $base, string $dayOfWeek): \Illuminate\Support\Carbon
+    {
+        $days = ['sunday' => 0, 'monday' => 1, 'tuesday' => 2, 'wednesday' => 3, 'thursday' => 4, 'friday' => 5, 'saturday' => 6];
+        $targetDay = $days[$dayOfWeek] ?? 1;
+
+        $next = $base->copy()->next($targetDay);
+
+        return $next->isPast() ? $next->addWeek() : $next;
+    }
+
+    private function nextMonthly(\Illuminate\Support\Carbon $base, int $dayOfMonth): \Illuminate\Support\Carbon
+    {
+        $next = $base->copy()->setDay(min($dayOfMonth, $base->daysInMonth));
+
+        return $next->isPast() ? $next->addMonth()->setDay(min($dayOfMonth, $next->daysInMonth)) : $next;
     }
 }

@@ -13,6 +13,9 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+// Send scheduled reports every 5 minutes (picks up any with next_scheduled_at ≤ now)
+Schedule::command('reports:send-scheduled')->everyFiveMinutes()->withoutOverlapping();
+
 /*
 |--------------------------------------------------------------------------
 | Scheduled Jobs
