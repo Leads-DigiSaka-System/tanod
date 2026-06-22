@@ -13,7 +13,11 @@ class GroupController extends Controller
 {
     public function index(Request $request)
     {
-        $groups = TractorGroup::withCount(['tractors', 'tpsUsers as tps_count'])
+        $groups = TractorGroup::withCount([
+            'tractors',
+            'tractors as active_tractor_count' => fn ($q) => $q->whereHas('device', fn ($q) => $q->notStale()),
+            'tpsUsers as tps_count',
+        ])
             ->with(['tpsUsers:id,name,email', 'tractors.device.latestLocation'])
             ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%")
                 ->orWhere('area', 'like', "%{$s}%"))
@@ -34,6 +38,7 @@ class GroupController extends Controller
 
         $tractors = Tractor::with('device.latestLocation')
             ->select('id', 'no_plate', 'brand', 'model', 'imei', 'device_id')
+            ->whereHas('device', fn ($q) => $q->notStale())
             ->get()
             ->map(fn (Tractor $t) => [
                 'id' => $t->id,
@@ -58,6 +63,7 @@ class GroupController extends Controller
     {
         $tractors = Tractor::with('device.latestLocation')
             ->select('id', 'no_plate', 'brand', 'model', 'imei', 'device_id')
+            ->whereHas('device', fn ($q) => $q->notStale())
             ->get()
             ->map(fn (Tractor $t) => [
                 'id' => $t->id,
@@ -107,6 +113,7 @@ class GroupController extends Controller
 
         $tractors = Tractor::with('device.latestLocation')
             ->select('id', 'no_plate', 'brand', 'model', 'imei', 'device_id')
+            ->whereHas('device', fn ($q) => $q->notStale())
             ->get()
             ->map(fn (Tractor $t) => [
                 'id' => $t->id,

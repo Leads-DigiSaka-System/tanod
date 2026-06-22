@@ -49,7 +49,7 @@
       <div class="bg-white rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
         <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
           <div>
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Assign Tractors</h2>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Assign Tractorsss</h2>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ form.tractor_ids.length }} selected</p>
           </div>
           <div class="flex items-center gap-3">
@@ -62,6 +62,16 @@
         <div class="p-4">
           <input v-model="tractorSearch" type="text" placeholder="Search by plate, brand, model, or IMEI..."
             class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 mb-3" />
+  
+            <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-gray-500 dark:text-gray-400">
+              {{ filteredTractors.length }} tractor{{ filteredTractors.length !== 1 ? 's' : '' }} shown
+            </span>
+            <button type="button" @click="toggleAllTractors"
+              class="text-xs font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">
+              {{ allFilteredSelected ? 'Deselect All' : 'Select All' }}
+            </button>
+          </div>
           <div class="max-h-64 overflow-y-auto space-y-2">
             <label v-for="t in filteredTractors" :key="t.id"
               class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all"
@@ -196,6 +206,11 @@ const tractorSearch = ref('');
 const tpsSearch = ref('');
 const allTpsCount = computed(() => props.tpsUsers?.length || 0);
 
+const form = useForm({
+  name: '', area: '', description: '', is_active: true,
+  tractor_ids: [], tps_user_ids: [], assign_all_tps: false,
+});
+
 const filteredTractors = computed(() => {
   let list = props.tractors;
   if (tractorSearch.value) {
@@ -223,10 +238,26 @@ const filteredTpsUsers = computed(() => {
   );
 });
 
-const form = useForm({
-  name: '', area: '', description: '', is_active: true,
-  tractor_ids: [], tps_user_ids: [], assign_all_tps: false,
+const allTractorIds = computed(() => props.tractors.map(t => t.id));
+
+const allFilteredSelected = computed(() => {
+  if (!filteredTractors.value.length) return false;
+  return filteredTractors.value.every(t => form.tractor_ids.includes(t.id));
 });
+
+const toggleAllTractors = () => {
+  if (allFilteredSelected.value) {
+    const filteredIds = new Set(filteredTractors.value.map(t => t.id));
+    form.tractor_ids = form.tractor_ids.filter(id => !filteredIds.has(id));
+  } else {
+    const current = new Set(form.tractor_ids);
+    for (const t of filteredTractors.value) {
+      if (!current.has(t.id)) {
+        form.tractor_ids.push(t.id);
+      }
+    }
+  }
+};
 
 const submit = () => { form.post('/groups'); };
 </script>
