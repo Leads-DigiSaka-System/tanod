@@ -40,7 +40,7 @@ return [
     ],
 
     'digisaka' => [
-        'base_url' => env('DIGISAKA_BASE_URL', 'http://digisaka.test'),
+        'base_url' => env('DIGISAKA_BASE_URL', 'http://digisaka.app'),
         'token' => env('DIGISAKA_API_TOKEN', '2550|A69nLrYeGgcJkVjiuVlK9WrF0pBbnNb3JpTsEN93002dd78a'),
     ],
 
