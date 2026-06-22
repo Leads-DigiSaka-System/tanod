@@ -3,6 +3,9 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -30,5 +33,31 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
+            // Only intercept Inertia requests
+            if (! $request->inertia()) {
+                return $response;
+            }
+
+            $statusCode = $response->getStatusCode();
+
+            // Map HTTP status codes to Inertia error page components
+            $pages = [
+                403 => 'Errors/Forbidden',
+                404 => 'Errors/NotFound',
+                419 => 'Errors/SessionExpired',
+                500 => 'Errors/ServerError',
+                503 => 'Errors/ServerError',
+            ];
+
+            if (array_key_exists($statusCode, $pages)) {
+                return Inertia::render($pages[$statusCode], [
+                    'status' => $statusCode,
+                ])
+                    ->toResponse($request)
+                    ->setStatusCode($statusCode);
+            }
+
+            return $response;
+        });
     })->create();

@@ -325,7 +325,7 @@ class ApiTicketController extends Controller
             return null;
         }
 
-        return rtrim(request()->getSchemeAndHttpHost().request()->getBaseUrl(), '/').'/storage/'.$path;
+        return request()->getSchemeAndHttpHost().'/storage/'.$path;
     }
 
     /**

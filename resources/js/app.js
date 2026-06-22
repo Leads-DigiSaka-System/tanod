@@ -10,7 +10,15 @@ createInertiaApp({
     title: (title) => title ? `${title} - TANOD` : 'TANOD',
     resolve: (name) => {
         const pages = import.meta.glob('./Pages/**/*.vue', { eager: true });
-        return pages[`./Pages/${name}.vue`];
+        const component = pages[`./Pages/${name}.vue`];
+
+        if (component) {
+            return component;
+        }
+
+        // Fallback: render the 404 error page for missing page components
+        console.warn(`[Inertia] Page component not found: ./Pages/${name}.vue`);
+        return pages['./Pages/Errors/NotFound.vue'];
     },
     setup({ el, App, props, plugin }) {
         createApp({ render: () => h(App, props) })

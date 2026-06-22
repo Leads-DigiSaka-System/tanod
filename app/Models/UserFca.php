@@ -22,6 +22,7 @@ class UserFca extends Model
         'city_town',
         'barangay',
         'date_received',
+        'project',
         'tractor_photo_paths',
         'logbook_photo_paths',
     ];

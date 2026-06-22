@@ -21,6 +21,7 @@
         "@vitejs/plugin-vue": "^6.0.4",
         "apexcharts": "^5.13.0",
         "autoprefixer": "^10.4.27",
+        "chart.js": "^4.5.1",
         "firebase": "^12.11.0",
         "flowbite": "^4.0.1",
         "flowbite-vue": "^0.2.3",

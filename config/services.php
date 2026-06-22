@@ -39,4 +39,9 @@ return [
         'server_key' => env('FIREBASE_SERVER_KEY'),
     ],
 
+    'digisaka' => [
+        'base_url' => env('DIGISAKA_BASE_URL', 'http://digisaka.test'),
+        'token' => env('DIGISAKA_API_TOKEN', '2550|A69nLrYeGgcJkVjiuVlK9WrF0pBbnNb3JpTsEN93002dd78a'),
+    ],
+
 ];

@@ -7,7 +7,9 @@ use App\Models\IssueType;
 use App\Models\Maintenance;
 use App\Models\MaintenanceImage;
 use App\Models\Tractor;
+use App\Models\TractorRecipient;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -15,18 +17,119 @@ class MaintenanceController extends Controller
 {
     public function index(Request $request)
     {
-        $maintenances = Maintenance::with(['tractor', 'performedBy', 'issueType'])
+        // ── Local maintenance records ──
+        $localQuery = Maintenance::with(['tractor', 'performedBy', 'issueType'])
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->search, fn ($q, $s) => $q->whereHas('tractor', fn ($q) => $q->where('no_plate', 'like', "%{$s}%"))
                 ->orWhere('title', 'like', "%{$s}%"))
             ->when($request->priority, fn ($q, $p) => $q->where('priority', $p))
             ->latest()
-            ->paginate(15)
-            ->withQueryString();
+            ->get();
+
+        $localRows = $localQuery->map(fn (Maintenance $m) => (object) [
+            'id' => $m->id,
+            'is_recipient' => false,
+            'tractor' => (object) [
+                'brand' => $m->tractor?->brand,
+                'model' => $m->tractor?->model,
+                'no_plate' => $m->tractor?->no_plate,
+            ],
+            'issue_type' => (object) ['name' => $m->issueType?->name],
+            'description' => $m->description,
+            'status' => $m->status,
+            'cost' => $m->cost,
+            'maintenance_date' => $m->maintenance_date?->format('Y-m-d'),
+            'created_at' => $m->created_at,
+            'performedBy' => $m->performedBy ? (object) ['name' => $m->performedBy->name] : null,
+        ]);
+
+        // ── Tractor recipients (synced from Digisaka API) ──
+        // Each damage_record becomes a maintenance row with the actual issue type
+        $recipients = TractorRecipient::latest('source_updated_at')->get();
+
+        $recipientRows = collect();
+        foreach ($recipients as $r) {
+            $damageRecords = $r->damage_records ?? [];
+
+            if (! empty($damageRecords)) {
+                foreach ($damageRecords as $idx => $damage) {
+                    $problem = $damage['nature_of_problem'] ?? 'Unreported Issue';
+                    $cause = $damage['cause_of_damage'] ?? '';
+                    $unit = $damage['unit'] ?? 'Tractor';
+
+                    $recipientRows->push((object) [
+                        'id' => 'r-'.$r->source_id.'-d'.($idx + 1),
+                        'is_recipient' => true,
+                        'is_damage' => true,
+                        'recipient_source_id' => $r->source_id,
+                        'tractor' => (object) [
+                            'brand' => $r->fca ?: $r->tractor_meta_name,
+                            'model' => $r->tractor_meta_name,
+                            'no_plate' => $r->serial_number ? 'S/N: '.$r->serial_number : '—',
+                        ],
+                        'issue_type' => (object) ['name' => $unit],
+                        'description' => $problem.($cause ? ' — Cause: '.$cause : ''),
+                        'status' => ! empty($damage['date_repaired']) ? 'completed' : 'in_progress',
+                        'cost' => null,
+                        'maintenance_date' => $damage['date_broken'] ?? $r->date_received?->format('Y-m-d'),
+                        'created_at' => $r->source_created_at,
+                        'updated_at' => $r->source_updated_at ?? $r->source_created_at,
+                        'performedBy' => (object) ['name' => $damage['in_charge']['name'] ?? $r->tps_full_name],
+                    ]);
+                }
+            } else {
+                // No damage records — show as delivery / machine hours
+                $hasMachineHours = ! empty($r->machine_hours);
+                $issueName = $hasMachineHours ? 'Machine Hours Update' : 'Delivery & Inspection';
+                $desc = $hasMachineHours
+                    ? 'Machine hours recorded — '.($r->fca ?: $r->park_address ?: '—')
+                    : 'Tractor delivered to '.($r->fca ?: $r->park_address ?: $r->first_name.' '.$r->last_name);
+
+                // All deliveries were completed during field visits
+                $status = 'completed';
+
+                $recipientRows->push((object) [
+                    'id' => 'r-'.$r->source_id,
+                    'is_recipient' => true,
+                    'is_damage' => false,
+                    'recipient_source_id' => $r->source_id,
+                    'tractor' => (object) [
+                        'brand' => $r->fca ?: $r->tractor_meta_name,
+                        'model' => $r->tractor_meta_name,
+                        'no_plate' => $r->serial_number ? 'S/N: '.$r->serial_number : '—',
+                    ],
+                    'issue_type' => (object) ['name' => $issueName],
+                    'description' => $desc,
+                    'status' => $status,
+                    'cost' => null,
+                    'maintenance_date' => $r->date_received?->format('Y-m-d'),
+                    'created_at' => $r->source_created_at,
+                    'updated_at' => $r->source_updated_at ?? $r->source_created_at,
+                    'performedBy' => (object) ['name' => $r->tps_full_name],
+                ]);
+            }
+        }
+
+        // ── Merge & paginate ──
+        $allRows = $localRows->concat($recipientRows)
+            ->sortByDesc('updated_at')
+            ->values();
+
+        $page = (int) $request->get('page', 1);
+        $perPage = 15;
+        $paginator = new LengthAwarePaginator(
+            $allRows->forPage($page, $perPage)->values(),
+            $allRows->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->only(['search', 'status', 'priority'])]
+        );
 
         return Inertia::render('Maintenance/Index', [
-            'maintenances' => $maintenances,
+            'maintenances' => $paginator,
             'filters' => $request->only(['search', 'status', 'priority']),
+            'tractorRecipients' => $recipients,
+            'tractors' => Tractor::get(['id', 'no_plate', 'brand', 'model']),
         ]);
     }
 
@@ -49,7 +152,7 @@ class MaintenanceController extends Controller
         $maintenance = Maintenance::create($data);
 
         foreach ($images as $i => $image) {
-            $path = $image->store('maintenance/' . $maintenance->id, 'public');
+            $path = $image->store('maintenance/'.$maintenance->id, 'public');
             MaintenanceImage::create([
                 'maintenance_id' => $maintenance->id,
                 'path' => $path,
@@ -104,7 +207,7 @@ class MaintenanceController extends Controller
         $maintenance->update($data);
 
         foreach ($images as $i => $image) {
-            $path = $image->store('maintenance/' . $maintenance->id, 'public');
+            $path = $image->store('maintenance/'.$maintenance->id, 'public');
             MaintenanceImage::create([
                 'maintenance_id' => $maintenance->id,
                 'path' => $path,

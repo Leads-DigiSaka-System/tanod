@@ -21,18 +21,29 @@ class TicketController extends Controller
     {
         $user = $request->user();
 
+        $sort = $request->get('sort', 'created_at');
+        $direction = $request->get('direction', 'desc');
+        $allowedSorts = ['id', 'subject', 'category', 'tractor_name', 'fca_name', 'description', 'service_charge', 'status', 'priority', 'created_at', 'reported_date'];
+
+        if (! in_array($sort, $allowedSorts)) {
+            $sort = 'created_at';
+        }
+        if (! in_array($direction, ['asc', 'desc'])) {
+            $direction = 'desc';
+        }
+
         $tickets = Ticket::with(['submitter', 'assignees', 'tractor'])
             ->when(! $user->hasAnyRole(['super-admin', 'sub-admin']), fn ($q) => $q->where('submitted_by', $user->id))
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->priority, fn ($q, $p) => $q->where('priority', $p))
             ->when($request->search, fn ($q, $s) => $q->where('subject', 'like', "%{$s}%"))
-            ->latest()
+            ->orderBy($sort, $direction)
             ->paginate(15)
             ->withQueryString();
 
         return Inertia::render('Tickets/Index', [
             'tickets' => $tickets,
-            'filters' => $request->only(['search', 'status', 'priority']),
+            'filters' => $request->only(['search', 'status', 'priority', 'sort', 'direction']),
         ]);
     }
 

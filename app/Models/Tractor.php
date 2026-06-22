@@ -12,6 +12,7 @@ class Tractor extends Model
     protected $fillable = [
         'imei',
         'no_plate',
+        'name',
         'id_no',
         'engine_no',
         'chassis_no',

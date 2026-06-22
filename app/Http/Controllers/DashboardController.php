@@ -109,7 +109,53 @@ class DashboardController extends Controller
         $totalDevices = Device::count();
         $onlineDevices = $tractorStatus['onlineDevices'];
 
-        // ── Groups distribution (top 10) ──
+        // ── Device Activation (from Jimi-synced data) ──
+        $now = now();
+        $activatedDevices = Device::whereNotNull('activation_time')
+            ->where(function ($q) use ($now) {
+                $q->whereNull('expiration_date')
+                    ->orWhere('expiration_date', '>', $now);
+            })
+            ->count();
+        $inactivatedDevices = $totalDevices - $activatedDevices;
+
+        // ── Groups ──
+        $activeTractorGroups = DB::table('group_tractor')
+            ->join('tractor_groups', 'tractor_groups.id', '=', 'group_tractor.tractor_group_id')
+            ->distinct('tractor_groups.id')
+            ->count('tractor_groups.id');
+
+        // ── Alerts last 7 days total ──
+        $totalAlertsLast7Days = (int) array_sum(array_column($alertsTrend, 'count'));
+
+        // ── Usage growth (compare current vs previous period) ──
+        $previousPeriodTractorsWithData = Tractor::where('total_distance', '>', 0)
+            ->where('updated_at', '<', Carbon::now()->subDays(30))
+            ->count();
+        $usageGrowthPercent = $previousPeriodTractorsWithData > 0
+            ? round((($usage['tractorsWithUsageData'] - $previousPeriodTractorsWithData) / $previousPeriodTractorsWithData) * 100, 1)
+            : 0;
+
+        // ── Activation by month (from device activation_time) ──
+        $activationByMonthRaw = Device::whereNotNull('activation_time')
+            ->select(DB::raw("DATE_FORMAT(activation_time, '%Y-%m') as month"), DB::raw('count(*) as count'))
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get()
+            ->pluck('count', 'month')
+            ->toArray();
+
+        $activationByMonth = [];
+        $cursor = Carbon::create(2023, 11, 1);
+        $nowMonth = now()->startOfMonth();
+        while ($cursor->lte($nowMonth)) {
+            $key = $cursor->format('Y-m');
+            $activationByMonth[] = [
+                'month' => $cursor->format('M Y'),
+                'count' => $activationByMonthRaw[$key] ?? 0,
+            ];
+            $cursor->addMonth();
+        }
         $tractorsByGroup = DB::table('group_tractor')
             ->join('tractor_groups', 'tractor_groups.id', '=', 'group_tractor.tractor_group_id')
             ->select('tractor_groups.name', DB::raw('count(*) as count'))
@@ -168,6 +214,12 @@ class DashboardController extends Controller
                 'openTickets' => $openTickets,
                 'totalTickets' => $totalTickets,
                 'totalMachineHours' => $totalMachineHours,
+                'activatedDevices' => $activatedDevices,
+                'inactivatedDevices' => $inactivatedDevices,
+                'usageHwData' => $usage['tractorsWithUsageData'],
+                'usageGrowthPercent' => $usageGrowthPercent,
+                'totalAlertsLast7Days' => $totalAlertsLast7Days,
+                'activeGroups' => $activeTractorGroups,
                 'offlineLessThanDay' => $offlineBreakdown['lessThanDay'],
                 'offline1to7Days' => $offlineBreakdown['oneToSevenDays'],
                 'offline7to30Days' => $offlineBreakdown['sevenToThirtyDays'],
@@ -198,6 +250,19 @@ class DashboardController extends Controller
                 'bookingsByStatus' => $bookingsByStatus,
                 'bookingsTrend' => $bookingsTrend,
                 'tractorsByGroup' => $tractorsByGroup,
+                'deviceActivation' => [
+                    'total' => $totalDevices,
+                    'activated' => $activatedDevices,
+                    'inactivated' => $inactivatedDevices,
+                ],
+                'pmsScheduleBreakdown' => [
+                    'finished' => $usage['pmsOk'],
+                    'upcoming' => $usage['pmsUpcoming'],
+                    'due' => $usage['pmsDue'],
+                ],
+                'activationByMonth' => $activationByMonth,
+                'alertsLast7Days' => $totalAlertsLast7Days,
+                'activeGroups' => $activeTractorGroups,
             ],
             'recentAlerts' => Alert::with('device', 'tractor')
                 ->where('is_acknowledged', false)
@@ -269,6 +334,7 @@ class DashboardController extends Controller
         $totalRunningHours = 0;
         $tractorsWithUsageData = 0;
         $pmsDue = 0;
+        $pmsUpcoming = 0;
         $pmsOk = 0;
         $pmsNoData = 0;
         $pmsDueList = collect();
@@ -294,19 +360,19 @@ class DashboardController extends Controller
             $pmsCount = $hours > 0 ? (int) floor($hours / 100) : 0;
 
             if ($hours == 0) {
-                $pmsStatus = 'no_data';
                 $pmsNoData++;
             } elseif ($pmsCount > $maintenancesDone) {
-                $pmsStatus = 'due';
                 $pmsDue++;
                 $pmsDueList->push($t);
             } else {
                 $nextPms = ($maintenancesDone + 1) * 100;
                 $hrsLeft = round($nextPms - $hours, 1);
-                $pmsStatus = $hrsLeft <= 0 ? 'due' : 'ok';
+
                 if ($hrsLeft <= 0) {
                     $pmsDue++;
                     $pmsDueList->push($t);
+                } elseif ($hrsLeft <= 20) {
+                    $pmsUpcoming++;
                 } else {
                     $pmsOk++;
                 }
@@ -323,6 +389,7 @@ class DashboardController extends Controller
             'tractorsWithUsageData' => $tractorsWithUsageData,
             'usageDataPercent' => $totalTractors > 0 ? round(($tractorsWithUsageData / $totalTractors) * 100, 1) : 0,
             'pmsDue' => $pmsDue,
+            'pmsUpcoming' => $pmsUpcoming,
             'pmsOk' => $pmsOk,
             'pmsNoData' => $pmsNoData,
             'totalMaintenanceRecords' => Maintenance::count(),

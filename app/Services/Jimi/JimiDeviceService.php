@@ -61,17 +61,19 @@ class JimiDeviceService
                 ]
             );
 
-            // Auto-create a tractor for new devices that don't have one yet
-            if (! Tractor::where('device_id', $device->id)->exists()) {
-                Tractor::create([
-                    'imei' => $imei,
-                    'device_id' => $device->id,
-                    'no_plate' => $deviceData['deviceName'] ?? $imei,
-                    'brand' => $deviceData['deviceModel'] ?? null,
-                    'model' => $deviceData['deviceModel'] ?? null,
-                    'is_active' => true,
-                ]);
-            }
+            // Find or create tractor by IMEI — the universal unique key
+            // This ensures Excel-imported tractors and Jimi-synced tractors merge into one record
+            $tractor = Tractor::firstOrNew(['imei' => $imei]);
+
+            $tractor->fill([
+                'device_id' => $device->id,
+                // Preserve existing no_plate if set (e.g., from Excel); fall back to Jimi deviceName
+                'no_plate' => $tractor->no_plate ?: ($deviceData['deviceName'] ?? $imei),
+                'brand' => $tractor->brand ?: ($deviceData['deviceModel'] ?? null),
+                'model' => $tractor->model ?: ($deviceData['deviceModel'] ?? null),
+                'is_active' => true,
+            ]);
+            $tractor->save();
 
             $synced++;
         }

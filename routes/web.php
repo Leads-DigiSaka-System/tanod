@@ -17,6 +17,7 @@ use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TractorController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -145,4 +146,15 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Users (admin only)
     Route::resource('users', UserController::class)->middleware('permission:users.view');
     Route::post('users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggle-active')->middleware('permission:users.edit');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Fallback Route — Catch undefined routes for clean 404 handling
+|--------------------------------------------------------------------------
+*/
+Route::fallback(function () {
+    return Inertia::render('Errors/NotFound', [
+        'status' => 404,
+    ])->toResponse(request())->setStatusCode(404);
 });

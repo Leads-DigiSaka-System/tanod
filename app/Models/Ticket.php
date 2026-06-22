@@ -18,9 +18,13 @@ class Ticket extends Model
         'assigned_to',
         'subject',
         'description',
+        'service_charge',
         'priority',
         'status',
         'category',
+        'tractor_name',
+        'fca_name',
+        'reported_date',
         'photo_path',
         'resolution_photo_path',
         'resolution_notes',
@@ -31,6 +35,8 @@ class Ticket extends Model
     protected function casts(): array
     {
         return [
+            'service_charge' => 'decimal:2',
+            'reported_date' => 'date',
             'resolved_at' => 'datetime',
         ];
     }

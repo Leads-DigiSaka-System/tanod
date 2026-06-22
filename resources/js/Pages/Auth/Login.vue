@@ -232,6 +232,14 @@
                 {{ $page.props.flash.success }}
               </div>
 
+              <!-- Session Expired Warning -->
+              <div v-if="showExpiredMessage" class="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400 flex items-start gap-3">
+                <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Your session expired due to inactivity. Please log in again to continue.</span>
+              </div>
+
               <form @submit.prevent="submit" class="space-y-5">
                 <div>
                   <label for="email" class="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">Email Address</label>
@@ -352,11 +360,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 
 const showPassword = ref(false);
+const showExpiredMessage = ref(false);
 
 const form = useForm({
   email: '',
@@ -369,6 +378,13 @@ const submit = () => {
     onFinish: () => form.reset('password'),
   });
 };
+
+onMounted(() => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('expired') === '1') {
+    showExpiredMessage.value = true;
+  }
+});
 </script>
 
 <style scoped>
