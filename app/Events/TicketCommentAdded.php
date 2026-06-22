@@ -71,7 +71,7 @@ class TicketCommentAdded implements ShouldBroadcastNow, ShouldDispatchAfterCommi
     public function broadcastWith(): array
     {
         $attachmentUrl = $this->comment->attachment_path
-            ? rtrim(config('app.url'), '/').'/storage/'.$this->comment->attachment_path
+            ? request()->getSchemeAndHttpHost().'/storage/'.$this->comment->attachment_path
             : null;
 
         return [

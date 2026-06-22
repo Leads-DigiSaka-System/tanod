@@ -38,7 +38,7 @@ class TractorResource extends JsonResource
             'assignee' => new UserResource($this->whenLoaded('assignee')),
             'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($img) => [
                 'id' => $img->id,
-                'url' => asset('storage/'.$img->path),
+                'url' => request()->getSchemeAndHttpHost().'/storage/'.$img->path,
                 'sort_order' => $img->sort_order,
             ])),
             'maintenances' => TractorResource::collection($this->whenLoaded('maintenances')),

@@ -213,7 +213,7 @@ class ApiMaintenanceController extends Controller
             ] : null,
             'images' => $m->relationLoaded('images') ? $m->images->map(fn ($img) => [
                 'id' => $img->id,
-                'url' => asset('storage/'.$img->path),
+                'url' => request()->getSchemeAndHttpHost().'/storage/'.$img->path,
                 'type' => $img->type,
             ]) : [],
             'created_at' => $m->created_at,

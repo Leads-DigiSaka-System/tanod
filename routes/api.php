@@ -285,7 +285,7 @@ Route::prefix('v1')->group(function () {
                         'email' => $fca->email,
                         'phone' => $fca->phone,
                         'profile_photo_url' => $fca->profile_photo_path
-                            ? asset('storage/'.$fca->profile_photo_path)
+                            ? request()->getSchemeAndHttpHost().'/storage/'.$fca->profile_photo_path
                             : null,
                     ];
                 }
@@ -309,7 +309,7 @@ Route::prefix('v1')->group(function () {
                         'email' => $tps->email,
                         'phone' => $tps->phone,
                         'profile_photo_url' => $tps->profile_photo_path
-                            ? asset('storage/'.$tps->profile_photo_path)
+                            ? request()->getSchemeAndHttpHost().'/storage/'.$tps->profile_photo_path
                             : null,
                     ];
                 }
