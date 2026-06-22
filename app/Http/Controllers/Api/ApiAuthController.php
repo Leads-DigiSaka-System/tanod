@@ -20,11 +20,6 @@ class ApiAuthController extends Controller
 {
     private const PUBLIC_REGISTRATION_ROLES = [
         [
-            'name' => 'farmer',
-            'label' => 'Farmer',
-            'description' => 'Book tractors, receive updates, and monitor requests.',
-        ],
-        [
             'name' => 'fca',
             'label' => 'FCA / Coop',
             'description' => 'Coordinate groups, bookings, and tractor operations.',

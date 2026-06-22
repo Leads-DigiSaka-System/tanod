@@ -18,7 +18,7 @@ class MaintenanceController extends Controller
     public function index(Request $request)
     {
         // ── Local maintenance records ──
-        $localQuery = Maintenance::with(['tractor', 'performedBy', 'issueType'])
+        $localQuery = Maintenance::with(['tractor', 'performer', 'issueType'])
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->search, fn ($q, $s) => $q->whereHas('tractor', fn ($q) => $q->where('no_plate', 'like', "%{$s}%"))
                 ->orWhere('title', 'like', "%{$s}%"))
@@ -40,7 +40,7 @@ class MaintenanceController extends Controller
             'cost' => $m->cost,
             'maintenance_date' => $m->maintenance_date?->format('Y-m-d'),
             'created_at' => $m->created_at,
-            'performedBy' => $m->performedBy ? (object) ['name' => $m->performedBy->name] : null,
+            'performedBy' => $m->performer ? (object) ['name' => $m->performer->name] : null,
         ]);
 
         // ── Tractor recipients (synced from Digisaka API) ──
@@ -166,7 +166,7 @@ class MaintenanceController extends Controller
 
     public function show(Maintenance $maintenance)
     {
-        $maintenance->load(['tractor.device', 'performedBy', 'issueType', 'images']);
+        $maintenance->load(['tractor.device', 'performer', 'issueType', 'images']);
 
         return Inertia::render('Maintenance/Show', [
             'maintenance' => $maintenance,
