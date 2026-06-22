@@ -14,7 +14,7 @@ class FetchTractorRecipients extends Command
 
     public function handle(): int
     {
-        $baseUrl = config('services.digisaka.base_url', 'http://digisaka.app');
+        $baseUrl = config('services.digisaka.base_url', 'https://digisaka.app');
         $token = config('services.digisaka.token', '2550|A69nLrYeGgcJkVjiuVlK9WrF0pBbnNb3JpTsEN93002dd78a');
 
         $this->info("Fetching tractor recipients from {$baseUrl}...");
