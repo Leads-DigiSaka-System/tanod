@@ -35,7 +35,7 @@ class ReportController extends Controller
             'groups:id,name',
             'device.latestLocation',
             'maintenances' => fn ($q) => $q->where('status', 'completed')->latest('maintenance_date'),
-        ]);
+        ])->whereHas('device', fn ($q) => $q->notStale());
 
         if ($request->group_id) {
             $query->whereHas('groups', fn ($q) => $q->where('tractor_groups.id', $request->group_id));
@@ -302,7 +302,7 @@ class ReportController extends Controller
             'groups:id,name',
             'device.latestLocation',
             'maintenances' => fn ($q) => $q->where('status', 'completed')->latest('maintenance_date'),
-        ]);
+        ])->whereHas('device', fn ($q) => $q->notStale());
 
         if ($request->group_id) {
             $query->whereHas('groups', fn ($q) => $q->where('tractor_groups.id', $request->group_id));

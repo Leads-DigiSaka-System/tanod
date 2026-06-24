@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Device;
+use App\Models\DeviceLocation;
 use App\Models\Tractor;
 use App\Models\TractorGroup;
 use App\Models\User;
@@ -190,6 +191,14 @@ class TractorApiTest extends TestCase
             'imei' => $imei,
             'device_name' => $plate,
             'is_active' => true,
+        ]);
+
+        DeviceLocation::create([
+            'device_id' => $device->id,
+            'imei' => $device->imei,
+            'lat' => 14.5995,
+            'lng' => 120.9842,
+            'heartbeat_at' => now(),
         ]);
 
         $tractor = Tractor::create([

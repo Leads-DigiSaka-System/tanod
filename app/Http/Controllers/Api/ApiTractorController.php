@@ -27,6 +27,8 @@ class ApiTractorController extends Controller
                 });
             })
             ->when($request->group_id, fn ($q, $g) => $q->whereHas('groups', fn ($q) => $q->where('tractor_groups.id', $g)))
+            // Exclude tractors with devices stale >365 days
+            ->whereHas('device', fn ($q) => $q->notStale())
             ->paginate($request->per_page ?? 15);
 
         return TractorResource::collection($tractors);

@@ -264,6 +264,15 @@
                   </div>
                   <input v-model="tractorSearch" type="text" placeholder="Search by plate, brand, model, or IMEI..."
                     class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 mb-3" />
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ filteredTractors.length }} tractor{{ filteredTractors.length !== 1 ? 's' : '' }} shown
+                    </span>
+                    <button type="button" @click="toggleAllTractors"
+                      class="text-xs font-medium text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300">
+                      {{ allFilteredSelected ? 'Deselect All' : 'Select All' }}
+                    </button>
+                  </div>
                   <div class="max-h-56 overflow-y-auto space-y-2">
                     <label v-for="t in filteredTractors" :key="t.id"
                       class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all"
@@ -471,6 +480,25 @@ const filteredTpsUsers = computed(() => {
     u.email?.toLowerCase().includes(q)
   );
 });
+
+const allFilteredSelected = computed(() => {
+  if (!filteredTractors.value.length) return false;
+  return filteredTractors.value.every(t => form.tractor_ids.includes(t.id));
+});
+
+const toggleAllTractors = () => {
+  if (allFilteredSelected.value) {
+    const filteredIds = new Set(filteredTractors.value.map(t => t.id));
+    form.tractor_ids = form.tractor_ids.filter(id => !filteredIds.has(id));
+  } else {
+    const current = new Set(form.tractor_ids);
+    for (const t of filteredTractors.value) {
+      if (!current.has(t.id)) {
+        form.tractor_ids.push(t.id);
+      }
+    }
+  }
+};
 
 const resetForm = () => {
   form.reset();

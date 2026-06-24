@@ -75,7 +75,7 @@ class TicketController extends Controller
 
     public function show(Ticket $ticket)
     {
-        $ticket->load(['submitter', 'assignees', 'tractor', 'resolver', 'comments.user']);
+        $ticket->load(['submitter', 'assignees', 'tractor', 'resolver', 'comments.user', 'damagePhotos']);
 
         $tpsUsers = User::role('tps')
             ->where('is_active', true)
@@ -103,6 +103,17 @@ class TicketController extends Controller
                 'status' => $ticket->status,
                 'category' => $ticket->category,
                 'photo_url' => $ticket->photo_path ? Storage::disk('public')->url($ticket->photo_path) : null,
+                'nameplate_photo_url' => $ticket->nameplate_photo_path
+                    ? asset('storage/'.$ticket->nameplate_photo_path)
+                    : null,
+                'dashboard_photo_url' => $ticket->dashboard_photo_path
+                    ? asset('storage/'.$ticket->dashboard_photo_path)
+                    : null,
+                'damage_photos' => $ticket->damagePhotos->map(fn ($dp) => [
+                    'id' => $dp->id,
+                    'photo_url' => asset('storage/'.$dp->photo_path),
+                    'sort_order' => $dp->sort_order,
+                ])->values()->all(),
                 'resolution_notes' => $ticket->resolution_notes,
                 'resolution_photo_url' => $ticket->resolution_photo_path
                     ? Storage::disk('public')->url($ticket->resolution_photo_path)

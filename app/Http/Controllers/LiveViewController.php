@@ -392,7 +392,8 @@ class LiveViewController extends Controller
         $user = $request->user();
 
         return Device::query()
-            ->whereHas('tractor', fn (Builder $query) => $this->scopeTractorsByRole($query, $user));
+            ->whereHas('tractor', fn (Builder $query) => $this->scopeTractorsByRole($query, $user))
+            ->notStale();
     }
 
     private function findAccessibleDevice(Request $request, int $deviceId): Device

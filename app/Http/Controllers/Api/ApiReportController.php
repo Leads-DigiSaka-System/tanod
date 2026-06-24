@@ -44,7 +44,8 @@ class ApiReportController extends Controller
         return [
             $this->userOverview(),
             $this->bookingSummary(Booking::query()),
-            $this->tractorUsage(Tractor::query()),
+            // Exclude tractors with devices stale >365 days
+            $this->tractorUsage(Tractor::query()->whereHas('device', fn ($q) => $q->notStale())),
             $this->maintenanceSummary(Maintenance::query()),
             $this->feedbackSummary(FarmerFeedback::query()),
         ];
@@ -70,7 +71,9 @@ class ApiReportController extends Controller
 
         $maintenanceQuery = Maintenance::whereIn('tractor_id', $tractorIds);
         $feedbackQuery = FarmerFeedback::whereIn('tractor_id', $tractorIds);
-        $tractorQuery = Tractor::whereIn('id', $tractorIds);
+        $tractorQuery = Tractor::whereIn('id', $tractorIds)
+            // Exclude tractors with devices stale >365 days
+            ->whereHas('device', fn ($q) => $q->notStale());
 
         return [
             $this->farmerOverview($user),
@@ -91,7 +94,9 @@ class ApiReportController extends Controller
         $bookingQuery = Booking::whereIn('tractor_id', $tractorIds);
         $maintenanceQuery = Maintenance::whereIn('tractor_id', $tractorIds);
         $feedbackQuery = FarmerFeedback::whereIn('tractor_id', $tractorIds);
-        $tractorQuery = Tractor::whereIn('id', $tractorIds);
+        $tractorQuery = Tractor::whereIn('id', $tractorIds)
+            // Exclude tractors with devices stale >365 days
+            ->whereHas('device', fn ($q) => $q->notStale());
 
         return [
             $this->bookingSummary($bookingQuery),

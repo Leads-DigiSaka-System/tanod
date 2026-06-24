@@ -32,6 +32,7 @@ class ApiTicketController extends Controller
                 'tractor:id,no_plate,brand,model',
                 'submitter:id,name',
                 'latestComment.user:id,name',
+                'damagePhotos',
             ])
             ->withMax('comments', 'created_at')
             ->when(
@@ -76,6 +77,7 @@ class ApiTicketController extends Controller
             'assignees:id,name',
             'resolver:id,name',
             'comments.user:id,name',
+            'damagePhotos',
         ]);
 
         return response()->json(['data' => $this->formatTicket($ticket, full: true)]);
@@ -92,21 +94,24 @@ class ApiTicketController extends Controller
         $data = $request->validate([
             'subject' => 'required|string|max:255',
             'description' => 'required|string|max:5000',
-            'priority' => ['required', Rule::in(['low', 'medium', 'high', 'critical'])],
-            'category' => ['nullable', Rule::in(['general', 'technical', 'billing', 'tractor', 'device', 'booking'])],
+            'priority' => ['nullable', Rule::in(['low', 'medium', 'high', 'critical'])],
+            'category' => 'nullable|string|max:100',
             'tractor_id' => 'nullable|exists:tractors,id',
-            'photo' => 'required|image|max:10240',
+            'nameplate_photo' => 'required|image|max:10240',
+            'dashboard_photo' => 'required|image|max:10240',
+            'damage_photos' => 'required|array|min:1|max:3',
+            'damage_photos.*' => 'image|max:10240',
         ]);
+
+        $data['priority'] = $data['priority'] ?? 'medium';
 
         if (! empty($data['tractor_id'])) {
             $tractorIds = $this->accessibleTractorIds($user);
             abort_unless(in_array((int) $data['tractor_id'], $tractorIds), 403, 'You do not have access to this tractor.');
         }
 
-        $photoPath = null;
-        if ($request->hasFile('photo')) {
-            $photoPath = $request->file('photo')->store('tickets', 'public');
-        }
+        $nameplatePath = $request->file('nameplate_photo')->store('tickets/nameplates', 'public');
+        $dashboardPath = $request->file('dashboard_photo')->store('tickets/dashboards', 'public');
 
         $ticket = Ticket::create([
             'subject' => $data['subject'],
@@ -116,10 +121,18 @@ class ApiTicketController extends Controller
             'tractor_id' => $data['tractor_id'] ?? null,
             'submitted_by' => $user->id,
             'status' => 'open',
-            'photo_path' => $photoPath,
+            'nameplate_photo_path' => $nameplatePath,
+            'dashboard_photo_path' => $dashboardPath,
         ]);
 
-        $ticket->load(['tractor:id,no_plate,brand,model', 'submitter:id,name']);
+        foreach ($request->file('damage_photos') as $i => $file) {
+            $ticket->damagePhotos()->create([
+                'photo_path' => $file->store('tickets/damages', 'public'),
+                'sort_order' => $i,
+            ]);
+        }
+
+        $ticket->load(['tractor:id,no_plate,brand,model', 'submitter:id,name', 'damagePhotos']);
 
         // Notify admins
         $adminIds = User::role(['super-admin', 'sub-admin'])
@@ -346,6 +359,15 @@ class ApiTicketController extends Controller
             'status' => $ticket->status,
             'category' => $ticket->category,
             'photo_url' => $this->storageUrl($ticket->photo_path),
+            'nameplate_photo_url' => $this->storageUrl($ticket->nameplate_photo_path),
+            'dashboard_photo_url' => $this->storageUrl($ticket->dashboard_photo_path),
+            'damage_photos' => $ticket->relationLoaded('damagePhotos')
+                ? $ticket->damagePhotos->map(fn ($dp) => [
+                    'id' => $dp->id,
+                    'photo_url' => $this->storageUrl($dp->photo_path),
+                    'sort_order' => $dp->sort_order,
+                ])->values()->all()
+                : [],
             'tractor' => $ticket->tractor ? [
                 'id' => $ticket->tractor->id,
                 'no_plate' => $ticket->tractor->no_plate,

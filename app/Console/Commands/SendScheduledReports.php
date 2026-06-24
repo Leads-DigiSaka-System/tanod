@@ -123,7 +123,8 @@ class SendScheduledReports extends Command
 
     private function generateTractorUsage(?array $tractorIds): string
     {
-        $query = Tractor::with(['groups:id,name', 'device.latestLocation', 'maintenances' => fn ($q) => $q->where('status', 'completed')->latest('maintenance_date')]);
+        $query = Tractor::with(['groups:id,name', 'device.latestLocation', 'maintenances' => fn ($q) => $q->where('status', 'completed')->latest('maintenance_date')])
+            ->whereHas('device', fn ($q) => $q->notStale());
         if ($tractorIds !== null) {
             $query->whereIn('id', $tractorIds);
         }

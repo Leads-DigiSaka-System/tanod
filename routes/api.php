@@ -213,6 +213,9 @@ Route::prefix('v1')->group(function () {
         Route::post('tickets/{ticket}/resolve', [ApiTicketController::class, 'resolve']);
         Route::post('tickets/{ticket}/close', [ApiTicketController::class, 'close']);
 
+        // Ticket Photo Validation
+        Route::post('tickets/validate-photo', \App\Http\Controllers\Api\ApiPhotoValidationController::class);
+
         // PMS / Maintenance
         Route::get('maintenances/checklist-items', [ApiMaintenanceController::class, 'checklistItems']);
         Route::get('maintenances', [ApiMaintenanceController::class, 'index']);

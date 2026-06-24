@@ -80,7 +80,9 @@ class ApiTpsController extends Controller
         $manageableTractorIds = $this->manageableTractorIdsForTps($user);
 
         return response()->json([
-            'tractors_count' => count($visibleTractorIds),
+            'tractors_count' => Tractor::whereIn('id', $visibleTractorIds)
+                ->whereHas('device', fn ($q) => $q->notStale())
+                ->count(),
             'open_tickets' => Ticket::whereIn('tractor_id', $visibleTractorIds)->whereIn('status', ['open', 'in_progress'])->count(),
             'pending_maintenance' => Maintenance::whereIn('tractor_id', $visibleTractorIds)->where('status', 'pending')->count(),
             'active_distributions' => TractorDistribution::whereIn('tractor_id', $manageableTractorIds)->where('status', 'distributed')->count(),
@@ -215,6 +217,8 @@ class ApiTpsController extends Controller
 
         $tractors = Tractor::with(['device:id,imei,device_name,sim,sim_iccid', 'groups:id,name'])
             ->whereIn('id', $tractorIds)
+            // Exclude tractors with devices stale >365 days
+            ->whereHas('device', fn ($q) => $q->notStale())
             ->when($search !== '', function (Builder $query) use ($search) {
                 $query->where(function (Builder $searchQuery) use ($search) {
                     $searchQuery->where('no_plate', 'like', "%{$search}%")
@@ -983,6 +987,8 @@ class ApiTpsController extends Controller
         $tractorIds = $this->visibleTractorIdsForTps($request->user());
 
         $tractors = Tractor::whereIn('id', $tractorIds)
+            // Exclude tractors with devices stale >365 days
+            ->whereHas('device', fn ($q) => $q->notStale())
             ->select('id', 'no_plate', 'brand', 'model')
             ->get();
 
@@ -1009,6 +1015,7 @@ class ApiTpsController extends Controller
             'assignees:id,name',
             'resolver:id,name',
             'comments.user:id,name',
+            'damagePhotos',
         ]);
 
         return response()->json(['data' => $this->formatTicket($ticket)]);
@@ -1097,6 +1104,15 @@ class ApiTpsController extends Controller
                 'id' => $ticket->submitter->id,
                 'name' => $ticket->submitter->name,
             ] : null,
+            'nameplate_photo_url' => $this->storageUrl($ticket->nameplate_photo_path),
+            'dashboard_photo_url' => $this->storageUrl($ticket->dashboard_photo_path),
+            'damage_photos' => $ticket->relationLoaded('damagePhotos')
+                ? $ticket->damagePhotos->map(fn ($dp) => [
+                    'id' => $dp->id,
+                    'photo_url' => $this->storageUrl($dp->photo_path),
+                    'sort_order' => $dp->sort_order,
+                ])->values()->all()
+                : [],
             'created_at' => $ticket->created_at?->toIso8601String(),
             'last_activity_at' => $lastActivityAt?->toIso8601String(),
             'last_comment' => $latestComment ? [
@@ -1160,6 +1176,8 @@ class ApiTpsController extends Controller
             ->all();
 
         $tractors = Tractor::whereIn('id', $tractorIds)
+            // Exclude tractors with devices stale >365 days
+            ->whereHas('device', fn ($q) => $q->notStale())
             ->select('id', 'no_plate', 'brand', 'model')
             ->get()
             ->map(fn (Tractor $t) => [

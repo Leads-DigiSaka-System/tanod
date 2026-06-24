@@ -101,6 +101,8 @@ class ApiFeedbackController extends Controller
         $tractors = Tractor::whereHas('distributions', fn (Builder $q) => $q->where('distributed_to', $user->fca_id)
             ->where('status', 'distributed'))
             ->where('is_active', true)
+            // Exclude tractors with devices stale >365 days
+            ->whereHas('device', fn ($q) => $q->notStale())
             ->get(['id', 'no_plate', 'brand', 'model']);
 
         return response()->json(['data' => $tractors]);

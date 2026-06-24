@@ -26,6 +26,8 @@ class Ticket extends Model
         'fca_name',
         'reported_date',
         'photo_path',
+        'nameplate_photo_path',
+        'dashboard_photo_path',
         'resolution_photo_path',
         'resolution_notes',
         'resolved_by',
@@ -79,6 +81,11 @@ class Ticket extends Model
     public function latestComment(): HasOne
     {
         return $this->hasOne(TicketComment::class)->latestOfMany();
+    }
+
+    public function damagePhotos(): HasMany
+    {
+        return $this->hasMany(TicketDamagePhoto::class)->orderBy('sort_order');
     }
 
     public function userCanAccessChannel(User $user): bool

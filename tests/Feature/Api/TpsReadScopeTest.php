@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Device;
+use App\Models\DeviceLocation;
 use App\Models\FarmerFeedback;
 use App\Models\Maintenance;
 use App\Models\Ticket;
@@ -168,6 +169,14 @@ class TpsReadScopeTest extends TestCase
             'imei' => '8690660'.str_pad((string) random_int(1000000, 9999999), 7, '0', STR_PAD_LEFT),
             'device_name' => $plate,
             'is_active' => true,
+        ]);
+
+        DeviceLocation::create([
+            'device_id' => $device->id,
+            'imei' => $device->imei,
+            'lat' => 14.5995,
+            'lng' => 120.9842,
+            'heartbeat_at' => now(),
         ]);
 
         $tractor = Tractor::create([

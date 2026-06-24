@@ -55,6 +55,55 @@
           </div>
         </div>
 
+        <!-- Nameplate Photo -->
+        <div v-if="ticket.nameplate_photo_url" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+          <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              Nameplate Photo
+            </h3>
+          </div>
+          <div class="p-4">
+            <a :href="ticket.nameplate_photo_url" target="_blank" class="block">
+              <img :src="ticket.nameplate_photo_url" alt="Nameplate" class="w-full max-h-96 object-contain rounded-lg bg-gray-50 dark:bg-gray-900 cursor-zoom-in hover:opacity-90 transition-opacity" />
+            </a>
+          </div>
+        </div>
+
+        <!-- Dashboard Photo -->
+        <div v-if="ticket.dashboard_photo_url" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+          <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              Dashboard (Machine Hours)
+            </h3>
+          </div>
+          <div class="p-4">
+            <a :href="ticket.dashboard_photo_url" target="_blank" class="block">
+              <img :src="ticket.dashboard_photo_url" alt="Dashboard" class="w-full max-h-96 object-contain rounded-lg bg-gray-50 dark:bg-gray-900 cursor-zoom-in hover:opacity-90 transition-opacity" />
+            </a>
+          </div>
+        </div>
+
+        <!-- Damage Photos -->
+        <div v-if="ticket.damage_photos && ticket.damage_photos.length" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+          <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              Damaged Parts ({{ ticket.damage_photos.length }} photos)
+            </h3>
+          </div>
+          <div class="p-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div v-for="dp in ticket.damage_photos" :key="dp.id">
+                <a :href="dp.photo_url" target="_blank" class="block">
+                  <img :src="dp.photo_url" :alt="'Damage photo ' + (dp.sort_order + 1)" class="w-full rounded-lg shadow bg-gray-50 dark:bg-gray-900 cursor-zoom-in hover:opacity-90 transition-opacity" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Resolution Card -->
         <div v-if="ticket.status === 'resolved' || ticket.status === 'closed'" class="bg-white rounded-xl border border-emerald-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-emerald-900">
           <div class="px-6 py-4 border-b border-emerald-100 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-900/20">

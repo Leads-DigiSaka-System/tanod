@@ -44,4 +44,10 @@ return [
         'token' => env('DIGISAKA_API_TOKEN', '2550|A69nLrYeGgcJkVjiuVlK9WrF0pBbnNb3JpTsEN93002dd78a'),
     ],
 
+    'kimi' => [
+        'api_key' => env('KIMI_API_KEY'),
+        'model' => env('KIMI_MODEL', 'moonshot-v1-8k-vision-preview'),
+        'base_url' => env('KIMI_BASE_URL', 'https://api.moonshot.ai/v1'),
+    ],
+
 ];

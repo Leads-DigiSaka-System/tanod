@@ -24,7 +24,7 @@
     <template v-if="charts">
 
       <!-- KPI Row: Fleet Metrics (Neumorphic + Gradient) -->
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6 mb-6">
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5 mb-6">
 
         <!-- Total Tractors -->
         <div class="xl:col-span-2 xl:row-span-2 flex flex-col rounded-2xl bg-linear-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/30 px-4 py-3.5 border border-indigo-200/60 dark:border-indigo-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
@@ -80,30 +80,6 @@
               </div>
               <span class="font-bold text-gray-500">{{ stats.offlineMoreThan100Days }}</span>
             </div>
-          </div>
-        </div>
-
-        <!-- Total Distance -->
-        <div class="flex items-center gap-3 rounded-2xl bg-linear-to-br from-blue-50 to-cyan-50 dark:from-blue-950/40 dark:to-cyan-950/30 px-4 py-3.5 border border-blue-200/60 dark:border-blue-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
-          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-          </div>
-          <div class="min-w-0">
-            <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Distance</p>
-            <p class="text-xl font-bold text-gray-900 dark:text-white">{{ Number(stats.totalDistance || 0).toLocaleString(undefined, { maximumFractionDigits: 1 }) }} <span class="text-sm font-normal text-gray-400">km</span></p>
-            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Avg {{ Number(stats.avgDistancePerTractor || 0).toLocaleString(undefined, { maximumFractionDigits: 1 }) }} km / tractor</p>
-          </div>
-        </div>
-
-        <!-- Running Hours -->
-        <div class="flex items-center gap-3 rounded-2xl bg-linear-to-br from-cyan-50 to-teal-50 dark:from-cyan-950/40 dark:to-teal-950/30 px-4 py-3.5 border border-cyan-200/60 dark:border-cyan-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)] hover:shadow-[4px_4px_12px_rgba(0,0,0,0.06),-2px_-2px_8px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_12px_rgba(0,0,0,0.3),-1px_-1px_4px_rgba(255,255,255,0.03)] transition-shadow">
-          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyan-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2"/></svg>
-          </div>
-          <div class="min-w-0">
-            <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Running Hours</p>
-            <p class="text-xl font-bold text-gray-900 dark:text-white">{{ Number(stats.totalRunningHours || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) }} <span class="text-sm font-normal text-gray-400">hrs</span></p>
-            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Avg {{ Number(stats.avgHoursPerTractor || 0).toLocaleString(undefined, { maximumFractionDigits: 1 }) }} hrs / tractor</p>
           </div>
         </div>
 

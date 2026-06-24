@@ -43,7 +43,7 @@ class TicketCreatePhotoTest extends TestCase
         ]);
 
         $response->assertUnprocessable()
-            ->assertInvalid(['photo']);
+            ->assertInvalid(['nameplate_photo', 'dashboard_photo', 'damage_photos']);
     }
 
     #[Test]
@@ -61,7 +61,12 @@ class TicketCreatePhotoTest extends TestCase
             'description' => 'The warning light stays on after startup.',
             'priority' => 'medium',
             'category' => 'tractor',
-            'photo' => UploadedFile::fake()->image('ticket-proof.png', 1200, 900),
+            'nameplate_photo' => UploadedFile::fake()->image('nameplate.png', 1200, 900),
+            'dashboard_photo' => UploadedFile::fake()->image('dashboard.png', 1200, 900),
+            'damage_photos' => [
+                UploadedFile::fake()->image('damage1.png', 1200, 900),
+                UploadedFile::fake()->image('damage2.png', 1200, 900),
+            ],
         ]);
 
         $response->assertCreated()
@@ -70,9 +75,14 @@ class TicketCreatePhotoTest extends TestCase
         $ticket = Ticket::query()->first();
 
         $this->assertNotNull($ticket);
-        $this->assertNotNull($ticket->photo_path);
-        Storage::disk('public')->assertExists($ticket->photo_path);
-        $this->assertNotEmpty($response->json('data.photo_url'));
+        $this->assertNotNull($ticket->nameplate_photo_path);
+        $this->assertNotNull($ticket->dashboard_photo_path);
+        Storage::disk('public')->assertExists($ticket->nameplate_photo_path);
+        Storage::disk('public')->assertExists($ticket->dashboard_photo_path);
+        $this->assertNotEmpty($response->json('data.nameplate_photo_url'));
+        $this->assertNotEmpty($response->json('data.dashboard_photo_url'));
+        $this->assertIsArray($response->json('data.damage_photos'));
+        $this->assertCount(2, $response->json('data.damage_photos'));
         $this->assertSame('open', $ticket->status);
         $this->assertSame($user->id, $ticket->submitted_by);
     }

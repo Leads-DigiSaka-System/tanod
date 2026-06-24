@@ -10,7 +10,7 @@
           Back to Reports
         </Link>
         <h1 class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">Tractor Usage Report</h1>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Fleet distance, running hours, and utilization summary</p>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Fleet utilization summary</p>
       </div>
       <a :href="exportUrl" class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -19,7 +19,7 @@
     </div>
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
       <!-- Total Tractors -->
       <div class="relative overflow-hidden bg-white rounded-xl border border-gray-200 p-5 dark:bg-gray-800 dark:border-gray-700">
         <div class="flex items-center gap-4">
@@ -38,38 +38,6 @@
           <span class="inline-flex items-center gap-1 text-red-500 dark:text-red-400">
             <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>{{ offlineCount }} offline
           </span>
-        </div>
-      </div>
-
-      <!-- Total Distance -->
-      <div class="relative overflow-hidden bg-white rounded-xl border border-gray-200 p-5 dark:bg-gray-800 dark:border-gray-700">
-        <div class="flex items-center gap-4">
-          <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-900/30">
-            <svg class="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
-          </div>
-          <div>
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Distance</p>
-            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatNumber(summary.total_distance) }} <span class="text-sm font-normal text-gray-400">km</span></p>
-          </div>
-        </div>
-        <div class="mt-3 text-xs text-gray-400 dark:text-gray-500">
-          Avg {{ formatNumber(summary.avg_usage) }} km / tractor
-        </div>
-      </div>
-
-      <!-- Total Running Hours -->
-      <div class="relative overflow-hidden bg-white rounded-xl border border-gray-200 p-5 dark:bg-gray-800 dark:border-gray-700">
-        <div class="flex items-center gap-4">
-          <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-900/30">
-            <svg class="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          </div>
-          <div>
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Running Hours</p>
-            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatNumber(summary.total_hours) }} <span class="text-sm font-normal text-gray-400">hrs</span></p>
-          </div>
-        </div>
-        <div class="mt-3 text-xs text-gray-400 dark:text-gray-500">
-          Avg {{ summary.total_tractors ? (summary.total_hours / summary.total_tractors).toFixed(1) : 0 }} hrs / tractor
         </div>
       </div>
 
@@ -108,11 +76,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Disclaimer -->
-    <p class="mb-4 text-xs text-gray-400 dark:text-gray-500 italic">
-      * Some total hours are computed from total distance using statistical correlation.
-    </p>
 
     <!-- Filters & Search Bar -->
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 dark:bg-gray-800 dark:border-gray-700 mb-4">
@@ -165,8 +128,6 @@
       <div class="flex items-center gap-2 text-xs text-gray-500">
         <span>Sort:</span>
         <button @click="toggleSort('no_plate')" :class="sortField === 'no_plate' ? 'text-indigo-600 font-semibold' : ''" class="hover:text-indigo-600">Name</button>
-        <button @click="toggleSort('total_distance')" :class="sortField === 'total_distance' ? 'text-indigo-600 font-semibold' : ''" class="hover:text-indigo-600">Distance</button>
-        <button @click="toggleSort('running_hours')" :class="sortField === 'running_hours' ? 'text-indigo-600 font-semibold' : ''" class="hover:text-indigo-600">Hours</button>
       </div>
     </div>
 
@@ -182,12 +143,6 @@
               </th>
               <th class="px-5 py-3 font-semibold">Group</th>
               <th class="px-5 py-3 font-semibold">IMEI</th>
-              <th class="px-5 py-3 font-semibold text-right cursor-pointer select-none" @click="toggleSort('total_distance')">
-                <span class="inline-flex items-center gap-1 justify-end">Distance (km) <SortIcon :active="sortField === 'total_distance'" :asc="sortAsc" /></span>
-              </th>
-              <th class="px-5 py-3 font-semibold text-right cursor-pointer select-none" @click="toggleSort('running_hours')">
-                <span class="inline-flex items-center gap-1 justify-end">Hours <SortIcon :active="sortField === 'running_hours'" :asc="sortAsc" /></span>
-              </th>
               <th class="px-5 py-3 font-semibold text-center">Last PMS</th>
               <th class="px-5 py-3 font-semibold text-center">PMS Status</th>
               <th class="px-5 py-3 font-semibold text-center">Status</th>
@@ -208,12 +163,6 @@
                 <span v-else class="text-gray-300 dark:text-gray-600">—</span>
               </td>
               <td class="px-5 py-3 font-mono text-xs text-gray-400">{{ t.imei || '—' }}</td>
-              <td class="px-5 py-3 text-right">
-                <span class="font-semibold text-gray-900 dark:text-white">{{ formatNumber(t.total_distance) }}</span>
-              </td>
-              <td class="px-5 py-3 text-right">
-                <span class="font-semibold text-gray-900 dark:text-white">{{ formatNumber(t.running_hours) }}</span>
-              </td>
               <td class="px-5 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
                 {{ t.last_pms_date || 'Never' }}
               </td>
@@ -231,7 +180,7 @@
               </td>
             </tr>
             <tr v-if="!paginatedTractors.length">
-              <td colspan="9" class="px-5 py-16">
+              <td colspan="7" class="px-5 py-16">
                 <div class="flex flex-col items-center justify-center text-center">
                   <svg class="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -247,8 +196,6 @@
               <td class="px-5 py-3" colspan="4">
                 Totals ({{ filteredTractors.length }} tractors)
               </td>
-              <td class="px-5 py-3 text-right">{{ formatNumber(filteredTotals.distance) }} km</td>
-              <td class="px-5 py-3 text-right">{{ formatNumber(filteredTotals.hours) }} hrs</td>
               <td class="px-5 py-3 text-center text-orange-600 dark:text-orange-400">{{ filteredTotals.pmsDue }} due</td>
               <td class="px-5 py-3" colspan="2"></td>
             </tr>
@@ -256,11 +203,6 @@
         </table>
       </div>
     </div>
-
-    <!-- Disclaimer -->
-    <p class="mt-3 text-xs text-gray-400 dark:text-gray-500 italic text-center">
-      * Some total hours are computed from total distance using statistical correlation.
-    </p>
 
     <!-- Pagination -->
     <div v-if="totalPages > 1" class="flex items-center justify-between mt-4 px-1">
@@ -309,7 +251,7 @@ const filters = reactive({
 const search = ref('');
 const statusFilter = ref('');
 const pmsFilter = ref('');
-const sortField = ref('total_distance');
+const sortField = ref('no_plate');
 const sortAsc = ref(false);
 const currentPage = ref(1);
 const perPage = 25;
@@ -362,8 +304,6 @@ const filteredTractors = computed(() => {
 });
 
 const filteredTotals = computed(() => ({
-  distance: filteredTractors.value.reduce((s, t) => s + (t.total_distance || 0), 0),
-  hours: filteredTractors.value.reduce((s, t) => s + (t.running_hours || 0), 0),
   pmsDue: filteredTractors.value.filter(t => t.pms_status === 'Due').length,
 }));
 

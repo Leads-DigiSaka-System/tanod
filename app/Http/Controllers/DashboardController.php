@@ -47,7 +47,7 @@ class DashboardController extends Controller
     private function adminDashboard(): array
     {
         // ── Tractor status breakdown ──
-        $totalTractors = Tractor::count();
+        $totalTractors = Tractor::whereHas('device', fn ($q) => $q->notStale())->count();
         $liveLocations = $this->jimiDeviceService->fetchLiveLocations();
         $tractorStatus = $this->liveTractorStatusSummary($totalTractors, $liveLocations);
         $onlineTractors = $tractorStatus['onlineTractors'];
@@ -158,7 +158,29 @@ class DashboardController extends Controller
         }
         $tractorsByGroup = DB::table('group_tractor')
             ->join('tractor_groups', 'tractor_groups.id', '=', 'group_tractor.tractor_group_id')
-            ->select('tractor_groups.name', DB::raw('count(*) as count'))
+            ->join('tractors', 'tractors.id', '=', 'group_tractor.tractor_id')
+            ->join('devices', 'devices.id', '=', 'tractors.device_id')
+            ->joinSub(
+                DB::table('device_locations')
+                    ->select('device_id', DB::raw('MAX(id) as latest_id'))
+                    ->groupBy('device_id'),
+                'latest_loc',
+                'latest_loc.device_id',
+                '=',
+                'devices.id'
+            )
+            ->join('device_locations as dl', 'dl.id', '=', 'latest_loc.latest_id')
+            ->where(function ($q) {
+                $cutoff = now()->subDays(365);
+                $q->where(function ($q) use ($cutoff) {
+                    $q->whereNotNull('dl.heartbeat_at')
+                        ->where('dl.heartbeat_at', '>=', $cutoff);
+                })->orWhere(function ($q) use ($cutoff) {
+                    $q->whereNull('dl.heartbeat_at')
+                        ->where('dl.created_at', '>=', $cutoff);
+                });
+            })
+            ->select('tractor_groups.name', DB::raw('count(DISTINCT tractors.id) as count'))
             ->groupBy('tractor_groups.id', 'tractor_groups.name')
             ->orderByDesc('count')
             ->take(10)
@@ -286,6 +308,7 @@ class DashboardController extends Controller
             ->select(['id', 'imei'])
             ->with('tractor:id,device_id')
             ->where('is_active', true)
+            ->notStale()
             ->get();
 
         $activeTractorCount = 0;
@@ -328,7 +351,9 @@ class DashboardController extends Controller
      */
     private function tractorUsageSummary(): array
     {
-        $tractors = Tractor::with(['maintenances' => fn ($q) => $q->where('status', 'completed')->latest('maintenance_date')])->get();
+        $tractors = Tractor::with(['maintenances' => fn ($q) => $q->where('status', 'completed')->latest('maintenance_date')])
+            ->whereHas('device', fn ($q) => $q->notStale())
+            ->get();
 
         $totalDistance = 0;
         $totalRunningHours = 0;
@@ -418,6 +443,7 @@ class DashboardController extends Controller
             ->select(['id', 'imei'])
             ->with(['tractor:id,device_id', 'latestLocation'])
             ->where('is_active', true)
+            ->notStale()
             ->get();
 
         foreach ($activeDevices as $device) {
