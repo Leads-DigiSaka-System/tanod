@@ -315,14 +315,76 @@ Route::prefix('v1')->group(function () {
                 }
             }
 
-            // System administrator — static placeholder
+            // ─── System Support ───
+            // Default contacts (always shown)
             $contacts[] = [
                 'type' => 'admin',
-                'name' => 'TanodTractor Support',
-                'email' => 'support@tanodtractor.com',
-                'phone' => '+63 912 345 6789',
+                'name' => 'Customer Service Hotline',
+                'email' => '',
+                'phone' => '09554121821',
                 'profile_photo_url' => null,
             ];
+            $contacts[] = [
+                'type' => 'admin',
+                'name' => 'Paula "Mykee" Aquino',
+                'email' => '',
+                'phone' => '09364149508',
+                'profile_photo_url' => null,
+                'role_label' => 'After Sales Support',
+            ];
+
+            // TPS assigned to tractor's province (only if match found)
+            $provinceCodes = [];
+            $targetUserId = null;
+            if ($user->hasRole('farmer') && $user->fca_id) {
+                $targetUserId = $user->fca_id;
+            } elseif ($user->hasRole('fca')) {
+                $targetUserId = $user->id;
+            }
+
+            if ($targetUserId) {
+                $areas = \Illuminate\Support\Facades\DB::table('tractor_distributions')
+                    ->where('distributed_to', $targetUserId)
+                    ->where('status', 'distributed')
+                    ->whereNotNull('area')
+                    ->distinct()
+                    ->pluck('area')
+                    ->toArray();
+
+                foreach ($areas as $area) {
+                    $province = \App\Models\PhilippineProvince::whereRaw('LOWER(province_description) = ?', [strtolower($area)])->first();
+                    if ($province) {
+                        $provinceCodes[] = $province->province_code;
+                    }
+                }
+                $provinceCodes = array_unique($provinceCodes);
+            }
+
+            if (!empty($provinceCodes)) {
+                $assigned = \Illuminate\Support\Facades\DB::table('province_support_contact')
+                    ->whereIn('province_code', $provinceCodes)
+                    ->first();
+
+                if ($assigned) {
+                    $tpsContact = User::select('id', 'name', 'email', 'phone', 'profile_photo_path')
+                        ->where('id', $assigned->user_id)
+                        ->where('is_active', true)
+                        ->first();
+
+                    if ($tpsContact) {
+                        $contacts[] = [
+                            'type' => 'admin',
+                            'name' => $tpsContact->name,
+                            'email' => $tpsContact->email,
+                            'phone' => $tpsContact->phone,
+                            'profile_photo_url' => $tpsContact->profile_photo_path
+                                ? request()->getSchemeAndHttpHost().'/storage/'.$tpsContact->profile_photo_path
+                                : null,
+                            'role_label' => 'TPS Support',
+                        ];
+                    }
+                }
+            }
 
             return response()->json(['contacts' => $contacts]);
         });

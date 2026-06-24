@@ -115,6 +115,11 @@ class User extends Authenticatable
         return $this->hasMany(FarmerFeedback::class, 'submitted_by');
     }
 
+    public function supportContact()
+    {
+        return $this->hasOne(SupportContact::class);
+    }
+
     public function hasFullTpsTractorAccess(): bool
     {
         return $this->hasRole('tps') && $this->tps_assign_all_tractors;
