@@ -68,6 +68,11 @@ Route::prefix('v1')->group(function () {
         Route::get('devices/{device}', [ApiDeviceController::class, 'show']);
         Route::get('devices/{device}/history', [ApiDeviceController::class, 'locationHistory']);
 
+        // Philippine Locations (PSGC)
+        Route::get('locations/provinces', [ApiTpsController::class, 'fcaLocationProvinces']);
+        Route::get('locations/cities', [ApiTpsController::class, 'fcaLocationCities']);
+        Route::get('locations/barangays', [ApiTpsController::class, 'fcaLocationBarangays']);
+
         // Bookings
         Route::get('bookings', [ApiBookingController::class, 'index']);
         Route::post('bookings', [ApiBookingController::class, 'store']);

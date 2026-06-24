@@ -151,6 +151,9 @@ class ApiAuthController extends Controller
             'phone' => "sometimes|nullable|string|max:20|unique:users,phone,{$user->id}",
             'gender' => 'sometimes|nullable|in:male,female',
             'profile_photo' => 'sometimes|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'province' => 'sometimes|nullable|string|max:191',
+            'city' => 'sometimes|nullable|string|max:191',
+            'barangay' => 'sometimes|nullable|string|max:191',
         ]);
 
         if ($request->hasFile('profile_photo')) {

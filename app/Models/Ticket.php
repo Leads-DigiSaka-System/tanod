@@ -32,15 +32,33 @@ class Ticket extends Model
         'resolution_notes',
         'resolved_by',
         'resolved_at',
+        'pms_checklist',
     ];
 
     protected function casts(): array
     {
         return [
             'service_charge' => 'decimal:2',
+            'pms_checklist' => 'array',
             'reported_date' => 'date',
             'resolved_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Fallback fca_name from submitter when column is null.
+     */
+    public function getFcaNameAttribute(?string $value): ?string
+    {
+        if ($value) {
+            return $value;
+        }
+
+        if (! $this->relationLoaded('submitter')) {
+            $this->load('submitter');
+        }
+
+        return $this->submitter?->name;
     }
 
     public function tractor()

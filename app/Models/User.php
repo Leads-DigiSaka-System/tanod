@@ -29,6 +29,9 @@ class User extends Authenticatable
         'is_active',
         'fca_id',
         'tps_assign_all_tractors',
+        'province',
+        'city',
+        'barangay',
         'deletion_requested_at',
         'deletion_scheduled_for',
     ];

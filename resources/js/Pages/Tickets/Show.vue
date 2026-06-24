@@ -2,232 +2,151 @@
   <AppLayout>
     <Head :title="`Ticket #${ticket.id}`" />
 
-    <!-- Page Header -->
-    <div class="mb-6">
-      <Link href="/tickets" class="inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors">
-        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-        Back to Tickets
+    <!-- Compact Header + Status Bar -->
+    <div class="mb-5">
+      <Link href="/tickets" class="inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors mb-3">
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 12H5m0 0l7 7m-7-7l7-7"/></svg>
+        Tickets
       </Link>
-      <div class="mt-3 flex items-start justify-between">
-        <div>
-          <div class="flex items-center gap-3">
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ ticket.subject }}</h1>
-            <span class="text-sm font-mono text-gray-400 dark:text-gray-500">#{{ ticket.id }}</span>
-          </div>
-          <div class="mt-2 flex items-center gap-2 flex-wrap">
-            <StatusBadge :status="ticket.status" />
-            <StatusBadge :status="ticket.priority" />
-            <span v-if="ticket.category" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 capitalize">{{ ticket.category }}</span>
+      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/40 dark:border-gray-700/30 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-50 dark:border-gray-700/30">
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-mono text-[11px] text-gray-400 tabular-nums">TAN-{{ String(ticket.id).padStart(4, '0') }}</span>
+                <span class="text-gray-300 dark:text-gray-600">·</span>
+                <span class="text-[11px] text-gray-400">{{ formatDate(ticket.created_at) }}</span>
+              </div>
+              <h1 class="text-lg font-bold text-gray-900 dark:text-white leading-tight">{{ ticket.subject }}</h1>
+              <div class="flex items-center gap-2 mt-2 flex-wrap">
+                <StatusBadge :status="ticket.status" />
+                <span v-if="ticket.category" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{{ ticket.category }}</span>
+                <span v-if="ticket.fca_name" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{{ ticket.fca_name }}</span>
+                <span v-if="ticket.tractor" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/></svg>
+                  {{ ticket.tractor.no_plate }}
+                </span>
+              </div>
+            </div>
+            <div v-if="ticket.status === 'resolved' || ticket.status === 'closed'" class="shrink-0 flex flex-col items-end gap-1">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Resolved
+                <span v-if="ticket.resolved_at" class="font-normal opacity-75">{{ formatDate(ticket.resolved_at) }}</span>
+              </span>
+              <span v-if="ticket.resolver" class="text-[11px] text-gray-400">by {{ ticket.resolver.name }}</span>
+            </div>
           </div>
         </div>
+        <p v-if="(ticket.status === 'resolved' || ticket.status === 'closed') && ticket.resolution_notes" class="px-6 py-3 text-sm text-emerald-700 dark:text-emerald-300 bg-emerald-50/30 dark:bg-emerald-900/5 leading-relaxed">
+          {{ ticket.resolution_notes }}
+        </p>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <!-- Left Column - Main Content -->
-      <div class="lg:col-span-2 space-y-6">
+    <!-- Main layout: flex row on lg -->
+    <div class="flex flex-col lg:flex-row gap-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/40 dark:border-gray-700/30 shadow-sm overflow-hidden">
 
-        <!-- Description Card -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-          <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" /></svg>
-              Description
-            </h3>
-          </div>
-          <div class="px-6 py-4">
-            <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{{ ticket.description || 'No description provided.' }}</p>
-          </div>
+      <!-- LEFT: Content -->
+      <div class="flex-1 min-w-0 lg:border-r border-gray-100 dark:border-gray-700/30 flex flex-col">
+        <div class="px-6 py-4 border-b border-gray-50 dark:border-gray-700/20">
+          <p class="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">{{ ticket.description || 'No description provided.' }}</p>
         </div>
 
-        <!-- Issue Photo -->
-        <div v-if="ticket.photo_url" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-          <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-              Issue Photo
-            </h3>
+        <!-- Evidence Filmstrip -->
+        <div v-if="ticket.nameplate_photo_url || ticket.dashboard_photo_url || ticket.photo_url || (ticket.damage_photos && ticket.damage_photos.length)" class="px-6 py-4 border-b border-gray-50 dark:border-gray-700/20">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Evidence</h2>
+            <span class="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full tabular-nums">{{ (ticket.nameplate_photo_url ? 1 : 0) + (ticket.dashboard_photo_url ? 1 : 0) + (ticket.photo_url ? 1 : 0) + (ticket.damage_photos?.length || 0) }}</span>
           </div>
-          <div class="p-4">
-            <a :href="ticket.photo_url" target="_blank" class="block">
-              <img :src="ticket.photo_url" alt="Issue photo" class="w-full max-h-96 object-contain rounded-lg bg-gray-50 dark:bg-gray-900 cursor-zoom-in hover:opacity-90 transition-opacity" />
-            </a>
-          </div>
-        </div>
-
-        <!-- Nameplate Photo -->
-        <div v-if="ticket.nameplate_photo_url" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-          <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-              Nameplate Photo
-            </h3>
-          </div>
-          <div class="p-4">
-            <a :href="ticket.nameplate_photo_url" target="_blank" class="block">
-              <img :src="ticket.nameplate_photo_url" alt="Nameplate" class="w-full max-h-96 object-contain rounded-lg bg-gray-50 dark:bg-gray-900 cursor-zoom-in hover:opacity-90 transition-opacity" />
-            </a>
-          </div>
-        </div>
-
-        <!-- Dashboard Photo -->
-        <div v-if="ticket.dashboard_photo_url" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-          <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-              Dashboard (Machine Hours)
-            </h3>
-          </div>
-          <div class="p-4">
-            <a :href="ticket.dashboard_photo_url" target="_blank" class="block">
-              <img :src="ticket.dashboard_photo_url" alt="Dashboard" class="w-full max-h-96 object-contain rounded-lg bg-gray-50 dark:bg-gray-900 cursor-zoom-in hover:opacity-90 transition-opacity" />
-            </a>
-          </div>
-        </div>
-
-        <!-- Damage Photos -->
-        <div v-if="ticket.damage_photos && ticket.damage_photos.length" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-          <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-              Damaged Parts ({{ ticket.damage_photos.length }} photos)
-            </h3>
-          </div>
-          <div class="p-4">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div v-for="dp in ticket.damage_photos" :key="dp.id">
-                <a :href="dp.photo_url" target="_blank" class="block">
-                  <img :src="dp.photo_url" :alt="'Damage photo ' + (dp.sort_order + 1)" class="w-full rounded-lg shadow bg-gray-50 dark:bg-gray-900 cursor-zoom-in hover:opacity-90 transition-opacity" />
-                </a>
-              </div>
+          <div class="flex gap-2.5 overflow-x-auto pb-1">
+            <div v-if="ticket.nameplate_photo_url" @click="previewImage = { url: ticket.nameplate_photo_url, label: 'Nameplate' }" class="group shrink-0 relative w-40 h-56 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-900 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-md transition-shadow cursor-zoom-in">
+              <img :src="ticket.nameplate_photo_url" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <div class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/60 to-transparent pt-6 pb-1.5 px-2"><span class="text-[10px] text-white font-medium">Nameplate</span></div>
+            </div>
+            <div v-if="ticket.dashboard_photo_url" @click="previewImage = { url: ticket.dashboard_photo_url, label: 'Dashboard' }" class="group shrink-0 relative w-40 h-56 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-900 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-md transition-shadow cursor-zoom-in">
+              <img :src="ticket.dashboard_photo_url" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <div class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/60 to-transparent pt-6 pb-1.5 px-2"><span class="text-[10px] text-white font-medium">Dashboard</span></div>
+            </div>
+            <div v-if="ticket.photo_url" @click="previewImage = { url: ticket.photo_url, label: 'Issue' }" class="group shrink-0 relative w-40 h-56 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-900 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-md transition-shadow cursor-zoom-in">
+              <img :src="ticket.photo_url" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <div class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/60 to-transparent pt-6 pb-1.5 px-2"><span class="text-[10px] text-white font-medium">Issue</span></div>
+            </div>
+            <div v-for="dp in ticket.damage_photos" :key="dp.id" @click="previewImage = { url: dp.photo_url, label: 'Damage #' + (dp.sort_order + 1) }" class="group shrink-0 relative w-40 h-56 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-900 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-md transition-shadow cursor-zoom-in">
+              <img :src="dp.photo_url" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <div class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/60 to-transparent pt-6 pb-1.5 px-2"><span class="text-[10px] text-white font-medium">Damage #{{ dp.sort_order + 1 }}</span></div>
             </div>
           </div>
         </div>
 
-        <!-- Resolution Card -->
-        <div v-if="ticket.status === 'resolved' || ticket.status === 'closed'" class="bg-white rounded-xl border border-emerald-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-emerald-900">
-          <div class="px-6 py-4 border-b border-emerald-100 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-900/20">
-            <h3 class="text-sm font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              Resolution
-            </h3>
-          </div>
-          <div class="px-6 py-4 space-y-3">
-            <div class="flex items-center gap-4 text-sm">
-              <span v-if="ticket.resolver" class="text-gray-500 dark:text-gray-400">Resolved by <strong class="text-gray-900 dark:text-white">{{ ticket.resolver.name }}</strong></span>
-              <span v-if="ticket.resolved_at" class="text-gray-400 dark:text-gray-500">{{ formatDate(ticket.resolved_at) }}</span>
-            </div>
-            <p v-if="ticket.resolution_notes" class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ ticket.resolution_notes }}</p>
-            <div v-if="ticket.resolution_photo_url" class="mt-3">
-              <a :href="ticket.resolution_photo_url" target="_blank" class="block">
-                <img :src="ticket.resolution_photo_url" alt="Resolution photo" class="w-full max-h-72 object-contain rounded-lg bg-gray-50 dark:bg-gray-900 cursor-zoom-in hover:opacity-90 transition-opacity" />
-              </a>
-            </div>
+        <!-- Resolution Photo -->
+        <div v-if="(ticket.status === 'resolved' || ticket.status === 'closed') && ticket.resolution_photo_url" class="px-6 py-4 border-b border-gray-50 dark:border-gray-700/20">
+          <h2 class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Resolution Photo</h2>
+          <div @click="previewImage = { url: ticket.resolution_photo_url, label: 'Resolution' }" class="block rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow cursor-zoom-in">
+            <img :src="ticket.resolution_photo_url" class="w-full max-h-80 object-contain bg-gray-50 dark:bg-gray-900" />
           </div>
         </div>
 
-        <!-- Comments / Chat Section -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-          <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-              Discussion
-              <span class="text-xs font-normal text-gray-400 dark:text-gray-500">({{ localComments.length }})</span>
-              <span v-if="isListeningRealtime" class="ml-auto flex items-center gap-1 text-xs text-emerald-500">
-                <span class="relative flex h-2 w-2">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                Live
-              </span>
-            </h3>
-          </div>
-
-          <!-- Messages -->
-          <div ref="commentsContainer" class="px-4 py-4 max-h-[32rem] overflow-y-auto space-y-3 bg-gray-50 dark:bg-gray-900/30">
-            <div v-if="!localComments.length" class="flex flex-col items-center justify-center py-12">
-              <svg class="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              <p class="text-sm text-gray-400 dark:text-gray-500">No messages yet. Start the conversation.</p>
+        <!-- Discussion -->
+        <div v-if="ticket.status !== 'resolved' && ticket.status !== 'closed'" class="flex-1 flex flex-col border-t border-gray-100 dark:border-gray-700/40">
+          <div class="px-5 py-3 flex items-center gap-2 border-b border-gray-100 dark:border-gray-700/40">
+            <div class="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-50 dark:bg-sky-900/30">
+              <svg class="w-3.5 h-3.5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
             </div>
-
+            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Discussion</h3>
+            <span class="text-[10px] font-medium text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full">{{ localComments.length }}</span>
+            <span v-if="isListeningRealtime" class="ml-auto flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+              <span class="relative flex h-1.5 w-1.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span></span>Live
+            </span>
+          </div>
+          <div ref="commentsContainer" class="flex-1 px-4 py-3 overflow-y-auto space-y-3 bg-gray-50/30 dark:bg-gray-900/10">
+            <div v-if="!localComments.length" class="text-center py-10">
+              <p class="text-xs text-gray-400">No messages yet</p>
+            </div>
             <template v-for="(comment, index) in localComments" :key="comment.id">
-              <!-- Date separator (optional: show when date changes) -->
-              <div v-if="index === 0 || !isSameDay(comment.created_at, localComments[index - 1].created_at)"
-                class="flex items-center gap-3 py-2">
+              <div v-if="index === 0 || !isSameDay(comment.created_at, localComments[index - 1].created_at)" class="flex items-center gap-2 py-1.5">
                 <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
-                <span class="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">{{ formatDayLabel(comment.created_at) }}</span>
+                <span class="text-[10px] text-gray-400 font-medium uppercase">{{ formatDayLabel(comment.created_at) }}</span>
                 <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
               </div>
-
-              <!-- Chat bubble -->
               <div class="flex" :class="comment.user?.id === currentUserId ? 'justify-end' : 'justify-start'">
-                <!-- Avatar (other users only) -->
-                <div v-if="comment.user?.id !== currentUserId" class="h-7 w-7 rounded-full flex items-center justify-center shrink-0 mr-2 mt-auto bg-indigo-100 dark:bg-indigo-900/50">
-                  <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-300">{{ comment.user?.name?.charAt(0) || '?' }}</span>
+                <div v-if="comment.user?.id !== currentUserId" class="h-6 w-6 rounded-full flex items-center justify-center shrink-0 mr-1.5 mt-auto bg-indigo-100 dark:bg-indigo-900/50">
+                  <span class="text-[9px] font-bold text-indigo-600 dark:text-indigo-300">{{ comment.user?.name?.charAt(0) || '?' }}</span>
                 </div>
-                <div class="max-w-[75%] group">
-                  <!-- Name (other users only) -->
-                  <p v-if="comment.user?.id !== currentUserId" class="text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-0.5 ml-1">{{ comment.user?.name || 'Unknown' }}</p>
-                  <!-- Bubble -->
-                  <div class="relative px-3.5 py-2.5 rounded-2xl shadow-sm text-sm leading-relaxed"
-                    :class="comment.user?.id === currentUserId
-                      ? 'bg-emerald-600 text-white rounded-br-md'
-                      : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-600 rounded-bl-md'">
-                    <!-- Attachment image -->
-                    <a v-if="comment.attachment_url && isImage(comment.attachment_url)" :href="comment.attachment_url" target="_blank" class="block mb-2 -mx-1 -mt-1">
-                      <img :src="comment.attachment_url" alt="Attachment" class="max-w-full max-h-56 rounded-xl object-cover cursor-zoom-in hover:opacity-90 transition-opacity" />
-                    </a>
-                    <!-- Attachment file (non-image) -->
-                    <a v-else-if="comment.attachment_url" :href="comment.attachment_url" target="_blank"
-                      class="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg transition-colors"
-                      :class="comment.user?.id === currentUserId ? 'bg-emerald-700/50 hover:bg-emerald-700/70' : 'bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500'">
-                      <svg class="w-5 h-5 shrink-0" :class="comment.user?.id === currentUserId ? 'text-emerald-200' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                      <span class="text-xs font-medium truncate" :class="comment.user?.id === currentUserId ? 'text-emerald-100' : 'text-gray-600 dark:text-gray-300'">Attachment</span>
+                <div class="max-w-[80%]">
+                  <p v-if="comment.user?.id !== currentUserId" class="text-[10px] font-semibold text-gray-500 dark:text-gray-400 mb-0.5 ml-1">{{ comment.user?.name || 'Unknown' }}</p>
+                  <div class="px-3 py-2 rounded-2xl shadow-sm text-sm leading-relaxed"
+                    :class="comment.user?.id === currentUserId ? 'bg-emerald-600 text-white rounded-br-md' : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-600 rounded-bl-md'">
+                    <div v-if="comment.attachment_url && isImage(comment.attachment_url)" @click="previewImage = { url: comment.attachment_url, label: 'Attachment' }" class="block mb-1.5 -mx-1 -mt-1 cursor-zoom-in">
+                      <img :src="comment.attachment_url" class="max-w-full max-h-48 rounded-xl object-cover hover:opacity-90" />
+                    </div>
+                    <a v-else-if="comment.attachment_url" :href="comment.attachment_url" target="_blank" class="flex items-center gap-1.5 mb-1.5 px-2 py-1.5 rounded-lg text-xs" :class="comment.user?.id === currentUserId ? 'bg-emerald-700/50' : 'bg-gray-100 dark:bg-gray-600'">
+                      <svg class="w-4 h-4 shrink-0" :class="comment.user?.id === currentUserId ? 'text-emerald-200' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                      Attachment
                     </a>
                     <p v-if="comment.body" class="whitespace-pre-wrap wrap-break-word">{{ comment.body }}</p>
-                    <span class="block text-[10px] mt-1 text-right"
-                      :class="comment.user?.id === currentUserId ? 'text-emerald-200' : 'text-gray-400 dark:text-gray-500'">{{ formatTime(comment.created_at) }}</span>
+                    <span class="block text-[9px] mt-1 text-right" :class="comment.user?.id === currentUserId ? 'text-emerald-200' : 'text-gray-400'">{{ formatTime(comment.created_at) }}</span>
                   </div>
                 </div>
               </div>
             </template>
           </div>
-
-          <!-- Comment Input -->
-          <div class="px-4 py-3 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
-            <!-- Typing indicator -->
-            <div v-if="typingUser" class="flex items-center gap-2 mb-2 text-xs text-gray-400 dark:text-gray-500">
-              <span class="flex gap-0.5">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style="animation-delay: 0ms"></span>
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style="animation-delay: 150ms"></span>
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style="animation-delay: 300ms"></span>
-              </span>
-              <span class="italic">{{ typingUser.role }} {{ typingUser.name }} is typing...</span>
+          <div class="px-5 py-3 border-t border-gray-100 dark:border-gray-700/40">
+            <div v-if="typingUser" class="text-[10px] text-gray-400 mb-1.5 italic">{{ typingUser.role }} {{ typingUser.name }} is typing...</div>
+            <div v-if="attachmentPreview" class="mb-1.5 relative inline-block">
+              <img v-if="attachmentPreview.isImage" :src="attachmentPreview.url" class="h-16 rounded-lg border border-gray-200 dark:border-gray-600 object-cover" />
+              <button @click="removeAttachment" class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] hover:bg-red-600 shadow">&times;</button>
             </div>
-            <!-- Attachment preview -->
-            <div v-if="attachmentPreview" class="mb-2 relative inline-block">
-              <img v-if="attachmentPreview.isImage" :src="attachmentPreview.url" class="h-20 rounded-lg border border-gray-200 dark:border-gray-600 object-cover" />
-              <div v-else class="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
-                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                <span class="text-xs text-gray-600 dark:text-gray-300 truncate max-w-[160px]">{{ attachmentPreview.name }}</span>
-              </div>
-              <button @click="removeAttachment" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600 shadow">
-                &times;
-              </button>
-            </div>
-            <form @submit.prevent="addComment" class="flex items-end gap-2">
+            <form @submit.prevent="addComment" class="flex items-end gap-1.5">
               <input ref="fileInput" type="file" accept="image/*,.pdf" class="hidden" @change="onFileSelected" />
-              <button type="button" @click="$refs.fileInput.click()" class="p-2.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0" title="Attach file">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+              <button type="button" @click="$refs.fileInput.click()" class="p-2 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="Attach">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
               </button>
               <input :value="commentForm.body" @input="onCommentInput" type="text" placeholder="Write a message..."
-                class="flex-1 bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-emerald-500 focus:border-emerald-500 block w-full px-4 py-2.5 dark:bg-gray-900 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                @keydown.enter.exact.prevent="addComment" />
+                class="flex-1 bg-gray-50 border border-gray-200 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2 dark:bg-gray-900 dark:border-gray-600 dark:text-white" @keydown.enter.exact.prevent="addComment" />
               <button type="submit" :disabled="commentForm.processing || (!commentForm.body.trim() && !selectedFile)"
-                class="p-2.5 text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 focus:ring-4 focus:ring-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 dark:bg-emerald-500 dark:hover:bg-emerald-600">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                class="p-2 text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-40 transition-colors shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
               </button>
             </form>
           </div>
@@ -235,122 +154,142 @@
       </div>
 
       <!-- Right Column - Sidebar -->
-      <div class="space-y-6">
-        <!-- Info Card -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-            <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Details</h3>
-          </div>
-          <div class="px-5 py-4 space-y-4">
-            <!-- Reporter -->
-            <div class="flex items-start gap-3">
-              <div class="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center shrink-0 mt-0.5">
-                <svg class="w-4 h-4 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+      <div class="lg:w-80 shrink-0 flex flex-col divide-y divide-gray-100 dark:divide-gray-700/30">
+        <!-- Info -->
+        <div class="px-5 py-4">
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Details</h3>
+          <div class="space-y-3">
+            <div class="flex items-center gap-3">
+              <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30 shrink-0">
+                <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
               </div>
-              <div>
-                <p class="text-xs text-gray-500 dark:text-gray-400">Reporter</p>
-                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ ticket.submitter?.name || '—' }}</p>
+              <div class="min-w-0">
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider">Reporter</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ ticket.submitter?.name || '—' }}</p>
               </div>
             </div>
-
-            <!-- Tractor -->
-            <div v-if="ticket.tractor" class="flex items-start gap-3">
-              <div class="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center shrink-0 mt-0.5">
-                <svg class="w-4 h-4 text-amber-600 dark:text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+            <div v-if="ticket.tractor" class="flex items-center gap-3">
+              <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30 shrink-0">
+                <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" /></svg>
               </div>
-              <div>
-                <p class="text-xs text-gray-500 dark:text-gray-400">Tractor</p>
-                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ ticket.tractor.no_plate }}</p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">{{ ticket.tractor.brand }} {{ ticket.tractor.model }}</p>
+              <div class="min-w-0">
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider">Tractor</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ ticket.tractor.no_plate }} · {{ ticket.tractor.brand }}</p>
               </div>
             </div>
-
-            <!-- Assigned TPS -->
-            <div class="flex items-start gap-3">
-              <div class="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center shrink-0 mt-0.5">
-                <svg class="w-4 h-4 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+            <div class="flex items-center gap-3">
+              <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-900/30 shrink-0">
+                <svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2" /></svg>
               </div>
-              <div class="flex-1">
-                <p class="text-xs text-gray-500 dark:text-gray-400">Assigned TPS</p>
-                <div v-if="ticket.assignees?.length" class="mt-1 flex flex-wrap gap-1.5">
-                  <span v-for="a in ticket.assignees" :key="a.id" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                    {{ a.name }}
-                  </span>
-                </div>
-                <p v-else class="text-sm text-gray-400 dark:text-gray-500">Unassigned</p>
+              <div class="min-w-0 flex-1">
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider">Assigned TPS</p>
+                <template v-if="ticket.status === 'resolved' || ticket.status === 'closed'">
+                  <span class="text-xs text-gray-400 italic">Locked</span>
+                </template>
+                <template v-else-if="ticket.assignees?.length">
+                  <div class="flex flex-wrap gap-1 mt-0.5">
+                    <span v-for="a in ticket.assignees" :key="a.id" class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300">{{ a.name }}</span>
+                  </div>
+                </template>
+                <span v-else class="text-xs text-gray-400">Unassigned</span>
               </div>
             </div>
-
-            <!-- Created Date -->
-            <div class="flex items-start gap-3">
-              <div class="h-8 w-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0 mt-0.5">
-                <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <div v-if="ticket.service_charge" class="flex items-center gap-3">
+              <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/30 shrink-0">
+                <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               </div>
               <div>
-                <p class="text-xs text-gray-500 dark:text-gray-400">Created</p>
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider">Service Charge</p>
+                <p class="text-sm font-bold text-gray-900 dark:text-white">₱{{ Number(ticket.service_charge).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-700 shrink-0">
+                <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <div>
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider">Created</p>
                 <p class="text-sm font-medium text-gray-900 dark:text-white">{{ formatDate(ticket.created_at) }}</p>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Actions Card -->
-        <div v-if="canManage" class="bg-white rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-            <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</h3>
+        <!-- PMS Checklist -->
+        <div v-if="ticket.pms_checklist && ticket.pms_checklist.length" class="px-5 py-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">PMS Checklist</h3>
+            <span class="text-[11px] font-bold" :class="donePmsCount === ticket.pms_checklist.length ? 'text-emerald-600' : 'text-amber-600'">{{ donePmsCount }}/{{ ticket.pms_checklist.length }}</span>
           </div>
-          <div class="px-5 py-4 space-y-5">
-            <!-- Update Status -->
-            <div>
-              <label class="block mb-1.5 text-xs font-medium text-gray-700 dark:text-gray-300">Update Status</label>
-              <div class="flex gap-2">
-                <select v-model="statusForm.status" class="flex-1 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block w-full p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                  <option value="open">Open</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="closed">Closed</option>
-                </select>
-                <button @click="updateStatus" :disabled="statusForm.processing"
-                  class="px-3 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors whitespace-nowrap">Save</button>
+          <div class="mb-2 h-1 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+            <div class="h-full rounded-full transition-all" :class="donePmsCount === ticket.pms_checklist.length ? 'bg-emerald-500' : 'bg-amber-500'" :style="{ width: (donePmsCount / ticket.pms_checklist.length * 100) + '%' }"></div>
+          </div>
+          <div class="space-y-1">
+            <div v-for="(item, i) in ticket.pms_checklist" :key="i" class="flex items-center gap-2">
+              <div class="shrink-0 flex h-3.5 w-3.5 items-center justify-center rounded-full border" :class="(item.done === true || item.done === '1' || item.done === 1) ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300 dark:border-gray-600'">
+                <svg v-if="item.done === true || item.done === '1' || item.done === 1" class="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
               </div>
-            </div>
-
-            <!-- Assign TPS (multi-select with checkboxes) -->
-            <div>
-              <label class="block mb-1.5 text-xs font-medium text-gray-700 dark:text-gray-300">Assign TPS Personnel</label>
-              <div class="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg divide-y divide-gray-100 dark:divide-gray-700">
-                <label v-for="tps in tpsUsers" :key="tps.id" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors">
-                  <input type="checkbox" :value="tps.id" v-model="selectedAssignees"
-                    class="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-700" />
-                  <span class="text-sm text-gray-900 dark:text-white">{{ tps.name }}</span>
-                </label>
-                <div v-if="!tpsUsers?.length" class="px-3 py-4 text-center text-sm text-gray-400">No TPS personnel available</div>
-              </div>
-              <button @click="assignTicket" :disabled="assignForm.processing || !selectedAssignees.length"
-                class="mt-2 w-full px-3 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
-                Update Assignees ({{ selectedAssignees.length }})
-              </button>
+              <span class="text-xs flex-1 truncate" :class="(item.done === true || item.done === '1' || item.done === 1) ? 'text-gray-700 dark:text-gray-200 font-medium' : 'text-gray-400'">{{ item.name }}</span>
             </div>
           </div>
         </div>
 
-        <!-- Assistance Requests Card -->
-        <div v-if="assistanceRequests?.length" class="bg-white rounded-xl border border-orange-200 shadow-sm dark:bg-gray-800 dark:border-orange-900">
-          <div class="px-5 py-4 border-b border-orange-100 dark:border-orange-900 bg-orange-50 dark:bg-orange-900/20">
-            <h3 class="text-xs font-semibold text-orange-700 dark:text-orange-300 uppercase tracking-wider flex items-center gap-2">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3" /></svg>
-              Assistance Requests ({{ assistanceRequests.length }})
-            </h3>
+        <!-- Actions -->
+        <div v-if="canManage && ticket.status !== 'resolved' && ticket.status !== 'closed'" class="px-5 py-4">
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Actions</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1.5">Status</label>
+              <div class="flex gap-2">
+                <select v-model="statusForm.status" class="flex-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm rounded-lg px-2.5 py-2 dark:text-white">
+                  <option value="open">Open</option><option value="in_progress">In Progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option>
+                </select>
+                <button @click="updateStatus" :disabled="statusForm.processing" class="px-3 py-2 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50">Save</button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1.5">Assign TPS</label>
+              <div class="max-h-36 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg divide-y divide-gray-100 dark:divide-gray-700">
+                <label v-for="tps in tpsUsers" :key="tps.id" class="flex items-center gap-2 px-2.5 py-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer text-xs">
+                  <input type="checkbox" :value="tps.id" v-model="selectedAssignees" class="w-3.5 h-3.5 text-indigo-600 rounded" />
+                  {{ tps.name }}
+                </label>
+              </div>
+              <button @click="assignTicket" :disabled="assignForm.processing || !selectedAssignees.length" class="mt-2 w-full py-2 text-xs font-semibold text-white bg-linear-to-r from-purple-600 to-indigo-600 rounded-lg hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50">Update ({{ selectedAssignees.length }})</button>
+            </div>
           </div>
-          <div class="divide-y divide-orange-100 dark:divide-orange-900/40 max-h-64 overflow-y-auto">
-            <div v-for="req in assistanceRequests" :key="req.id" class="px-5 py-3">
-              <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{{ req.body }}</p>
-              <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ formatDate(req.created_at) }}</p>
+        </div>
+
+        <!-- Assistance -->
+        <div v-if="assistanceRequests?.length" class="px-5 py-4">
+          <div class="px-4 py-2.5 bg-linear-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/10 border-b border-orange-100 dark:border-orange-800/20">
+            <h3 class="text-[10px] font-semibold text-orange-600 uppercase tracking-wider">Assistance ({{ assistanceRequests.length }})</h3>
+          </div>
+          <div class="divide-y divide-gray-50 dark:divide-gray-700/50 max-h-48 overflow-y-auto">
+            <div v-for="req in assistanceRequests" :key="req.id" class="px-4 py-2.5">
+              <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{{ req.body }}</p>
+              <p class="text-[10px] text-gray-400 mt-1">{{ formatDate(req.created_at) }}</p>
             </div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Image Preview Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="previewImage" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" @click="previewImage = null">
+          <div class="relative max-w-5xl max-h-[90vh] w-full" @click.stop>
+            <button @click="previewImage = null" class="absolute -top-10 right-0 text-white/80 hover:text-white text-sm font-medium flex items-center gap-1 transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              Close
+            </button>
+            <img :src="previewImage.url" :alt="previewImage.label" class="w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" />
+            <p class="text-center text-white/60 text-xs mt-3">{{ previewImage.label }}</p>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </AppLayout>
 </template>
 
@@ -370,6 +309,11 @@ const canManage = computed(() => {
   return perms.includes('tickets.manage') || perms.includes('tickets.assign');
 });
 
+const donePmsCount = computed(() => {
+  const items = props.ticket.pms_checklist || [];
+  return items.filter(c => c.done === true || c.done === '1' || c.done === 1).length;
+});
+
 // Local comments for real-time updates
 const localComments = ref([...(props.ticket.comments || [])]);
 const commentsContainer = ref(null);
@@ -377,6 +321,7 @@ const isListeningRealtime = ref(false);
 const fileInput = ref(null);
 const selectedFile = ref(null);
 const attachmentPreview = ref(null);
+const previewImage = ref(null); // { url, label }
 
 const scrollToBottom = () => {
   nextTick(() => {

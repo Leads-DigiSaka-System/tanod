@@ -8,6 +8,8 @@ use App\Jobs\SendPmsNotification;
 use App\Models\IssueType;
 use App\Models\Maintenance;
 use App\Models\MaintenanceImage;
+use App\Models\Ticket;
+use App\Models\TicketDamagePhoto;
 use App\Models\Tractor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -76,7 +78,13 @@ class ApiMaintenanceController extends Controller
             'maintenance_date' => now(),
             'hours_at_maintenance' => $data['hours_at_maintenance'] ?? $tractor->effective_running_hours,
             'km_at_maintenance' => $data['km_at_maintenance'] ?? $tractor->effective_total_distance,
-            'pms_checklist' => $data['pms_checklist'] ?? null,
+            'pms_checklist' => isset($data['pms_checklist'])
+                ? array_map(fn ($item) => [
+                    'name' => $item['name'] ?? '',
+                    'done' => (bool) ($item['done'] ?? false),
+                    'notes' => $item['notes'] ?? null,
+                ], $data['pms_checklist'])
+                : null,
             'description' => $data['description'] ?? null,
             'request_notes' => $data['request_notes'] ?? null,
             'status' => $type === 'record' ? 'completed' : 'scheduled',
@@ -86,14 +94,67 @@ class ApiMaintenanceController extends Controller
         ]);
 
         // Store images
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $i => $image) {
+        $nameplatePath = null;
+        $dashboardPath = null;
+
+        if ($request->hasFile('nameplate_photo')) {
+            $nameplatePath = $request->file('nameplate_photo')->store("maintenance/{$maintenance->id}", 'public');
+            MaintenanceImage::create([
+                'maintenance_id' => $maintenance->id,
+                'path' => $nameplatePath,
+                'type' => 'nameplate',
+            ]);
+        }
+
+        if ($request->hasFile('dashboard_photo')) {
+            $dashboardPath = $request->file('dashboard_photo')->store("maintenance/{$maintenance->id}", 'public');
+            MaintenanceImage::create([
+                'maintenance_id' => $maintenance->id,
+                'path' => $dashboardPath,
+                'type' => 'dashboard',
+            ]);
+        }
+
+        if ($request->hasFile('damage_photos')) {
+            foreach ($request->file('damage_photos') as $image) {
                 $path = $image->store("maintenance/{$maintenance->id}", 'public');
                 MaintenanceImage::create([
                     'maintenance_id' => $maintenance->id,
                     'path' => $path,
-                    'type' => 'before',
+                    'type' => 'damage',
                 ]);
+            }
+        }
+
+        // Auto-create a resolved ticket for self-recorded PMS
+        if ($type === 'record') {
+            $ticket = Ticket::create([
+                'tractor_id' => $tractor->id,
+                'submitted_by' => $user->id,
+                'subject' => 'PMS',
+                'description' => $data['description']
+                    ?? 'Self-recorded PMS for '.$tractor->no_plate
+                        .' ('.$tractor->brand.' '.$tractor->model.')'
+                        .' at '.($data['hours_at_maintenance'] ?? $tractor->effective_running_hours).' hours.',
+                'status' => 'resolved',
+                'priority' => 'medium',
+                'category' => 'PMS',
+                'nameplate_photo_path' => $nameplatePath,
+                'dashboard_photo_path' => $dashboardPath,
+                'resolved_by' => $user->id,
+                'resolved_at' => now(),
+            ]);
+
+            // Store damage photos as ticket damage photos
+            if ($request->hasFile('damage_photos')) {
+                foreach ($request->file('damage_photos') as $i => $image) {
+                    $damagePath = $image->store("tickets/{$ticket->id}/damage", 'public');
+                    TicketDamagePhoto::create([
+                        'ticket_id' => $ticket->id,
+                        'photo_path' => $damagePath,
+                        'sort_order' => $i,
+                    ]);
+                }
             }
         }
 

@@ -17,6 +17,9 @@ class UserResource extends JsonResource
             'phone_country' => $this->phone_country,
             'country_code' => $this->country_code,
             'gender' => $this->gender,
+            'province' => $this->province,
+            'city' => $this->city,
+            'barangay' => $this->barangay,
             'profile_photo_url' => $this->profile_photo_path
                 ? request()->getSchemeAndHttpHost().'/storage/'.$this->profile_photo_path
                 : null,

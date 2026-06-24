@@ -60,6 +60,16 @@ class TicketController extends Controller
         $data['submitted_by'] = $request->user()->id;
         $data['status'] = 'open';
 
+        // Resolve FCA name
+        $user = $request->user();
+        if (! isset($data['fca_name'])) {
+            if ($user->hasRole('fca')) {
+                $data['fca_name'] = $user->fcaProfile?->organization_name;
+            } elseif ($user->hasRole('farmer') && $user->fca) {
+                $data['fca_name'] = $user->fca->fcaProfile?->organization_name;
+            }
+        }
+
         $ticket = Ticket::create($data);
 
         $adminIds = User::role(['super-admin', 'sub-admin'])
@@ -102,6 +112,8 @@ class TicketController extends Controller
                 'priority' => $ticket->priority,
                 'status' => $ticket->status,
                 'category' => $ticket->category,
+                'fca_name' => $ticket->fca_name,
+                'service_charge' => $ticket->service_charge,
                 'photo_url' => $ticket->photo_path ? Storage::disk('public')->url($ticket->photo_path) : null,
                 'nameplate_photo_url' => $ticket->nameplate_photo_path
                     ? asset('storage/'.$ticket->nameplate_photo_path)
@@ -114,6 +126,7 @@ class TicketController extends Controller
                     'photo_url' => asset('storage/'.$dp->photo_path),
                     'sort_order' => $dp->sort_order,
                 ])->values()->all(),
+                'pms_checklist' => $ticket->pms_checklist,
                 'resolution_notes' => $ticket->resolution_notes,
                 'resolution_photo_url' => $ticket->resolution_photo_path
                     ? Storage::disk('public')->url($ticket->resolution_photo_path)

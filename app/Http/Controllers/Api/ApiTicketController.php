@@ -101,6 +101,12 @@ class ApiTicketController extends Controller
             'dashboard_photo' => 'required|image|max:10240',
             'damage_photos' => 'required|array|min:1|max:3',
             'damage_photos.*' => 'image|max:10240',
+            'pms_checklist' => 'nullable|array',
+            'pms_checklist.*.name' => 'required_with:pms_checklist|string',
+            'pms_checklist.*.done' => 'required_with:pms_checklist|boolean',
+            'pms_checklist.*.notes' => 'nullable|string|max:500',
+            'auto_resolve' => 'nullable|boolean',
+            'action_taken' => 'nullable|string|in:Self PMS,Third Party,Need Technician Help,Self Repair,Third Party Repair',
         ]);
 
         $data['priority'] = $data['priority'] ?? 'medium';
@@ -113,6 +119,13 @@ class ApiTicketController extends Controller
         $nameplatePath = $request->file('nameplate_photo')->store('tickets/nameplates', 'public');
         $dashboardPath = $request->file('dashboard_photo')->store('tickets/dashboards', 'public');
 
+        $fcaName = null;
+        if ($user->hasRole('fca')) {
+            $fcaName = $user->fcaProfile?->organization_name;
+        } elseif ($user->hasRole('farmer') && $user->fca) {
+            $fcaName = $user->fca->fcaProfile?->organization_name;
+        }
+
         $ticket = Ticket::create([
             'subject' => $data['subject'],
             'description' => $data['description'],
@@ -120,9 +133,16 @@ class ApiTicketController extends Controller
             'category' => $data['category'] ?? null,
             'tractor_id' => $data['tractor_id'] ?? null,
             'submitted_by' => $user->id,
-            'status' => 'open',
+            'fca_name' => $fcaName,
+            'status' => ! empty($data['auto_resolve']) ? 'resolved' : 'open',
             'nameplate_photo_path' => $nameplatePath,
             'dashboard_photo_path' => $dashboardPath,
+            'pms_checklist' => $data['pms_checklist'] ?? null,
+            'resolution_notes' => ! empty($data['auto_resolve'])
+                ? ('Completed via '.($data['action_taken'] ?? 'self-service').'.')
+                : null,
+            'resolved_by' => ! empty($data['auto_resolve']) ? $user->id : null,
+            'resolved_at' => ! empty($data['auto_resolve']) ? now() : null,
         ]);
 
         foreach ($request->file('damage_photos') as $i => $file) {
@@ -248,6 +268,7 @@ class ApiTicketController extends Controller
         $data = $request->validate([
             'resolution_notes' => 'nullable|string|max:5000',
             'resolution_photo' => 'nullable|image|max:5120',
+            'service_charge' => 'nullable|numeric|min:0|max:99999999.99',
         ]);
 
         $resolutionPhotoPath = null;
@@ -259,6 +280,7 @@ class ApiTicketController extends Controller
             'status' => 'resolved',
             'resolution_notes' => $data['resolution_notes'] ?? null,
             'resolution_photo_path' => $resolutionPhotoPath,
+            'service_charge' => $data['service_charge'] ?? null,
             'resolved_by' => $user->id,
             'resolved_at' => now(),
         ]);
@@ -368,6 +390,15 @@ class ApiTicketController extends Controller
                     'sort_order' => $dp->sort_order,
                 ])->values()->all()
                 : [],
+            'pms_checklist' => $ticket->pms_checklist,
+            'service_charge' => $ticket->service_charge,
+            'action_taken' => $ticket->resolution_notes
+                ? (str_contains($ticket->resolution_notes, 'Third Party Repair') ? 'Third Party Repair'
+                    : (str_contains($ticket->resolution_notes, 'Third Party') ? 'Third Party'
+                        : (str_contains($ticket->resolution_notes, 'Self Repair') ? 'Self Repair'
+                            : (str_contains($ticket->resolution_notes, 'Need Technician') ? 'Need Technician Help'
+                                : 'Self PMS'))))
+                : null,
             'tractor' => $ticket->tractor ? [
                 'id' => $ticket->tractor->id,
                 'no_plate' => $ticket->tractor->no_plate,
@@ -378,6 +409,7 @@ class ApiTicketController extends Controller
                 'id' => $ticket->submitter->id,
                 'name' => $ticket->submitter->name,
             ] : null,
+            'fca_name' => $ticket->fca_name,
             'created_at' => $ticket->created_at?->toIso8601String(),
             'last_activity_at' => $lastActivityAt?->toIso8601String(),
             'last_comment' => $latestComment ? [
