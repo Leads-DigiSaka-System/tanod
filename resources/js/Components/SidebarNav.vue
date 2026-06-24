@@ -65,6 +65,10 @@
           <svg v-else-if="item.icon === 'report'" class="w-5 h-5 transition duration-75" :class="isActive(item.href) ? 'text-yellow-400' : 'text-green-200 group-hover:text-white'" fill="currentColor" viewBox="0 0 20 20">
             <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"/><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"/>
           </svg>
+          <!-- Support Contact -->
+          <svg v-else-if="item.icon === 'support'" class="w-5 h-5 transition duration-75" :class="isActive(item.href) ? 'text-yellow-400' : 'text-green-200 group-hover:text-white'" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-2 0c0 .993-.241 1.929-.668 2.754l1.524 1.524a9.05 9.05 0 00.923-4.278c0-1.555-.391-3.018-1.078-4.294l-1.522 1.522A5.973 5.973 0 0116 10zm-5.35-4.744a.75.75 0 00-1.3 0l-2.5 4.33a.75.75 0 00.65 1.124h5a.75.75 0 00.65-1.124l-2.5-4.33zM10 12.5a2 2 0 100 4 2 2 0 000-4z"/>
+          </svg>
           <!-- Users -->
           <svg v-else-if="item.icon === 'users'" class="w-5 h-5 transition duration-75" :class="isActive(item.href) ? 'text-yellow-400' : 'text-green-200 group-hover:text-white'" fill="currentColor" viewBox="0 0 20 20">
             <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
@@ -90,8 +94,17 @@ const props = defineProps({
 const page = usePage();
 
 const isActive = (href) => {
-  const url = page.url;
-  if (href === '/') return url === '/';
-  return url.startsWith(href);
+  const raw = page.url;
+  // Normalize to pathname only (handles both full URLs and relative paths)
+  let path = raw;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    path = new URL(raw).pathname;
+  }
+  // Remove trailing slash for consistent matching
+  if (path !== '/') path = path.replace(/\/+$/, '');
+
+  const target = href === '/' ? '/' : href.replace(/\/+$/, '');
+  if (target === '/') return path === '/';
+  return path === target || path.startsWith(target + '/');
 };
 </script>

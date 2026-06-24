@@ -170,6 +170,7 @@ const route = window.route || ((name) => {
     'tickets.index': '/tickets',
     'feedback.index': '/feedback',
     'reports.index': '/reports',
+    'support-contact.index': '/support-contact',
     'users.index': '/users',
     'profile': '/profile',
     'logout': '/logout',
@@ -192,6 +193,7 @@ const navigation = computed(() => {
     { name: 'Tickets', href: route('tickets.index'), icon: 'ticket', show: true },
     { name: 'Feedback', href: route('feedback.index'), icon: 'feedback', show: hasRole('super-admin', 'sub-admin', 'fca', 'farmer') },
     { name: 'Reports', href: route('reports.index'), icon: 'report', show: hasRole('super-admin', 'sub-admin', 'tps') },
+    { name: 'Support Contact', href: route('support-contact.index'), icon: 'support', show: hasRole('super-admin', 'sub-admin') },
     { name: 'Users', href: route('users.index'), icon: 'users', show: hasRole('super-admin', 'sub-admin') },
   ];
   return items.filter(i => i.show);

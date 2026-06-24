@@ -143,6 +143,53 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('reports/alerts-history', [ReportController::class, 'alertsReport'])->name('reports.alerts-history');
     Route::get('reports/ticket-summary', [ReportController::class, 'ticketReport'])->name('reports.ticket-summary');
 
+    // Support Contact
+    Route::get('/support-contact', function (Illuminate\Http\Request $request) {
+        $tpsUsers = App\Models\User::with('roles')
+            ->role('tps')
+            ->when($request->search, fn ($q, $s) => $q->where(function ($q) use ($s) {
+                $q->where('name', 'like', "%{$s}%")
+                    ->orWhere('email', 'like', "%{$s}%")
+                    ->orWhere('phone', 'like', "%{$s}%");
+            }))
+            ->latest()
+            ->paginate(15)
+            ->withQueryString();
+
+        return Inertia::render('SupportContact/Index', [
+            'tpsUsers' => $tpsUsers,
+            'filters' => $request->only(['search']),
+        ]);
+    })->name('support-contact.index');
+
+    Route::get('/support-contact/{user}/assign', function (App\Models\User $user) {
+        $provinces = App\Models\PhilippineProvince::orderBy('province_description')->get(['province_code', 'province_description']);
+        $supportContact = $user->supportContact()->firstOrCreate(['user_id' => $user->id]);
+        $assignedProvinces = \Illuminate\Support\Facades\DB::table('province_support_contact')
+            ->where('support_contact_id', $supportContact->id)
+            ->pluck('province_code')
+            ->toArray();
+
+        return Inertia::render('SupportContact/Assign', [
+            'tpsUser' => $user->load('roles'),
+            'provinces' => $provinces,
+            'assignedProvinces' => $assignedProvinces,
+        ]);
+    })->name('support-contact.assign');
+
+    Route::post('/support-contact/{user}/assign', function (Illuminate\Http\Request $request, App\Models\User $user) {
+        $data = $request->validate([
+            'provinces' => 'array',
+            'provinces.*' => 'string|exists:philippine_provinces,province_code',
+        ]);
+
+        $supportContact = $user->supportContact()->firstOrCreate(['user_id' => $user->id]);
+        $supportContact->provinces()->syncWithPivotValues($data['provinces'] ?? [], ['user_id' => $user->id]);
+
+        return redirect()->route('support-contact.index')
+            ->with('success', 'Provinces assigned successfully.');
+    })->name('support-contact.assign.store');
+
     // Users (admin only)
     Route::resource('users', UserController::class)->middleware('permission:users.view');
     Route::post('users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggle-active')->middleware('permission:users.edit');
