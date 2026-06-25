@@ -15,7 +15,7 @@ class SupportContact extends Model
 
     public function provinces()
     {
-        return $this->belongsToMany(PhilippineProvince::class, 'province_support_contact', 'support_contact_id', 'province_code', 'id', 'province_code')
+        return $this->belongsToMany(PhilippineProvince::class, 'province_support_contact', 'user_id', 'province_code', 'user_id', 'province_code')
             ->withTimestamps();
     }
 }
