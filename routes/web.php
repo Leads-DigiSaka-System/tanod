@@ -166,7 +166,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         $provinces = App\Models\PhilippineProvince::orderBy('province_description')->get(['province_code', 'province_description']);
         $supportContact = $user->supportContact()->firstOrCreate(['user_id' => $user->id]);
         $assignedProvinces = \Illuminate\Support\Facades\DB::table('province_support_contact')
-            ->where('support_contact_id', $supportContact->id)
+            ->where('user_id', $user->id)
             ->pluck('province_code')
             ->toArray();
 
