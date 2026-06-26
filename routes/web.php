@@ -193,6 +193,14 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Users (admin only)
     Route::resource('users', UserController::class)->middleware('permission:users.view');
     Route::post('users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggle-active')->middleware('permission:users.edit');
+
+    // Miscellaneous
+    Route::middleware('role:super-admin|sub-admin')->group(function () {
+        Route::get('/miscellaneous', [\App\Http\Controllers\Admin\MiscellaneousController::class, 'index'])->name('miscellaneous.index');
+        Route::post('/miscellaneous/parts', [\App\Http\Controllers\Admin\MiscellaneousController::class, 'store'])->name('miscellaneous.parts.store');
+        Route::put('/miscellaneous/parts/{part}', [\App\Http\Controllers\Admin\MiscellaneousController::class, 'update'])->name('miscellaneous.parts.update');
+        Route::delete('/miscellaneous/parts/{part}', [\App\Http\Controllers\Admin\MiscellaneousController::class, 'destroy'])->name('miscellaneous.parts.destroy');
+    });
 });
 
 /*

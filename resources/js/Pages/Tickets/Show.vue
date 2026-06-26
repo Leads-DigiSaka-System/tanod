@@ -2,13 +2,19 @@
   <AppLayout>
     <Head :title="`Ticket #${ticket.id}`" />
 
-    <!-- Compact Header + Status Bar -->
-    <div class="mb-5">
-      <Link href="/tickets" class="inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors mb-3">
-        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 12H5m0 0l7 7m-7-7l7-7"/></svg>
-        Tickets
-      </Link>
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/40 dark:border-gray-700/30 shadow-sm overflow-hidden">
+    <!-- Breadcrumb -->
+    <Link href="/tickets" class="inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors mb-5">
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 12H5m0 0l7 7m-7-7l7-7"/></svg>
+      Tickets
+    </Link>
+
+    <!-- 2-Column Grid -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <!-- LEFT COLUMN (2/3) -->
+      <div class="xl:col-span-2 space-y-5">
+        <!-- Ticket Details -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/40 dark:border-gray-700/30 shadow-sm overflow-hidden">
+        <!-- Header Row -->
         <div class="px-6 py-4 border-b border-gray-50 dark:border-gray-700/30">
           <div class="flex items-start justify-between gap-4">
             <div class="min-w-0 flex-1">
@@ -28,35 +34,23 @@
                 </span>
               </div>
             </div>
-            <div v-if="ticket.status === 'resolved' || ticket.status === 'closed'" class="shrink-0 flex flex-col items-end gap-1">
-              <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                Resolved
-                <span v-if="ticket.resolved_at" class="font-normal opacity-75">{{ formatDate(ticket.resolved_at) }}</span>
-              </span>
-              <span v-if="ticket.resolver" class="text-[11px] text-gray-400">by {{ ticket.resolver.name }}</span>
-            </div>
           </div>
         </div>
-        <p v-if="(ticket.status === 'resolved' || ticket.status === 'closed') && ticket.resolution_notes" class="px-6 py-3 text-sm text-emerald-700 dark:text-emerald-300 bg-emerald-50/30 dark:bg-emerald-900/5 leading-relaxed">
-          {{ ticket.resolution_notes }}
-        </p>
-      </div>
-    </div>
 
-    <!-- Main layout: flex row on lg -->
-    <div class="flex flex-col lg:flex-row gap-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/40 dark:border-gray-700/30 shadow-sm overflow-hidden">
-
-      <!-- LEFT: Content -->
-      <div class="flex-1 min-w-0 lg:border-r border-gray-100 dark:border-gray-700/30 flex flex-col">
+        <!-- Description -->
         <div class="px-6 py-4 border-b border-gray-50 dark:border-gray-700/20">
           <p class="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">{{ ticket.description || 'No description provided.' }}</p>
         </div>
 
         <!-- Evidence Filmstrip -->
-        <div v-if="ticket.nameplate_photo_url || ticket.dashboard_photo_url || ticket.photo_url || (ticket.damage_photos && ticket.damage_photos.length)" class="px-6 py-4 border-b border-gray-50 dark:border-gray-700/20">
+        <div v-if="ticket.nameplate_photo_url || ticket.dashboard_photo_url || ticket.photo_url || (ticket.damage_photos && ticket.damage_photos.length)" class="px-6 py-4">
           <div class="flex items-center justify-between mb-3">
-            <h2 class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Evidence</h2>
+            <div class="flex items-center gap-2">
+              <div class="flex h-5 w-5 items-center justify-center rounded-md bg-gray-100 dark:bg-gray-700">
+                <svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              </div>
+              <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Evidence</span>
+            </div>
             <span class="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full tabular-nums">{{ (ticket.nameplate_photo_url ? 1 : 0) + (ticket.dashboard_photo_url ? 1 : 0) + (ticket.photo_url ? 1 : 0) + (ticket.damage_photos?.length || 0) }}</span>
           </div>
           <div class="flex gap-2.5 overflow-x-auto pb-1">
@@ -78,17 +72,229 @@
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Resolution Photo -->
-        <div v-if="(ticket.status === 'resolved' || ticket.status === 'closed') && ticket.resolution_photo_url" class="px-6 py-4 border-b border-gray-50 dark:border-gray-700/20">
-          <h2 class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Resolution Photo</h2>
-          <div @click="previewImage = { url: ticket.resolution_photo_url, label: 'Resolution' }" class="block rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow cursor-zoom-in">
-            <img :src="ticket.resolution_photo_url" class="w-full max-h-80 object-contain bg-gray-50 dark:bg-gray-900" />
+        <!-- Resolution Card -->
+        <div v-if="ticket.status === 'resolved' || ticket.status === 'closed'" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/40 dark:border-gray-700/30 shadow-sm overflow-hidden">
+      <!-- Resolution Header -->
+      <div class="px-6 py-4 border-b border-gray-50 dark:border-gray-700/30 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30">
+            <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Resolution</h2>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-gray-400">
+          <span v-if="ticket.resolver">by {{ ticket.resolver.name }}</span>
+          <span v-if="ticket.resolver && ticket.resolved_at" class="text-gray-300">·</span>
+          <span v-if="ticket.resolved_at">{{ formatDate(ticket.resolved_at) }}</span>
+        </div>
+      </div>
+
+      <!-- Resolution Details Content -->
+      <div class="px-6 py-5">
+        <!-- Parsed Notes Grid -->
+        <div v-if="parsedNotes" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+          <!-- Findings -->
+          <div v-if="parsedNotes.Findings" class="rounded-xl bg-amber-50/50 dark:bg-amber-900/10 p-3 border border-amber-100 dark:border-amber-800/20 hover:shadow-sm transition-shadow duration-200">
+            <p class="text-[10px] font-semibold text-amber-600 uppercase tracking-wider mb-1">🔍 Findings</p>
+            <p class="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">{{ parsedNotes.Findings }}</p>
+          </div>
+          <!-- Job Done -->
+          <div v-if="parsedNotes['Job Done']" class="rounded-xl bg-blue-50/50 dark:bg-blue-900/10 p-3 border border-blue-100 dark:border-blue-800/20 hover:shadow-sm transition-shadow duration-200">
+            <p class="text-[10px] font-semibold text-blue-600 uppercase tracking-wider mb-1">🔧 Job Done</p>
+            <p class="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">{{ parsedNotes['Job Done'] }}</p>
+          </div>
+          <!-- Recommendation -->
+          <div v-if="parsedNotes.Recommendation" class="rounded-xl bg-purple-50/50 dark:bg-purple-900/10 p-3 border border-purple-100 dark:border-purple-800/20 hover:shadow-sm transition-shadow duration-200">
+            <p class="text-[10px] font-semibold text-purple-600 uppercase tracking-wider mb-1">💡 Recommendation</p>
+            <p class="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">{{ parsedNotes.Recommendation }}</p>
+          </div>
+          <!-- Remarks -->
+          <div v-if="parsedNotes.Remarks" class="rounded-xl bg-gray-50 dark:bg-gray-700/30 p-3 border border-gray-100 dark:border-gray-700/20 hover:shadow-sm transition-shadow duration-200">
+            <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">📝 Remarks</p>
+            <p class="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">{{ parsedNotes.Remarks }}</p>
+          </div>
+
+          <!-- Fallback: raw text if nothing parsed -->
+          <div v-if="!parsedNotes.Findings && !parsedNotes['Job Done'] && !parsedNotes.Recommendation && !parsedNotes.Remarks && ticket.resolution_notes" class="col-span-2 rounded-xl bg-gray-50 dark:bg-gray-700/30 p-3 border border-gray-100 dark:border-gray-700/20">
+            <p class="text-sm text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">{{ ticket.resolution_notes }}</p>
           </div>
         </div>
 
-        <!-- Discussion -->
-        <div v-if="ticket.status !== 'resolved' && ticket.status !== 'closed'" class="flex-1 flex flex-col border-t border-gray-100 dark:border-gray-700/40">
+        <!-- Billing Statement -->
+        <div v-if="ticket.service_charge || ticket.down_payment || ticket.installments || (ticket.tractor_parts && ticket.tractor_parts.length)" class="mt-6 bg-white dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <!-- Billing Header -->
+          <div class="px-4 py-3 bg-gray-50/80 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700/30">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+              <p class="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Billing Statement</p>
+            </div>
+          </div>
+
+          <div class="p-4 space-y-3">
+            <!-- Parts line items -->
+            <template v-if="ticket.tractor_parts && ticket.tractor_parts.length">
+              <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Parts &amp; Materials</div>
+              <div v-for="p in ticket.tractor_parts" :key="p.id" class="flex justify-between items-center text-sm pl-2">
+                <span class="text-gray-600 dark:text-gray-300">
+                  {{ p.name }}
+                  <span class="text-gray-400 text-xs ml-1">×{{ p.quantity }}</span>
+                </span>
+                <span class="font-medium text-gray-800 dark:text-gray-100 tabular-nums">₱{{ Number(p.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}</span>
+              </div>
+              <div class="flex justify-between items-center text-sm pl-2 border-t border-dashed border-gray-200 dark:border-gray-600 pt-2">
+                <span class="text-gray-500">Parts Subtotal</span>
+                <span class="font-semibold text-gray-800 dark:text-gray-100 tabular-nums">₱{{ Number(ticket.tractor_parts.reduce((sum, p) => sum + parseFloat(p.amount), 0)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}</span>
+              </div>
+              <div class="border-t border-gray-100 dark:border-gray-700/30"></div>
+            </template>
+
+            <!-- Service Charge -->
+            <div v-if="ticket.service_charge" class="flex justify-between items-center text-sm">
+              <span class="text-gray-500">Service / Labor Charge</span>
+              <span class="font-medium text-gray-800 dark:text-gray-100 tabular-nums">₱{{ Number(ticket.service_charge).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}</span>
+            </div>
+
+            <!-- TOTAL -->
+            <div class="flex justify-between items-center text-sm pt-2 border-t-2 border-gray-200 dark:border-gray-600">
+              <span class="font-semibold text-gray-900 dark:text-white">TOTAL AMOUNT</span>
+              <span class="font-bold text-base text-gray-900 dark:text-white tabular-nums">
+                ₱{{ Number(totalAmount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+              </span>
+            </div>
+
+            <!-- Down Payment -->
+            <div v-if="ticket.down_payment" class="flex justify-between items-center text-sm pl-2">
+              <span class="text-gray-500">Less: Down Payment</span>
+              <span class="font-medium text-red-600 dark:text-red-400 tabular-nums">− ₱{{ Number(ticket.down_payment).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}</span>
+            </div>
+
+            <!-- BALANCE -->
+            <div v-if="ticket.down_payment" class="flex justify-between items-center text-sm pt-2 border-t border-dashed border-gray-200 dark:border-gray-600">
+              <span class="font-semibold text-gray-900 dark:text-white">REMAINING BALANCE</span>
+              <span class="font-bold text-gray-900 dark:text-white tabular-nums">
+                ₱{{ Number(balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+              </span>
+            </div>
+
+            <!-- Installments -->
+            <div v-if="ticket.installments && ticket.down_payment && balance > 0" class="mt-3 p-3 bg-amber-50/50 dark:bg-amber-900/10 rounded-lg border border-amber-100 dark:border-amber-800/20">
+              <div class="flex items-center gap-2 mb-2">
+                <svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <span class="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Payment Plan</span>
+              </div>
+              <div class="flex justify-between text-xs text-amber-700 dark:text-amber-300 mb-1">
+                <span>{{ ticket.installments }} monthly installment{{ ticket.installments > 1 ? 's' : '' }}</span>
+                <span>of</span>
+              </div>
+              <div class="text-center">
+                <span class="text-lg font-bold text-amber-700 dark:text-amber-300 tabular-nums">
+                  ₱{{ Number(balance / ticket.installments).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                </span>
+                <span class="text-xs text-amber-600 dark:text-amber-400 ml-1">/ month</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Photo / Document Grid -->
+        <div v-if="ticket.resolution_photo_url || (ticket.dr_photo_urls && ticket.dr_photo_urls.length)" class="mt-6">
+          <!-- 2-Column Layout: Service Report (1/3) + DR/SI/CR (2/3) -->
+          <div v-if="ticket.resolution_photo_url && ticket.dr_photo_urls && ticket.dr_photo_urls.length" class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <!-- Service Report Photo (1/3) -->
+            <div>
+              <div class="flex items-center gap-2 mb-3">
+                <div class="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30">
+                  <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Service Report</p>
+              </div>
+              <div @click="previewImage = { url: ticket.resolution_photo_url, label: 'Service Report' }"
+                class="group relative rounded-2xl overflow-hidden bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-lg transition-all duration-200 cursor-zoom-in aspect-[4/3]">
+                <img :src="ticket.resolution_photo_url" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center">
+                  <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 px-4 py-2 rounded-full bg-black/50 text-white text-xs font-medium">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"/></svg>
+                    Click to enlarge
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- DR/SI/CR Documents (2/3) -->
+            <div class="md:col-span-2">
+              <div class="flex items-center gap-2 mb-3">
+                <div class="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+                  <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">DR / SI / CR Documents</p>
+                <span class="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full">{{ ticket.dr_photo_urls.length }}</span>
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div v-for="(url, i) in ticket.dr_photo_urls" :key="i"
+                  @click="previewImage = { url: url, label: 'DR/SI/CR #' + (i + 1) }"
+                  class="group relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md transition-all duration-200 cursor-zoom-in">
+                  <img :src="url" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <div class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 via-black/30 to-transparent pt-8 pb-2 px-2.5">
+                    <span class="text-[11px] text-white font-semibold">Doc #{{ i + 1 }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fallback: Only Service Report (full width) -->
+          <div v-else-if="ticket.resolution_photo_url && !(ticket.dr_photo_urls && ticket.dr_photo_urls.length)">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30">
+                <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              </div>
+              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Service Report</p>
+            </div>
+            <div @click="previewImage = { url: ticket.resolution_photo_url, label: 'Service Report' }"
+              class="group relative rounded-2xl overflow-hidden bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-lg transition-all duration-200 cursor-zoom-in aspect-[16/9]">
+              <img :src="ticket.resolution_photo_url" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center">
+                <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 px-4 py-2 rounded-full bg-black/50 text-white text-xs font-medium">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"/></svg>
+                  Click to enlarge
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fallback: Only DR/SI/CR (full width) -->
+          <div v-else-if="ticket.dr_photo_urls && ticket.dr_photo_urls.length && !ticket.resolution_photo_url">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+                <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              </div>
+              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">DR / SI / CR Documents</p>
+              <span class="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full">{{ ticket.dr_photo_urls.length }}</span>
+            </div>
+            <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+              <div v-for="(url, i) in ticket.dr_photo_urls" :key="i"
+                @click="previewImage = { url: url, label: 'DR/SI/CR #' + (i + 1) }"
+                class="group relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md transition-all duration-200 cursor-zoom-in">
+                <img :src="url" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                <div class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 via-black/30 to-transparent pt-8 pb-2 px-2.5">
+                  <span class="text-[11px] text-white font-semibold">Doc #{{ i + 1 }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Raw notes fallback -->
+        <div v-if="!parsedNotes && ticket.resolution_notes" class="mt-4 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+          {{ ticket.resolution_notes }}
+        </div>
+      </div>
+    </div>
+
+        <!-- Discussion Card -->
+        <div v-if="ticket.status !== 'resolved' && ticket.status !== 'closed'" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/40 dark:border-gray-700/30 shadow-sm overflow-hidden">
           <div class="px-5 py-3 flex items-center gap-2 border-b border-gray-100 dark:border-gray-700/40">
             <div class="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-50 dark:bg-sky-900/30">
               <svg class="w-3.5 h-3.5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
@@ -99,7 +305,7 @@
               <span class="relative flex h-1.5 w-1.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span></span>Live
             </span>
           </div>
-          <div ref="commentsContainer" class="flex-1 px-4 py-3 overflow-y-auto space-y-3 bg-gray-50/30 dark:bg-gray-900/10">
+          <div ref="commentsContainer" class="max-h-80 px-4 py-3 overflow-y-auto space-y-3 bg-gray-50/30 dark:bg-gray-900/10">
             <div v-if="!localComments.length" class="text-center py-10">
               <p class="text-xs text-gray-400">No messages yet</p>
             </div>
@@ -151,14 +357,17 @@
             </form>
           </div>
         </div>
-      </div>
 
-      <!-- Right Column - Sidebar -->
-      <div class="lg:w-80 shrink-0 flex flex-col divide-y divide-gray-100 dark:divide-gray-700/30">
-        <!-- Info -->
-        <div class="px-5 py-4">
-          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Details</h3>
-          <div class="space-y-3">
+      </div> <!-- close left col -->
+
+      <!-- RIGHT COLUMN (1/3) -->
+      <div class="space-y-5 xl:sticky xl:top-4 xl:self-start">
+        <!-- Details Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/40 dark:border-gray-700/30 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-50 dark:border-gray-700/30">
+            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Details</h3>
+          </div>
+          <div class="px-5 py-4 space-y-3">
             <div class="flex items-center gap-3">
               <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30 shrink-0">
                 <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
@@ -194,15 +403,6 @@
                 <span v-else class="text-xs text-gray-400">Unassigned</span>
               </div>
             </div>
-            <div v-if="ticket.service_charge" class="flex items-center gap-3">
-              <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/30 shrink-0">
-                <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              </div>
-              <div>
-                <p class="text-[10px] text-gray-400 uppercase tracking-wider">Service Charge</p>
-                <p class="text-sm font-bold text-gray-900 dark:text-white">₱{{ Number(ticket.service_charge).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</p>
-              </div>
-            </div>
             <div class="flex items-center gap-3">
               <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-700 shrink-0">
                 <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -212,13 +412,35 @@
                 <p class="text-sm font-medium text-gray-900 dark:text-white">{{ formatDate(ticket.created_at) }}</p>
               </div>
             </div>
+            <div v-if="(ticket.status === 'resolved' || ticket.status === 'closed') && ticket.resolver" class="flex items-center gap-3">
+              <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30 shrink-0">
+                <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <div class="min-w-0">
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider">Resolved By</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ ticket.resolver.name }}</p>
+              </div>
+            </div>
+            <div v-if="ticket.resolved_at" class="flex items-center gap-3">
+              <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30 shrink-0">
+                <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+              </div>
+              <div>
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider">Resolved At</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ formatDate(ticket.resolved_at) }}</p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- PMS Checklist -->
-        <div v-if="ticket.pms_checklist && ticket.pms_checklist.length" class="px-5 py-4">
-          <div class="flex items-center justify-between mb-2">
+        <!-- PMS Checklist Card -->
+        <div v-if="ticket.pms_checklist && ticket.pms_checklist.length" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/40 dark:border-gray-700/30 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-50 dark:border-gray-700/30">
             <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">PMS Checklist</h3>
+          </div>
+          <div class="px-5 py-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Progress</span>
             <span class="text-[11px] font-bold" :class="donePmsCount === ticket.pms_checklist.length ? 'text-emerald-600' : 'text-amber-600'">{{ donePmsCount }}/{{ ticket.pms_checklist.length }}</span>
           </div>
           <div class="mb-2 h-1 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
@@ -233,10 +455,14 @@
             </div>
           </div>
         </div>
+        </div>
 
-        <!-- Actions -->
-        <div v-if="canManage && ticket.status !== 'resolved' && ticket.status !== 'closed'" class="px-5 py-4">
-          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Actions</h3>
+        <!-- Actions Card -->
+        <div v-if="canManage && ticket.status !== 'resolved' && ticket.status !== 'closed'" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/40 dark:border-gray-700/30 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-50 dark:border-gray-700/30">
+            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Actions</h3>
+          </div>
+          <div class="px-5 py-4">
           <div class="space-y-3">
             <div>
               <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1.5">Status</label>
@@ -259,21 +485,79 @@
             </div>
           </div>
         </div>
+        </div>
 
-        <!-- Assistance -->
-        <div v-if="assistanceRequests?.length" class="px-5 py-4">
-          <div class="px-4 py-2.5 bg-linear-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/10 border-b border-orange-100 dark:border-orange-800/20">
-            <h3 class="text-[10px] font-semibold text-orange-600 uppercase tracking-wider">Assistance ({{ assistanceRequests.length }})</h3>
+        <!-- Assistance Card -->
+        <div v-if="assistanceRequests?.length" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/40 dark:border-gray-700/30 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-50 dark:border-gray-700/30">
+            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Assistance ({{ assistanceRequests.length }})</h3>
           </div>
           <div class="divide-y divide-gray-50 dark:divide-gray-700/50 max-h-48 overflow-y-auto">
-            <div v-for="req in assistanceRequests" :key="req.id" class="px-4 py-2.5">
+            <div v-for="req in assistanceRequests" :key="req.id" class="px-5 py-3">
               <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{{ req.body }}</p>
               <p class="text-[10px] text-gray-400 mt-1">{{ formatDate(req.created_at) }}</p>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+
+        <!-- Activity Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/40 dark:border-gray-700/30 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-50 dark:border-gray-700/30">
+            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Activity</h3>
+          </div>
+          <div class="px-5 py-4">
+          <div class="space-y-3">
+            <!-- Creation -->
+            <div class="flex gap-3">
+              <div class="relative flex flex-col items-center">
+                <div class="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center shrink-0">
+                  <svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2m6-6a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div class="w-px h-full bg-gray-200 dark:bg-gray-600 mt-1"></div>
+              </div>
+              <div class="pb-3">
+                <p class="text-xs font-medium text-gray-900 dark:text-white">Ticket Created</p>
+                <p class="text-[11px] text-gray-500">{{ formatDate(ticket.created_at) }}</p>
+                <p v-if="ticket.submitter" class="text-[11px] text-gray-400">by {{ ticket.submitter.name }}</p>
+              </div>
+            </div>
+
+            <!-- Comments -->
+            <template v-for="comment in ticket.comments" :key="comment.id">
+              <div class="flex gap-3">
+                <div class="relative flex flex-col items-center">
+                  <div class="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                    <svg class="w-3 h-3 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                  </div>
+                  <div class="w-px h-full bg-gray-200 dark:bg-gray-600 mt-1"></div>
+                </div>
+                <div class="pb-3 min-w-0">
+                  <p class="text-xs font-medium text-gray-900 dark:text-white truncate">{{ comment.user?.name || 'Unknown' }}</p>
+                  <p v-if="comment.body" class="text-[11px] text-gray-500 line-clamp-2">{{ comment.body }}</p>
+                  <p class="text-[10px] text-gray-400">{{ formatDate(comment.created_at) }}</p>
+                </div>
+              </div>
+            </template>
+
+            <!-- Resolution -->
+            <div v-if="ticket.status === 'resolved' || ticket.status === 'closed'" class="flex gap-3">
+              <div class="flex flex-col items-center">
+                <div class="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+                  <svg class="w-3 h-3 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+              </div>
+              <div class="pb-3">
+                <p class="text-xs font-medium text-emerald-700 dark:text-emerald-300">Resolved</p>
+                <p v-if="ticket.resolved_at" class="text-[11px] text-gray-500">{{ formatDate(ticket.resolved_at) }}</p>
+                <p v-if="ticket.resolver" class="text-[11px] text-gray-400">by {{ ticket.resolver.name }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+
+      </div> <!-- close right col -->
+    </div> <!-- close grid -->
 
     <!-- Image Preview Modal -->
     <Teleport to="body">
@@ -312,6 +596,67 @@ const canManage = computed(() => {
 const donePmsCount = computed(() => {
   const items = props.ticket.pms_checklist || [];
   return items.filter(c => c.done === true || c.done === '1' || c.done === 1).length;
+});
+
+/**
+ * Parse resolution_notes raw text into labeled fields.
+ * Splits on known labels: Findings, Job Done, Recommendation, Remarks.
+ */
+const parsedNotes = computed(() => {
+  if (!props.ticket.resolution_notes) return null;
+  const text = props.ticket.resolution_notes;
+  const fields = {};
+
+  const labels = ['Findings:', 'Job Done:', 'Recommendation:', 'Remarks:'];
+  let remaining = text;
+
+  for (let i = 0; i < labels.length; i++) {
+    const label = labels[i];
+    const nextLabel = labels[i + 1];
+    const idx = remaining.indexOf(label);
+
+    if (idx === -1) continue;
+
+    const valueStart = idx + label.length;
+    let value;
+
+    if (nextLabel) {
+      const nextIdx = remaining.indexOf(nextLabel, valueStart);
+      value = nextIdx === -1
+        ? remaining.substring(valueStart).trim()
+        : remaining.substring(valueStart, nextIdx).trim();
+    } else {
+      value = remaining.substring(valueStart).trim();
+    }
+
+    const key = label.replace(':', '');
+    fields[key] = value || null;
+  }
+
+  // If nothing parsed, fall back to raw text as Findings
+  if (Object.keys(fields).length === 0 && text.trim()) {
+    fields['Findings'] = text.trim();
+  }
+
+  return fields;
+});
+
+const totalAmount = computed(() => {
+  let total = 0;
+  // Sum parts
+  if (props.ticket.tractor_parts) {
+    total += props.ticket.tractor_parts.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+  }
+  // Add service charge
+  if (props.ticket.service_charge) {
+    total += parseFloat(props.ticket.service_charge);
+  }
+  return total;
+});
+
+const balance = computed(() => {
+  const down = props.ticket.down_payment ? parseFloat(props.ticket.down_payment) : 0;
+  return Math.max(0, totalAmount.value - down);
 });
 
 // Local comments for real-time updates

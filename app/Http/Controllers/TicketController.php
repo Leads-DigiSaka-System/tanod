@@ -85,7 +85,7 @@ class TicketController extends Controller
 
     public function show(Ticket $ticket)
     {
-        $ticket->load(['submitter', 'assignees', 'tractor', 'resolver', 'comments.user', 'damagePhotos']);
+        $ticket->load(['submitter', 'assignees', 'tractor', 'resolver', 'comments.user', 'damagePhotos', 'tractorParts']);
 
         $tpsUsers = User::role('tps')
             ->where('is_active', true)
@@ -114,6 +114,8 @@ class TicketController extends Controller
                 'category' => $ticket->category,
                 'fca_name' => $ticket->fca_name,
                 'service_charge' => $ticket->service_charge,
+                'down_payment' => $ticket->down_payment,
+                'installments' => $ticket->installments,
                 'photo_url' => $ticket->photo_path ? Storage::disk('public')->url($ticket->photo_path) : null,
                 'nameplate_photo_url' => $ticket->nameplate_photo_path
                     ? asset('storage/'.$ticket->nameplate_photo_path)
@@ -126,6 +128,17 @@ class TicketController extends Controller
                     'photo_url' => asset('storage/'.$dp->photo_path),
                     'sort_order' => $dp->sort_order,
                 ])->values()->all(),
+                'tractor_parts' => $ticket->relationLoaded('tractorParts')
+                    ? $ticket->tractorParts->map(fn ($p) => [
+                        'id' => $p->id,
+                        'name' => $p->name,
+                        'amount' => $p->pivot->amount,
+                        'quantity' => $p->pivot->quantity ?? 1,
+                    ])->values()->all()
+                    : [],
+                'dr_photo_urls' => $ticket->dr_photo_paths
+                    ? collect($ticket->dr_photo_paths)->map(fn ($p) => asset('storage/'.$p))->values()->all()
+                    : [],
                 'pms_checklist' => $ticket->pms_checklist,
                 'resolution_notes' => $ticket->resolution_notes,
                 'resolution_photo_url' => $ticket->resolution_photo_path

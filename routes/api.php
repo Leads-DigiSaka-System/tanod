@@ -73,6 +73,9 @@ Route::prefix('v1')->group(function () {
         Route::get('locations/cities', [ApiTpsController::class, 'fcaLocationCities']);
         Route::get('locations/barangays', [ApiTpsController::class, 'fcaLocationBarangays']);
 
+        // Tractor Parts
+        Route::get('tractor-parts', [\App\Http\Controllers\Admin\MiscellaneousController::class, 'apiIndex']);
+
         // Bookings
         Route::get('bookings', [ApiBookingController::class, 'index']);
         Route::post('bookings', [ApiBookingController::class, 'store']);
@@ -368,7 +371,7 @@ Route::prefix('v1')->group(function () {
                 $provinceCodes = array_unique($provinceCodes);
             }
 
-            if (!empty($provinceCodes)) {
+            if (! empty($provinceCodes)) {
                 $assigned = \Illuminate\Support\Facades\DB::table('province_support_contact')
                     ->whereIn('province_code', $provinceCodes)
                     ->first();

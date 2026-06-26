@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Models\Device;
 use App\Models\Tractor;
 use App\Services\Jimi\JimiTrackingService;
 use Carbon\Carbon;
@@ -22,6 +21,7 @@ class UpdateTractorDistances implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 2;
+
     public int $timeout = 300;
 
     public function handle(JimiTrackingService $tracking): void
@@ -30,7 +30,9 @@ class UpdateTractorDistances implements ShouldQueue
             ->where('is_active', true)
             ->get();
 
-        if ($tractors->isEmpty()) return;
+        if ($tractors->isEmpty()) {
+            return;
+        }
 
         $imeis = $tractors->pluck('imei')->toArray();
         // Use last 30 days to get reliable odometer readings without hitting

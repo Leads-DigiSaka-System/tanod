@@ -40,7 +40,7 @@ class TractorController extends Controller
                 ->orderBy('name')
                 ->get();
 
-            $fcaDistributions = $fcaQuery->map(function (User $user) use ($request) {
+            $fcaDistributions = $fcaQuery->map(function (User $user) {
                 $distributions = $user->receivedDistributions;
                 $activeCount = $distributions->where('status', 'distributed')->count();
 
@@ -132,7 +132,7 @@ class TractorController extends Controller
         $tractor = Tractor::create($data);
 
         foreach ($images as $i => $image) {
-            $path = $image->store('tractors/' . $tractor->id, 'public');
+            $path = $image->store('tractors/'.$tractor->id, 'public');
             TractorImage::create([
                 'tractor_id' => $tractor->id,
                 'path' => $path,
@@ -185,7 +185,7 @@ class TractorController extends Controller
         $tractor->update($data);
 
         foreach ($images as $i => $image) {
-            $path = $image->store('tractors/' . $tractor->id, 'public');
+            $path = $image->store('tractors/'.$tractor->id, 'public');
             TractorImage::create([
                 'tractor_id' => $tractor->id,
                 'path' => $path,
@@ -237,6 +237,8 @@ class TractorController extends Controller
             return back()->withErrors(['tractor_ids' => 'These tractors already have active distributions: '.$alreadyActive->join(', ')]);
         }
 
+        $fcaUser = User::find($data['distributed_to']);
+
         foreach ($data['tractor_ids'] as $tractorId) {
             TractorDistribution::create([
                 'tractor_id' => $tractorId,
@@ -247,6 +249,15 @@ class TractorController extends Controller
                 'distribution_date' => $data['distribution_date'],
                 'status' => 'distributed',
             ]);
+
+            // Auto-rename tractor to FCA organization name + last 5 digits of IMEI
+            if ($fcaUser && ! empty($fcaUser->organization_name)) {
+                $tractor = Tractor::find($tractorId);
+                if ($tractor && ! empty($tractor->imei)) {
+                    $imeiSuffix = substr($tractor->imei, -5);
+                    Tractor::where('id', $tractorId)->update(['name' => $fcaUser->organization_name.' ('.$imeiSuffix.')']);
+                }
+            }
         }
 
         $count = count($data['tractor_ids']);

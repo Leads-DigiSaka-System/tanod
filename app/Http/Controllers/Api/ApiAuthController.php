@@ -95,9 +95,11 @@ class ApiAuthController extends Controller
         $user = DB::transaction(function () use ($validated) {
             $user = User::create([
                 'name' => $validated['name'],
-                'email' => $validated['email'],
+                'email' => $validated['email'] ?? null,
+                'phone' => $validated['phone'] ?? null,
                 'password' => Hash::make($validated['password']),
                 'is_active' => true,
+                'organization_name' => $validated['organization_name'] ?? null,
             ]);
 
             $user->assignRole($validated['role']);
@@ -154,6 +156,7 @@ class ApiAuthController extends Controller
             'province' => 'sometimes|nullable|string|max:191',
             'city' => 'sometimes|nullable|string|max:191',
             'barangay' => 'sometimes|nullable|string|max:191',
+            'organization_name' => 'sometimes|nullable|string|max:255',
         ]);
 
         if ($request->hasFile('profile_photo')) {

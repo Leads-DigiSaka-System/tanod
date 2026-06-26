@@ -3,18 +3,19 @@
 namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromArray;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class TractorUsageDataSheet implements FromArray, WithHeadings, WithStyles, WithColumnWidths, WithTitle
+class TractorUsageDataSheet implements FromArray, WithColumnWidths, WithHeadings, WithStyles, WithTitle
 {
     protected array $tractors;
+
     protected array $summary;
 
     public function __construct(array $tractors, array $summary)
@@ -30,7 +31,7 @@ class TractorUsageDataSheet implements FromArray, WithHeadings, WithStyles, With
             $rows[] = [
                 $i + 1,
                 $t['no_plate'] ?? '',
-                trim(($t['brand'] ?? '') . ' ' . ($t['model'] ?? '')),
+                trim(($t['brand'] ?? '').' '.($t['model'] ?? '')),
                 $t['group']['name'] ?? '—',
                 $t['imei'] ?? '',
                 round($t['total_distance'] ?? 0, 2),
@@ -49,12 +50,12 @@ class TractorUsageDataSheet implements FromArray, WithHeadings, WithStyles, With
             '',
             'TOTALS',
             '',
-            $this->summary['total_tractors'] . ' tractors',
+            $this->summary['total_tractors'].' tractors',
             '',
             round($this->summary['total_distance'] ?? 0, 2),
             round($this->summary['total_hours'] ?? 0, 2),
             '',
-            ($this->summary['pms_due'] ?? 0) . ' due',
+            ($this->summary['pms_due'] ?? 0).' due',
             '',
         ];
 

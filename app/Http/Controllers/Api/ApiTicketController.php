@@ -78,6 +78,7 @@ class ApiTicketController extends Controller
             'resolver:id,name',
             'comments.user:id,name',
             'damagePhotos',
+            'tractorParts',
         ]);
 
         return response()->json(['data' => $this->formatTicket($ticket, full: true)]);
@@ -97,10 +98,10 @@ class ApiTicketController extends Controller
             'priority' => ['nullable', Rule::in(['low', 'medium', 'high', 'critical'])],
             'category' => 'nullable|string|max:100',
             'tractor_id' => 'nullable|exists:tractors,id',
-            'nameplate_photo' => 'required|image|max:10240',
-            'dashboard_photo' => 'required|image|max:10240',
-            'damage_photos' => 'required|array|min:1|max:3',
-            'damage_photos.*' => 'image|max:10240',
+            'nameplate_photo' => 'required|file|mimes:jpg,jpeg,png,webp,mp4,mov,avi|max:51200',
+            'dashboard_photo' => 'required|file|mimes:jpg,jpeg,png,webp,mp4,mov,avi|max:51200',
+            'damage_photos' => 'required|array|min:1|max:10',
+            'damage_photos.*' => 'file|mimes:jpg,jpeg,png,webp,mp4,mov,avi|max:51200',
             'pms_checklist' => 'nullable|array',
             'pms_checklist.*.name' => 'required_with:pms_checklist|string',
             'pms_checklist.*.done' => 'required_with:pms_checklist|boolean',
@@ -269,6 +270,16 @@ class ApiTicketController extends Controller
             'resolution_notes' => 'nullable|string|max:5000',
             'resolution_photo' => 'nullable|image|max:5120',
             'service_charge' => 'nullable|numeric|min:0|max:99999999.99',
+            'down_payment' => 'nullable|numeric|min:0|max:99999999.99',
+            'installments' => 'nullable|integer|min:1|max:12',
+            'partial' => 'nullable|boolean',
+            'parts' => 'nullable|array',
+            'parts.*.id' => 'nullable|integer|exists:tractor_parts,id',
+            'parts.*.name' => 'nullable|string|max:255',
+            'parts.*.amount' => 'required_with:parts|numeric|min:0|max:99999999.99',
+            'parts.*.quantity' => 'nullable|integer|min:1|max:999',
+            'dr_photos' => 'nullable|array|max:3',
+            'dr_photos.*' => 'image|max:5120',
         ]);
 
         $resolutionPhotoPath = null;
@@ -276,16 +287,58 @@ class ApiTicketController extends Controller
             $resolutionPhotoPath = $request->file('resolution_photo')->store('tickets/resolutions', 'public');
         }
 
-        $ticket->update([
-            'status' => 'resolved',
+        // Merge new DR photos with existing ones
+        $existingDrPaths = $ticket->dr_photo_paths ?? [];
+        if ($request->hasFile('dr_photos')) {
+            foreach ($request->file('dr_photos') as $photo) {
+                $existingDrPaths[] = $photo->store('tickets/dr', 'public');
+            }
+        }
+        // Handle removed photos - if a list of kept URLs is provided
+        if ($request->has('keep_dr_photos')) {
+            $keepUrls = $request->input('keep_dr_photos', []);
+            $existingDrPaths = array_filter($existingDrPaths, function ($path) use ($keepUrls) {
+                return in_array(asset('storage/'.$path), $keepUrls);
+            });
+        }
+
+        $updateData = [
             'resolution_notes' => $data['resolution_notes'] ?? null,
-            'resolution_photo_path' => $resolutionPhotoPath,
             'service_charge' => $data['service_charge'] ?? null,
+            'down_payment' => $data['down_payment'] ?? null,
+            'installments' => $data['installments'] ?? null,
             'resolved_by' => $user->id,
             'resolved_at' => now(),
-        ]);
+            'dr_photo_paths' => ! empty($existingDrPaths) ? array_values($existingDrPaths) : null,
+        ];
 
-        $ticket->load(['tractor:id,no_plate,brand,model', 'submitter:id,name', 'assignees:id,name', 'resolver:id,name', 'comments.user:id,name']);
+        // Only update resolution_photo_path when a new file is actually uploaded
+        if ($request->hasFile('resolution_photo')) {
+            $updateData['resolution_photo_path'] = $resolutionPhotoPath;
+        }
+
+        // Partial resolve: don't change status, just update info
+        if (! ($data['partial'] ?? false)) {
+            $updateData['status'] = 'resolved';
+        }
+
+        $ticket->update($updateData);
+
+        // Sync tractor parts
+        if ($request->has('parts')) {
+            $partsData = [];
+            foreach ($data['parts'] as $part) {
+                if (! empty($part['name']) && empty($part['id'])) {
+                    // Create new part on-the-fly
+                    $newPart = TractorPart::create(['name' => $part['name'], 'amount' => $part['amount']]);
+                    $part['id'] = $newPart->id;
+                }
+                $partsData[$part['id']] = ['amount' => $part['amount'], 'quantity' => $part['quantity'] ?? 1];
+            }
+            $ticket->tractorParts()->sync($partsData);
+        }
+
+        $ticket->load(['tractor:id,no_plate,brand,model', 'submitter:id,name', 'assignees:id,name', 'resolver:id,name', 'comments.user:id,name', 'tractorParts']);
 
         return response()->json(['data' => $this->formatTicket($ticket, full: true)]);
     }
@@ -379,6 +432,7 @@ class ApiTicketController extends Controller
             'description' => $ticket->description,
             'priority' => $ticket->priority,
             'status' => $ticket->status,
+            'is_partial' => $ticket->status === 'open' && ($ticket->resolution_notes !== null || $ticket->service_charge !== null || $ticket->down_payment !== null),
             'category' => $ticket->category,
             'photo_url' => $this->storageUrl($ticket->photo_path),
             'nameplate_photo_url' => $this->storageUrl($ticket->nameplate_photo_path),
@@ -426,6 +480,8 @@ class ApiTicketController extends Controller
         ];
 
         if ($full) {
+            $data['down_payment'] = $ticket->down_payment;
+            $data['installments'] = $ticket->installments;
             $data['resolution_notes'] = $ticket->resolution_notes;
             $data['resolution_photo_url'] = $this->storageUrl($ticket->resolution_photo_path);
             $data['resolved_by'] = $ticket->resolver ? [
@@ -444,6 +500,17 @@ class ApiTicketController extends Controller
                 'user' => ['id' => $c->user->id, 'name' => $c->user->name],
                 'created_at' => $c->created_at?->toIso8601String(),
             ])->all();
+            $data['tractor_parts'] = $ticket->relationLoaded('tractorParts')
+                ? $ticket->tractorParts->map(fn ($p) => [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'amount' => (float) ($p->pivot->amount ?? 0),
+                    'quantity' => (int) ($p->pivot->quantity ?? 1),
+                ])->values()->all()
+                : [];
+            $data['dr_photo_urls'] = $ticket->dr_photo_paths
+                ? collect($ticket->dr_photo_paths)->map(fn ($p) => asset('storage/'.$p))->values()->all()
+                : [];
         }
 
         return $data;

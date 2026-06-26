@@ -38,7 +38,9 @@ class CheckMaintenanceDue implements ShouldQueue
                     ->whereDate('created_at', today())
                     ->exists();
 
-                if ($existsToday) continue;
+                if ($existsToday) {
+                    continue;
+                }
 
                 Alert::create([
                     'device_id' => $tractor->device_id,

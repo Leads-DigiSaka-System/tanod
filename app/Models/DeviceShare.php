@@ -44,7 +44,7 @@ class DeviceShare extends Model
 
     public function isActive(): bool
     {
-        return !$this->isExpired();
+        return ! $this->isExpired();
     }
 
     public function getUrl(): string

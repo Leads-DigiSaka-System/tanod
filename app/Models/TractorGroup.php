@@ -29,14 +29,14 @@ class TractorGroup extends Model
     public function tractors()
     {
         return $this->belongsToMany(Tractor::class, 'group_tractor', 'tractor_group_id', 'tractor_id')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 
     public function users()
     {
         return $this->belongsToMany(User::class, 'group_user', 'tractor_group_id', 'user_id')
-                    ->withPivot('role')
-                    ->withTimestamps();
+            ->withPivot('role')
+            ->withTimestamps();
     }
 
     public function tpsUsers()

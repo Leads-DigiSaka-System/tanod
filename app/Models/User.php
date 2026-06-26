@@ -32,6 +32,7 @@ class User extends Authenticatable
         'province',
         'city',
         'barangay',
+        'organization_name',
         'deletion_requested_at',
         'deletion_scheduled_for',
     ];

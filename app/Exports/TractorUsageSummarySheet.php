@@ -2,20 +2,20 @@
 
 namespace App\Exports;
 
-use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithCustomStartCell;
-use Maatwebsite\Excel\Concerns\FromArray;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 
-class TractorUsageSummarySheet implements FromArray, WithTitle, WithStyles, WithColumnWidths, WithCustomStartCell
+class TractorUsageSummarySheet implements FromArray, WithColumnWidths, WithCustomStartCell, WithStyles, WithTitle
 {
     protected array $tractors;
+
     protected array $summary;
 
     public function __construct(array $tractors, array $summary)
@@ -56,7 +56,7 @@ class TractorUsageSummarySheet implements FromArray, WithTitle, WithStyles, With
         $online = $tractors->where('status', 'online')->count();
         $offline = $tractors->where('status', 'offline')->count();
         $inactive = $tractors->where('status', 'inactive')->count();
-        $withData = $tractors->filter(fn($t) => ($t['total_distance'] ?? 0) > 0 || ($t['running_hours'] ?? 0) > 0)->count();
+        $withData = $tractors->filter(fn ($t) => ($t['total_distance'] ?? 0) > 0 || ($t['running_hours'] ?? 0) > 0)->count();
         $totalDist = round($this->summary['total_distance'] ?? 0, 2);
         $totalHrs = round($this->summary['total_hours'] ?? 0, 2);
         $avgDist = $total > 0 ? round($totalDist / $total, 2) : 0;
@@ -66,8 +66,8 @@ class TractorUsageSummarySheet implements FromArray, WithTitle, WithStyles, With
         $totalMaintenances = $this->summary['total_maintenances'] ?? 0;
 
         // Group breakdown
-        $groups = $tractors->groupBy(fn($t) => $t['group']['name'] ?? 'Unassigned')
-            ->map(fn($items) => [
+        $groups = $tractors->groupBy(fn ($t) => $t['group']['name'] ?? 'Unassigned')
+            ->map(fn ($items) => [
                 'count' => $items->count(),
                 'distance' => round($items->sum('total_distance'), 2),
                 'hours' => round($items->sum('running_hours'), 2),
@@ -99,7 +99,7 @@ class TractorUsageSummarySheet implements FromArray, WithTitle, WithStyles, With
         $sheet->getRowDimension(2)->setRowHeight(50);
 
         $sheet->mergeCells('B3:G3');
-        $sheet->setCellValue('B3', 'Fleet Performance Dashboard  •  Generated ' . now()->format('F j, Y'));
+        $sheet->setCellValue('B3', 'Fleet Performance Dashboard  •  Generated '.now()->format('F j, Y'));
         $sheet->getStyle('B3:G3')->applyFromArray([
             'font' => ['size' => 10, 'color' => ['rgb' => 'C7D2FE']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4338CA']],
@@ -122,11 +122,11 @@ class TractorUsageSummarySheet implements FromArray, WithTitle, WithStyles, With
 
         $cards = [
             'B' => ['Total Tractors', number_format($total), "{$online} online  •  {$offline} offline  •  {$inactive} inactive", '3B82F6'],
-            'C' => ['Total Distance', number_format($totalDist, 2) . ' km', "Avg {$avgDist} km / tractor", '10B981'],
-            'D' => ['Running Hours', number_format($totalHrs, 2) . ' hrs', "Avg {$avgHrs} hrs / tractor", 'F59E0B'],
+            'C' => ['Total Distance', number_format($totalDist, 2).' km', "Avg {$avgDist} km / tractor", '10B981'],
+            'D' => ['Running Hours', number_format($totalHrs, 2).' hrs', "Avg {$avgHrs} hrs / tractor", 'F59E0B'],
             'E' => ['With Usage Data', "{$withData} / {$total}", "{$dataPct}% of fleet reporting", '8B5CF6'],
             'F' => ['PMS Due', (string) $pmsDue, "{$totalMaintenances} total records", 'F97316'],
-            'G' => ['Online Rate', ($total > 0 ? round($online / $total * 100, 1) : 0) . '%', "{$online} of {$total} tractors online", '06B6D4'],
+            'G' => ['Online Rate', ($total > 0 ? round($online / $total * 100, 1) : 0).'%', "{$online} of {$total} tractors online", '06B6D4'],
         ];
 
         foreach ($cards as $col => $card) {
@@ -260,7 +260,7 @@ class TractorUsageSummarySheet implements FromArray, WithTitle, WithStyles, With
             // Distance column
             if (isset($topByDistance[$i])) {
                 $t = $topByDistance[$i];
-                $sheet->setCellValue("B{$row}", ($i + 1) . '. ' . ($t['no_plate'] ?? ''));
+                $sheet->setCellValue("B{$row}", ($i + 1).'. '.($t['no_plate'] ?? ''));
                 $sheet->setCellValue("C{$row}", round($t['total_distance'] ?? 0, 2));
                 $sheet->getStyle("B{$row}:C{$row}")->applyFromArray($rowStyle);
                 $sheet->getStyle("C{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
@@ -275,7 +275,7 @@ class TractorUsageSummarySheet implements FromArray, WithTitle, WithStyles, With
             // Hours column
             if (isset($topByHours[$i])) {
                 $t = $topByHours[$i];
-                $sheet->setCellValue("E{$row}", ($i + 1) . '. ' . ($t['no_plate'] ?? ''));
+                $sheet->setCellValue("E{$row}", ($i + 1).'. '.($t['no_plate'] ?? ''));
                 $sheet->setCellValue("F{$row}", round($t['running_hours'] ?? 0, 2));
                 $sheet->getStyle("E{$row}:G{$row}")->applyFromArray($rowStyle);
                 $sheet->getStyle("F{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
@@ -344,7 +344,7 @@ class TractorUsageSummarySheet implements FromArray, WithTitle, WithStyles, With
         // ═══════════════════════════════════════
         $row += 1;
         $sheet->mergeCells("B{$row}:G{$row}");
-        $sheet->setCellValue("B{$row}", 'Report generated on ' . now()->format('F j, Y \a\t g:i A') . '  •  TANOD Fleet Management System');
+        $sheet->setCellValue("B{$row}", 'Report generated on '.now()->format('F j, Y \a\t g:i A').'  •  TANOD Fleet Management System');
         $sheet->getStyle("B{$row}")->applyFromArray([
             'font' => ['size' => 8, 'italic' => true, 'color' => ['rgb' => '9CA3AF']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],

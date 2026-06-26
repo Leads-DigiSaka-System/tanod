@@ -247,7 +247,7 @@ class ApiTpsController extends Controller
         $tractorIds = $this->manageableTractorIdsForTps($user);
         $search = trim((string) $request->input('search', ''));
 
-        $distributions = TractorDistribution::with(['tractor:id,no_plate,brand,model', 'distributedToUser:id,name,email'])
+        $distributions = TractorDistribution::with(['tractor:id,no_plate,name,brand,model', 'distributedToUser:id,name,email'])
             ->whereIn('tractor_id', $tractorIds)
             ->when($request->filled('status'), fn (Builder $q) => $q->where('status', $request->status), fn (Builder $q) => $q->where('status', '!=', 'returned'))
             ->when($search !== '', function (Builder $query) use ($search) {
@@ -256,6 +256,7 @@ class ApiTpsController extends Controller
                         ->orWhere('notes', 'like', "%{$search}%")
                         ->orWhereHas('tractor', fn (Builder $tractorQuery) => $tractorQuery
                             ->where('no_plate', 'like', "%{$search}%")
+                            ->orWhere('name', 'like', "%{$search}%")
                             ->orWhere('brand', 'like', "%{$search}%")
                             ->orWhere('model', 'like', "%{$search}%"))
                         ->orWhereHas('distributedToUser', fn (Builder $userQuery) => $userQuery
@@ -1016,6 +1017,7 @@ class ApiTpsController extends Controller
             'resolver:id,name',
             'comments.user:id,name',
             'damagePhotos',
+            'tractorParts',
         ]);
 
         return response()->json(['data' => $this->formatTicket($ticket)]);
@@ -1092,8 +1094,29 @@ class ApiTpsController extends Controller
             'description' => $ticket->description,
             'priority' => $ticket->priority,
             'status' => $ticket->status,
+            'is_partial' => $ticket->status === 'open' && ($ticket->resolution_notes !== null || $ticket->service_charge !== null || $ticket->down_payment !== null),
             'category' => $ticket->category,
             'photo_url' => $this->storageUrl($ticket->photo_path),
+            'nameplate_photo_url' => $this->storageUrl($ticket->nameplate_photo_path),
+            'dashboard_photo_url' => $this->storageUrl($ticket->dashboard_photo_path),
+            'damage_photos' => $ticket->relationLoaded('damagePhotos')
+                ? $ticket->damagePhotos->map(fn ($dp) => [
+                    'id' => $dp->id,
+                    'photo_url' => $this->storageUrl($dp->photo_path),
+                    'sort_order' => $dp->sort_order,
+                ])->values()->all()
+                : [],
+            'pms_checklist' => $ticket->pms_checklist,
+            'service_charge' => $ticket->service_charge,
+            'down_payment' => $ticket->down_payment,
+            'installments' => $ticket->installments,
+            'action_taken' => $ticket->resolution_notes
+                ? (str_contains($ticket->resolution_notes, 'Third Party Repair') ? 'Third Party Repair'
+                    : (str_contains($ticket->resolution_notes, 'Third Party') ? 'Third Party'
+                        : (str_contains($ticket->resolution_notes, 'Self Repair') ? 'Self Repair'
+                            : (str_contains($ticket->resolution_notes, 'Need Technician') ? 'Need Technician Help'
+                                : 'Self PMS'))))
+                : null,
             'tractor' => $ticket->tractor ? [
                 'id' => $ticket->tractor->id,
                 'no_plate' => $ticket->tractor->no_plate,
@@ -1104,15 +1127,6 @@ class ApiTpsController extends Controller
                 'id' => $ticket->submitter->id,
                 'name' => $ticket->submitter->name,
             ] : null,
-            'nameplate_photo_url' => $this->storageUrl($ticket->nameplate_photo_path),
-            'dashboard_photo_url' => $this->storageUrl($ticket->dashboard_photo_path),
-            'damage_photos' => $ticket->relationLoaded('damagePhotos')
-                ? $ticket->damagePhotos->map(fn ($dp) => [
-                    'id' => $dp->id,
-                    'photo_url' => $this->storageUrl($dp->photo_path),
-                    'sort_order' => $dp->sort_order,
-                ])->values()->all()
-                : [],
             'created_at' => $ticket->created_at?->toIso8601String(),
             'last_activity_at' => $lastActivityAt?->toIso8601String(),
             'last_comment' => $latestComment ? [
@@ -1144,6 +1158,17 @@ class ApiTpsController extends Controller
                 'user' => ['id' => $c->user->id, 'name' => $c->user->name],
                 'created_at' => $c->created_at?->toIso8601String(),
             ])->all() ?? [],
+            'tractor_parts' => $ticket->relationLoaded('tractorParts')
+                ? $ticket->tractorParts->map(fn ($p) => [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'amount' => (float) ($p->pivot->amount ?? 0),
+                    'quantity' => (int) ($p->pivot->quantity ?? 1),
+                ])->values()->all()
+                : [],
+            'dr_photo_urls' => $ticket->dr_photo_paths
+                ? collect($ticket->dr_photo_paths)->map(fn ($p) => asset('storage/'.$p))->values()->all()
+                : [],
         ];
 
         return $data;
@@ -1178,14 +1203,17 @@ class ApiTpsController extends Controller
         $tractors = Tractor::whereIn('id', $tractorIds)
             // Exclude tractors with devices stale >365 days
             ->whereHas('device', fn ($q) => $q->notStale())
-            ->select('id', 'no_plate', 'brand', 'model')
+            // Only return unassigned tractors
+            ->whereNotIn('id', $distributedTractorIds)
+            ->select('id', 'no_plate', 'imei', 'brand', 'model')
             ->get()
             ->map(fn (Tractor $t) => [
                 'id' => $t->id,
                 'no_plate' => $t->no_plate,
+                'imei' => $t->imei,
                 'brand' => $t->brand,
                 'model' => $t->model,
-                'is_distributed' => in_array($t->id, $distributedTractorIds),
+                'is_distributed' => false,
             ]);
 
         $fcaUsers = User::role('fca')
@@ -1250,6 +1278,16 @@ class ApiTpsController extends Controller
             'longitude' => $validated['longitude'] ?? null,
             'status' => 'distributed',
         ]);
+
+        // Auto-rename tractor to FCA organization name + last 5 digits of IMEI
+        $fcaUser = User::find($validated['distributed_to']);
+        if ($fcaUser && ! empty($fcaUser->organization_name)) {
+            $tractor = Tractor::find($validated['tractor_id']);
+            if ($tractor && ! empty($tractor->imei)) {
+                $imeiSuffix = substr($tractor->imei, -5);
+                $tractor->update(['name' => $fcaUser->organization_name.' ('.$imeiSuffix.')']);
+            }
+        }
 
         $distribution->load(['tractor:id,no_plate,brand,model', 'distributedToUser:id,name,email']);
 

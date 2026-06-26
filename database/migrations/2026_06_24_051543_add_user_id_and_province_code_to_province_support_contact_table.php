@@ -12,13 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('province_support_contact', function (Blueprint $table) {
-            if (!Schema::hasColumn('province_support_contact', 'user_id')) {
+            if (! Schema::hasColumn('province_support_contact', 'user_id')) {
                 $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             }
-            if (!Schema::hasColumn('province_support_contact', 'province_code')) {
+            if (! Schema::hasColumn('province_support_contact', 'province_code')) {
                 $table->string('province_code', 20);
             }
-            if (!Schema::hasColumn('province_support_contact', 'created_at')) {
+            if (! Schema::hasColumn('province_support_contact', 'created_at')) {
                 $table->timestamps();
             }
         });

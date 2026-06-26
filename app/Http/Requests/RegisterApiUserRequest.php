@@ -16,9 +16,20 @@ class RegisterApiUserRequest extends FormRequest
         return [
             'role' => 'required|string|in:farmer,fca,tps|exists:roles,name',
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
+            'email' => 'nullable|email|max:255|unique:users,email',
+            'phone' => 'nullable|string|regex:/^09\d{9}$/|max:11|unique:users,phone',
             'password' => 'required|string|min:6|confirmed',
             'device_name' => 'nullable|string|max:255',
+            'organization_name' => 'nullable|string|max:255',
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            if (empty($this->email) && empty($this->phone)) {
+                $validator->errors()->add('email', 'Either email or phone number is required.');
+            }
+        });
     }
 }

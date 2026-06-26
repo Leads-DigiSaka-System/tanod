@@ -18,7 +18,7 @@ class BookingController extends Controller
         $user = $request->user();
 
         $bookings = Booking::with(['tractor', 'bookedBy', 'approvedBy', 'slot'])
-            ->when(!$user->hasAnyRole(['super-admin', 'sub-admin', 'fca']), fn ($q) => $q->where('booked_by', $user->id))
+            ->when(! $user->hasAnyRole(['super-admin', 'sub-admin', 'fca']), fn ($q) => $q->where('booked_by', $user->id))
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->search, fn ($q, $s) => $q->whereHas('tractor', fn ($q) => $q->where('no_plate', 'like', "%{$s}%")))
             ->latest()

@@ -2,8 +2,6 @@
 
 namespace App\Services\Jimi;
 
-use Illuminate\Support\Facades\Log;
-
 /**
  * Manages GeoFence operations via Jimi API.
  */

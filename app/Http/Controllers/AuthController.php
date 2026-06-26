@@ -22,7 +22,7 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        if (!Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
+        if (! Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
@@ -30,7 +30,7 @@ class AuthController extends Controller
 
         $user = Auth::user();
 
-        if (!$user->is_active) {
+        if (! $user->is_active) {
             Auth::logout();
             throw ValidationException::withMessages([
                 'email' => ['Your account has been deactivated. Contact an administrator.'],
@@ -67,6 +67,7 @@ class AuthController extends Controller
             'email' => "required|email|unique:users,email,{$user->id}",
             'phone' => "required|string|max:20|unique:users,phone,{$user->id}",
             'profile_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'organization_name' => 'sometimes|nullable|string|max:255',
         ]);
 
         if ($request->hasFile('profile_photo')) {
@@ -91,7 +92,7 @@ class AuthController extends Controller
 
         $user = $request->user();
 
-        if (!Hash::check($request->current_password, $user->password)) {
+        if (! Hash::check($request->current_password, $user->password)) {
             throw ValidationException::withMessages([
                 'current_password' => ['Current password is incorrect.'],
             ]);

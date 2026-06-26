@@ -19,7 +19,7 @@ class JimiSyncDaily extends Command
 
         $this->info('Syncing locations from JIMI...');
         $locations = $service->fetchAndStoreLocations(forceRefresh: true);
-        $this->info('  ✅ Synced locations for ' . count($locations) . ' devices.');
+        $this->info('  ✅ Synced locations for '.count($locations).' devices.');
 
         $this->newLine();
         $this->info('Daily JIMI sync complete.');

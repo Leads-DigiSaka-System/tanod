@@ -7,6 +7,7 @@ use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 class TractorUsageExport implements WithMultipleSheets
 {
     protected array $tractors;
+
     protected array $summary;
 
     public function __construct(array $tractors, array $summary)

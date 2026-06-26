@@ -29,7 +29,7 @@ class StorePmsRecordRequest extends FormRequest
             'request_notes' => ['nullable', 'string', 'max:2000'],
             'nameplate_photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:5120'],
             'dashboard_photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:5120'],
-            'damage_photos' => ['nullable', 'array', 'max:5'],
+            'damage_photos' => ['nullable', 'array', 'max:10'],
             'damage_photos.*' => ['image', 'mimes:jpeg,png,jpg', 'max:5120'],
             'images' => ['nullable', 'array', 'max:10'],
             'images.*' => ['image', 'mimes:jpeg,png,jpg', 'max:5120'],

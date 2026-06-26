@@ -12,7 +12,7 @@ class NotificationController extends Controller
     {
         $query = Notification::where('user_id', $request->user()->id)
             ->when($request->has('unread'), fn ($q) => $q->where('is_read', false))
-            ->when($request->filled('type'), fn ($q) => $q->where('type', 'like', $request->type . '%'));
+            ->when($request->filled('type'), fn ($q) => $q->where('type', 'like', $request->type.'%'));
 
         $notifications = $query->latest()
             ->paginate(20)

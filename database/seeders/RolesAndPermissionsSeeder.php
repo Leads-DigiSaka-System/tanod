@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -87,7 +87,7 @@ class RolesAndPermissionsSeeder extends Seeder
         // Sub Admin — same as super admin except user approval & settings
         $subAdmin = Role::firstOrCreate(['name' => 'sub-admin']);
         $subAdmin->givePermissionTo(
-            collect($permissions)->reject(fn($p) => in_array($p, [
+            collect($permissions)->reject(fn ($p) => in_array($p, [
                 'users.approve',
                 'settings.manage',
             ]))->toArray()

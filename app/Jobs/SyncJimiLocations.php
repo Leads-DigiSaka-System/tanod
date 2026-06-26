@@ -19,11 +19,12 @@ class SyncJimiLocations implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $backoff = 30;
 
     public function handle(JimiDeviceService $service): void
     {
         $locations = $service->fetchAndStoreLocations(forceRefresh: true);
-        Log::info('SyncJimiLocations: stored locations for ' . count($locations) . ' devices');
+        Log::info('SyncJimiLocations: stored locations for '.count($locations).' devices');
     }
 }

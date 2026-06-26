@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -19,6 +20,8 @@ class Ticket extends Model
         'subject',
         'description',
         'service_charge',
+        'down_payment',
+        'installments',
         'priority',
         'status',
         'category',
@@ -29,6 +32,7 @@ class Ticket extends Model
         'nameplate_photo_path',
         'dashboard_photo_path',
         'resolution_photo_path',
+        'dr_photo_paths',
         'resolution_notes',
         'resolved_by',
         'resolved_at',
@@ -39,7 +43,10 @@ class Ticket extends Model
     {
         return [
             'service_charge' => 'decimal:2',
+            'down_payment' => 'decimal:2',
+            'installments' => 'integer',
             'pms_checklist' => 'array',
+            'dr_photo_paths' => 'array',
             'reported_date' => 'date',
             'resolved_at' => 'datetime',
         ];
@@ -104,6 +111,13 @@ class Ticket extends Model
     public function damagePhotos(): HasMany
     {
         return $this->hasMany(TicketDamagePhoto::class)->orderBy('sort_order');
+    }
+
+    public function tractorParts(): BelongsToMany
+    {
+        return $this->belongsToMany(TractorPart::class, 'ticket_tractor_part')
+            ->withPivot('amount', 'quantity')
+            ->withTimestamps();
     }
 
     public function userCanAccessChannel(User $user): bool
