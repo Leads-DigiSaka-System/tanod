@@ -162,6 +162,16 @@ Route::middleware(['auth', 'active'])->group(function () {
         ]);
     })->name('support-contact.index');
 
+    Route::get('/support-contact/{user}', function (App\Models\User $user) {
+        $supportContact = $user->supportContact()->firstOrCreate(['user_id' => $user->id]);
+        $provinces = $supportContact->provinces()->orderBy('province_description')->get(['philippine_provinces.province_code', 'province_description']);
+
+        return Inertia::render('SupportContact/Show', [
+            'user' => $user->load('roles'),
+            'provinces' => $provinces,
+        ]);
+    })->name('support-contact.show');
+
     Route::get('/support-contact/{user}/assign', function (App\Models\User $user) {
         $provinces = App\Models\PhilippineProvince::orderBy('province_description')->get(['province_code', 'province_description']);
         $supportContact = $user->supportContact()->firstOrCreate(['user_id' => $user->id]);
