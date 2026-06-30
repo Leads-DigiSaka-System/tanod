@@ -70,7 +70,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::resource('groups', GroupController::class)->parameters(['groups' => 'group']);
 
     // Bookings
-    Route::resource('bookings', BookingController::class)->only(['index', 'create', 'store', 'show']);
+    Route::resource('bookings', BookingController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
     Route::post('bookings/{booking}/approve', [BookingController::class, 'approve'])->name('bookings.approve');
     Route::post('bookings/{booking}/reject', [BookingController::class, 'reject'])->name('bookings.reject');
     Route::post('bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
@@ -115,7 +115,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::resource('geofences', GeoFenceController::class)->only(['index', 'create', 'store', 'show', 'destroy'])->parameters(['geofences' => 'geoFence']);
 
     // Tickets
-    Route::resource('tickets', TicketController::class)->only(['index', 'create', 'store', 'show']);
+    Route::resource('tickets', TicketController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
     Route::post('tickets/{ticket}/comment', [TicketController::class, 'addComment'])->name('tickets.comment');
     Route::put('tickets/{ticket}/status', [TicketController::class, 'updateStatus'])->name('tickets.status');
     Route::put('tickets/{ticket}/assign', [TicketController::class, 'assign'])->name('tickets.assign');
@@ -124,6 +124,12 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('feedback', [FeedbackController::class, 'index'])->name('feedback.index');
     Route::get('feedback/{feedback}', [FeedbackController::class, 'show'])->name('feedback.show');
     Route::put('feedback/{feedback}/review', [FeedbackController::class, 'review'])->name('feedback.review');
+    Route::delete('feedback/{feedback}', [FeedbackController::class, 'destroy'])->name('feedback.destroy');
+
+    // Collectibles
+    Route::get('/collectibles', function () {
+        return \Inertia\Inertia::render('Collectible/Index');
+    })->name('collectibles.index');
 
     // Reports
     Route::get('reports', [ReportController::class, 'subscriptions'])->name('reports.index');

@@ -129,4 +129,18 @@ class BookingController extends Controller
 
         return back()->with('success', 'Booking cancelled.');
     }
+
+    public function destroy(Booking $booking)
+    {
+        $user = request()->user();
+
+        if (! $user->hasAnyRole(['super-admin', 'sub-admin']) && $booking->booked_by !== $user->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $booking->delete();
+
+        return redirect()->route('bookings.index')
+            ->with('success', 'Booking deleted successfully.');
+    }
 }

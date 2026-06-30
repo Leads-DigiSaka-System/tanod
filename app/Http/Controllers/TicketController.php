@@ -230,6 +230,21 @@ class TicketController extends Controller
         return back()->with('success', 'Ticket status updated.');
     }
 
+    public function destroy(Ticket $ticket)
+    {
+        $user = request()->user();
+
+        // Only super-admin, sub-admin, or the ticket submitter can delete
+        if (! $user->hasAnyRole(['super-admin', 'sub-admin']) && $ticket->submitted_by !== $user->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $ticket->delete(); // soft delete
+
+        return redirect()->route('tickets.index')
+            ->with('success', 'Ticket deleted successfully.');
+    }
+
     public function assign(Request $request, Ticket $ticket)
     {
         $request->validate([
