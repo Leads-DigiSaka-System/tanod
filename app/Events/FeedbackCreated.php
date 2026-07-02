@@ -15,7 +15,7 @@ class FeedbackCreated implements ShouldBroadcastNow, ShouldDispatchAfterCommit
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     /**
-     * @param  array<int>  $recipientIds  FCA / TPS user IDs who should be notified.
+     * @param  array<int>  $recipientIds  FCA / TSR user IDs who should be notified.
      */
     public function __construct(
         public FarmerFeedback $feedback,

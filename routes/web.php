@@ -127,9 +127,10 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::delete('feedback/{feedback}', [FeedbackController::class, 'destroy'])->name('feedback.destroy');
 
     // Collectibles
-    Route::get('/collectibles', function () {
-        return \Inertia\Inertia::render('Collectible/Index');
-    })->name('collectibles.index');
+    Route::get('/collectibles', [\App\Http\Controllers\CollectibleController::class, 'index'])->name('collectibles.index');
+    Route::get('/collectibles/{ticket}', [\App\Http\Controllers\CollectibleController::class, 'show'])->name('collectibles.show');
+    Route::post('/collectibles/{ticket}/payment', [\App\Http\Controllers\CollectibleController::class, 'addPayment'])->name('collectibles.payment');
+    Route::post('/collectibles/{ticket}/approve', [\App\Http\Controllers\CollectibleController::class, 'approve'])->name('collectibles.approve');
 
     // Reports
     Route::get('reports', [ReportController::class, 'subscriptions'])->name('reports.index');

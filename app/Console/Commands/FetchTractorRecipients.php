@@ -14,7 +14,7 @@ class FetchTractorRecipients extends Command
 
     public function handle(): int
     {
-        $baseUrl = config('services.digisaka.base_url', 'https://digisaka.app');
+        $baseUrl = config('services.digisaka.base_url', 'htTSR://digisaka.app');
         $token = config('services.digisaka.token', '2550|A69nLrYeGgcJkVjiuVlK9WrF0pBbnNb3JpTsEN93002dd78a');
 
         $this->info("Fetching tractor recipients from {$baseUrl}...");
@@ -68,7 +68,7 @@ class FetchTractorRecipients extends Command
         $barangayNames = $this->loadBarangayNames();
 
         foreach ($records as $r) {
-            // Handle nested objects (tractor, tps) and flat strings (province, city, barangay)
+            // Handle nested objects (tractor, TSR) and flat strings (province, city, barangay)
             $province = $r['province'] ?? null;
             $city = $r['city'] ?? null;
             $barangay = $r['barangay'] ?? null;
@@ -111,10 +111,10 @@ class FetchTractorRecipients extends Command
                 'pms' => $this->castJson($r['pms'] ?? null),
                 'damage_records' => $this->castJson($r['damage_records'] ?? null),
                 'machine_hours' => $this->castJson($r['machine_hours'] ?? null),
-                'tps_id' => $r['tps_id'] ?? null,
-                'tps_full_name' => is_array($r['tps'] ?? null) ? ($r['tps']['full_name'] ?? null) : ($r['tps_full_name'] ?? null),
-                'tps_mobile' => is_array($r['tps'] ?? null) ? ($r['tps']['mobile'] ?? null) : ($r['tps_mobile'] ?? null),
-                'tps_email' => is_array($r['tps'] ?? null) ? ($r['tps']['email'] ?? null) : ($r['tps_email'] ?? null),
+                'tsr_id' => $r['tsr_id'] ?? null,
+                'tsr_full_name' => is_array($r['tsr'] ?? null) ? ($r['tsr']['full_name'] ?? null) : ($r['tsr_full_name'] ?? null),
+                'tsr_mobile' => is_array($r['tsr'] ?? null) ? ($r['tsr']['mobile'] ?? null) : ($r['tsr_mobile'] ?? null),
+                'tsr_email' => is_array($r['tsr'] ?? null) ? ($r['tsr']['email'] ?? null) : ($r['tsr_email'] ?? null),
                 'photos' => is_array($r['photos'] ?? null) ? implode(' ', $r['photos']) : ($r['photos'] ?? null),
                 'is_submitted' => (bool) ($r['is_submitted'] ?? false),
                 'source_created_at' => $this->parseTimestamp($r['created_at'] ?? null),

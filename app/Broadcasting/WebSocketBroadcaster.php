@@ -102,12 +102,11 @@ class WebSocketBroadcaster extends Broadcaster
             ])->post("{$this->serverUrl}/api/trigger", $body);
 
             if (! $response->successful()) {
-                throw new BroadcastException("WebSocket broadcast failed: {$response->body()}");
+                \Illuminate\Support\Facades\Log::warning("WebSocket broadcast failed: {$response->body()}");
+                return;
             }
-        } catch (BroadcastException $e) {
-            throw $e;
-        } catch (\Exception $e) {
-            throw new BroadcastException("WebSocket broadcast error: {$e->getMessage()}");
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("WebSocket broadcast error: {$e->getMessage()}");
         }
     }
 }

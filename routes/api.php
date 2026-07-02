@@ -11,7 +11,7 @@ use App\Http\Controllers\Api\ApiMaintenanceController;
 use App\Http\Controllers\Api\ApiNotificationController;
 use App\Http\Controllers\Api\ApiReportController;
 use App\Http\Controllers\Api\ApiTicketController;
-use App\Http\Controllers\Api\ApiTpsController;
+use App\Http\Controllers\Api\ApiTsrController;
 use App\Http\Controllers\Api\ApiTractorController;
 use App\Mail\FarmerWelcomeMail;
 use App\Models\Notification;
@@ -69,9 +69,9 @@ Route::prefix('v1')->group(function () {
         Route::get('devices/{device}/history', [ApiDeviceController::class, 'locationHistory']);
 
         // Philippine Locations (PSGC)
-        Route::get('locations/provinces', [ApiTpsController::class, 'fcaLocationProvinces']);
-        Route::get('locations/cities', [ApiTpsController::class, 'fcaLocationCities']);
-        Route::get('locations/barangays', [ApiTpsController::class, 'fcaLocationBarangays']);
+        Route::get('locations/provinces', [ApiTsrController::class, 'fcaLocationProvinces']);
+        Route::get('locations/cities', [ApiTsrController::class, 'fcaLocationCities']);
+        Route::get('locations/barangays', [ApiTsrController::class, 'fcaLocationBarangays']);
 
         // Tractor Parts
         Route::get('tractor-parts', [\App\Http\Controllers\Admin\MiscellaneousController::class, 'apiIndex']);
@@ -247,29 +247,54 @@ Route::prefix('v1')->group(function () {
         // Reports
         Route::get('reports', [ApiReportController::class, 'index']);
 
-        // TPS Dashboard
-        Route::prefix('tps')->middleware('role:tps')->group(function () {
-            Route::get('dashboard', [ApiTpsController::class, 'dashboard']);
-            Route::get('tickets', [ApiTpsController::class, 'tickets']);
-            Route::get('tickets/form-data', [ApiTpsController::class, 'ticketFormData']);
-            Route::get('tickets/{ticket}', [ApiTpsController::class, 'ticketDetail']);
-            Route::post('tickets/{ticket}/request-assistance', [ApiTpsController::class, 'requestAssistance']);
-            Route::get('maintenances', [ApiTpsController::class, 'maintenances']);
-            Route::get('feedbacks', [ApiTpsController::class, 'feedbacks']);
-            Route::get('users', [ApiTpsController::class, 'users']);
-            Route::get('fca-locations/provinces', [ApiTpsController::class, 'fcaLocationProvinces']);
-            Route::get('fca-locations/cities', [ApiTpsController::class, 'fcaLocationCities']);
-            Route::get('fca-locations/barangays', [ApiTpsController::class, 'fcaLocationBarangays']);
-            Route::post('fca-drafts', [ApiTpsController::class, 'storeFcaDraft']);
-            Route::delete('fca-drafts/{draft}', [ApiTpsController::class, 'destroyFcaDraft']);
-            Route::get('fcas', [ApiTpsController::class, 'fcas']);
-            Route::get('fcas/{fca}', [ApiTpsController::class, 'showFca']);
-            Route::post('fcas', [ApiTpsController::class, 'storeFca']);
-            Route::put('fcas/{fca}', [ApiTpsController::class, 'updateFca']);
-            Route::get('tractors', [ApiTpsController::class, 'tractors']);
-            Route::get('distributions', [ApiTpsController::class, 'distributions']);
-            Route::get('distributions/form-data', [ApiTpsController::class, 'distributionFormData']);
-            Route::post('distributions', [ApiTpsController::class, 'storeDistribution']);
+        // TSR Dashboard
+        Route::prefix('tsr')->middleware('role:tsr')->group(function () {
+            Route::get('dashboard', [ApiTsrController::class, 'dashboard']);
+            Route::get('tickets', [ApiTsrController::class, 'tickets']);
+            Route::get('tickets/form-data', [ApiTsrController::class, 'ticketFormData']);
+            Route::get('tickets/{ticket}', [ApiTsrController::class, 'ticketDetail']);
+            Route::post('tickets/{ticket}/request-assistance', [ApiTsrController::class, 'requestAssistance']);
+            Route::get('maintenances', [ApiTsrController::class, 'maintenances']);
+            Route::get('feedbacks', [ApiTsrController::class, 'feedbacks']);
+            Route::get('users', [ApiTsrController::class, 'users']);
+            Route::get('fca-locations/provinces', [ApiTsrController::class, 'fcaLocationProvinces']);
+            Route::get('fca-locations/cities', [ApiTsrController::class, 'fcaLocationCities']);
+            Route::get('fca-locations/barangays', [ApiTsrController::class, 'fcaLocationBarangays']);
+            Route::post('fca-drafts', [ApiTsrController::class, 'storeFcaDraft']);
+            Route::delete('fca-drafts/{draft}', [ApiTsrController::class, 'destroyFcaDraft']);
+            Route::get('fcas', [ApiTsrController::class, 'fcas']);
+            Route::get('fcas/{fca}', [ApiTsrController::class, 'showFca']);
+            Route::post('fcas', [ApiTsrController::class, 'storeFca']);
+            Route::put('fcas/{fca}', [ApiTsrController::class, 'updateFca']);
+            Route::get('tractors', [ApiTsrController::class, 'tractors']);
+            Route::get('distributions', [ApiTsrController::class, 'distributions']);
+            Route::get('distributions/form-data', [ApiTsrController::class, 'distributionFormData']);
+            Route::post('distributions', [ApiTsrController::class, 'storeDistribution']);
+        });
+
+        // TPS alias (mobile app uses /tps instead of /tsr)
+        Route::prefix('tps')->middleware('role:tsr')->group(function () {
+            Route::get('dashboard', [ApiTsrController::class, 'dashboard']);
+            Route::get('tickets', [ApiTsrController::class, 'tickets']);
+            Route::get('tickets/form-data', [ApiTsrController::class, 'ticketFormData']);
+            Route::get('tickets/{ticket}', [ApiTsrController::class, 'ticketDetail']);
+            Route::post('tickets/{ticket}/request-assistance', [ApiTsrController::class, 'requestAssistance']);
+            Route::get('maintenances', [ApiTsrController::class, 'maintenances']);
+            Route::get('feedbacks', [ApiTsrController::class, 'feedbacks']);
+            Route::get('users', [ApiTsrController::class, 'users']);
+            Route::get('fca-locations/provinces', [ApiTsrController::class, 'fcaLocationProvinces']);
+            Route::get('fca-locations/cities', [ApiTsrController::class, 'fcaLocationCities']);
+            Route::get('fca-locations/barangays', [ApiTsrController::class, 'fcaLocationBarangays']);
+            Route::post('fca-drafts', [ApiTsrController::class, 'storeFcaDraft']);
+            Route::delete('fca-drafts/{draft}', [ApiTsrController::class, 'destroyFcaDraft']);
+            Route::get('fcas', [ApiTsrController::class, 'fcas']);
+            Route::get('fcas/{fca}', [ApiTsrController::class, 'showFca']);
+            Route::post('fcas', [ApiTsrController::class, 'storeFca']);
+            Route::put('fcas/{fca}', [ApiTsrController::class, 'updateFca']);
+            Route::get('tractors', [ApiTsrController::class, 'tractors']);
+            Route::get('distributions', [ApiTsrController::class, 'distributions']);
+            Route::get('distributions/form-data', [ApiTsrController::class, 'distributionFormData']);
+            Route::post('distributions', [ApiTsrController::class, 'storeDistribution']);
         });
 
         // Booking Slots
@@ -284,7 +309,7 @@ Route::prefix('v1')->group(function () {
 
             $contacts = [];
 
-            // Farmer → show their FCA + TPS assigned to tractors
+            // Farmer → show their FCA + TSR assigned to tractors
             if ($user->hasRole('farmer') && $user->fca_id) {
                 $fca = User::select('id', 'name', 'email', 'phone', 'profile_photo_path')
                     ->find($user->fca_id);
@@ -301,26 +326,26 @@ Route::prefix('v1')->group(function () {
                     ];
                 }
 
-                // TPS users assigned to the FCA's distributed tractors
-                $tpsIds = \App\Models\TractorDistribution::where('distributed_to', $user->fca_id)
+                // TSR users assigned to the FCA's distributed tractors
+                $tsrIds = \App\Models\TractorDistribution::where('distributed_to', $user->fca_id)
                     ->where('status', 'distributed')
-                    ->whereNotNull('tps_id')
-                    ->pluck('tps_id')
+                    ->whereNotNull('tsr_id')
+                    ->pluck('tsr_id')
                     ->unique();
 
-                $tpsUsers = User::select('id', 'name', 'email', 'phone', 'profile_photo_path')
-                    ->whereIn('id', $tpsIds)
+                $tsrUsers = User::select('id', 'name', 'email', 'phone', 'profile_photo_path')
+                    ->whereIn('id', $tsrIds)
                     ->where('is_active', true)
                     ->get();
 
-                foreach ($tpsUsers as $tps) {
+                foreach ($tsrUsers as $tsr) {
                     $contacts[] = [
-                        'type' => 'tps',
-                        'name' => $tps->name,
-                        'email' => $tps->email,
-                        'phone' => $tps->phone,
-                        'profile_photo_url' => $tps->profile_photo_path
-                            ? request()->getSchemeAndHttpHost().'/storage/'.$tps->profile_photo_path
+                        'type' => 'tsr',
+                        'name' => $tsr->name,
+                        'email' => $tsr->email,
+                        'phone' => $tsr->phone,
+                        'profile_photo_url' => $tsr->profile_photo_path
+                            ? request()->getSchemeAndHttpHost().'/storage/'.$tsr->profile_photo_path
                             : null,
                     ];
                 }
@@ -344,7 +369,7 @@ Route::prefix('v1')->group(function () {
                 'role_label' => 'After Sales Support',
             ];
 
-            // TPS assigned to tractor's province (only if match found)
+            // TSR assigned to tractor's province (only if match found)
             $provinceCodes = [];
             $targetUserId = null;
             if ($user->hasRole('farmer') && $user->fca_id) {
@@ -377,21 +402,21 @@ Route::prefix('v1')->group(function () {
                     ->first();
 
                 if ($assigned) {
-                    $tpsContact = User::select('id', 'name', 'email', 'phone', 'profile_photo_path')
+                    $tsrContact = User::select('id', 'name', 'email', 'phone', 'profile_photo_path')
                         ->where('id', $assigned->user_id)
                         ->where('is_active', true)
                         ->first();
 
-                    if ($tpsContact) {
+                    if ($tsrContact) {
                         $contacts[] = [
                             'type' => 'admin',
-                            'name' => $tpsContact->name,
-                            'email' => $tpsContact->email,
-                            'phone' => $tpsContact->phone,
-                            'profile_photo_url' => $tpsContact->profile_photo_path
-                                ? request()->getSchemeAndHttpHost().'/storage/'.$tpsContact->profile_photo_path
+                            'name' => $tsrContact->name,
+                            'email' => $tsrContact->email,
+                            'phone' => $tsrContact->phone,
+                            'profile_photo_url' => $tsrContact->profile_photo_path
+                                ? request()->getSchemeAndHttpHost().'/storage/'.$tsrContact->profile_photo_path
                                 : null,
-                            'role_label' => 'TPS Support',
+                            'role_label' => 'TSR Support',
                         ];
                     }
                 }

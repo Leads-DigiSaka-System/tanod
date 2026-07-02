@@ -71,7 +71,7 @@ class SendScheduledReports extends Command
 
     /**
      * Get tractor IDs scoped to the user's role.
-     * Returns null if user sees all tractors (admin / full-access TPS).
+     * Returns null if user sees all tractors (admin / full-access TSR).
      */
     private function getTractorScopeIds(User $user): ?array
     {
@@ -79,11 +79,11 @@ class SendScheduledReports extends Command
             return null; // all tractors
         }
 
-        if ($user->hasRole('tps') && $user->hasFullTpsTractorAccess()) {
-            return null; // full-access TPS
+        if ($user->hasRole('tsr') && $user->hasFullTsrTractorAccess()) {
+            return null; // full-access TSR
         }
 
-        // TPS with limited access or FCA — only assigned tractors
+        // TSR with limited access or FCA — only assigned tractors
         $ids = $user->assignedTractors()->pluck('id')->toArray();
 
         // FCA: also include tractors distributed to their FCA

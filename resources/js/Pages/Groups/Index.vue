@@ -6,7 +6,7 @@
     <div class="sm:flex sm:items-center sm:justify-between mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Tractor Groups</h1>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Organize tractors into groups and define TPS responsibility areas.</p>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Organize tractors into groups and define TSR responsibility areas.</p>
       </div>
       <button @click="openCreateDrawer"
         class="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 mt-4 sm:mt-0"
@@ -179,9 +179,9 @@
                 <p v-else class="text-sm text-gray-400 dark:text-gray-500 text-center py-4">No tractors assigned.</p>
               </div>
 
-              <!-- TPS Responsibility Users -->
+              <!-- TSR Responsibility Users -->
               <div>
-                <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Responsible TPS ({{ selectedGroup?.tps_users?.length || 0 }})</h3>
+                <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Responsible TSR ({{ selectedGroup?.tps_users?.length || 0 }})</h3>
                 <div v-if="selectedGroup?.tps_users?.length" class="space-y-2">
                   <div v-for="u in selectedGroup.tps_users" :key="u.id"
                     class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
@@ -194,7 +194,7 @@
                     </div>
                   </div>
                 </div>
-                <p v-else class="text-sm text-gray-400 dark:text-gray-500 text-center py-4">No TPS responsibility set.</p>
+                <p v-else class="text-sm text-gray-400 dark:text-gray-500 text-center py-4">No TSR responsibility set.</p>
               </div>
             </div>
 
@@ -317,14 +317,14 @@
                   </div>
                 </div>
 
-                <!-- Set TPS Responsibilities -->
+                <!-- Set TSR Responsibilities -->
                 <div>
                   <div class="mb-3">
-                    <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Set TPS Responsibilities</h3>
+                    <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Set TSR Responsibilities</h3>
                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       {{ form.assign_all_tps
-                        ? `All ${allTpsCount} TPS users will be assigned to this group when you save.`
-                        : `${form.tps_user_ids.length} selected. These assignments control responsibility, not overall fleet visibility. TPS users already set to all tractors are managed from Users and will not appear here.` }}
+                        ? `All ${allTpsCount} TSR users will be assigned to this group when you save.`
+                        : `${form.tps_user_ids.length} selected. These assignments control responsibility, not overall fleet visibility. TSR users already set to all tractors are managed from Users and will not appear here.` }}
                     </p>
                   </div>
                   <div class="space-y-4">
@@ -333,13 +333,13 @@
                         class="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700" />
                       <div>
                         <p class="text-sm font-medium text-gray-900 dark:text-white">Assign this group to all TPS</p>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Every current TPS user will be linked to the tractors in this group. Turn this off to choose specific TPS users instead.</p>
-                        <p v-if="!allTpsCount" class="mt-1 text-xs text-amber-600 dark:text-amber-400">No TPS users are available yet.</p>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Every current TSR user will be linked to the tractors in this group. Turn this off to choose specific TSR users instead.</p>
+                        <p v-if="!allTpsCount" class="mt-1 text-xs text-amber-600 dark:text-amber-400">No TSR users are available yet.</p>
                       </div>
                     </label>
 
                     <div v-if="form.assign_all_tps" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
-                      All {{ allTpsCount }} TPS users will be assigned automatically when this group is saved.
+                      All {{ allTpsCount }} TSR users will be assigned automatically when this group is saved.
                     </div>
 
                     <template v-else>
@@ -371,7 +371,7 @@
                           </div>
                         </label>
                         <p v-if="!filteredTpsUsers.length" class="text-center py-6 text-sm text-gray-400 dark:text-gray-500">
-                          {{ tpsSearch ? 'No TPS users match your search.' : 'No TPS users available.' }}
+                          {{ tpsSearch ? 'No TSR users match your search.' : 'No TSR users available.' }}
                         </p>
                       </div>
                     </template>
@@ -524,7 +524,7 @@ const openEditDrawer = (group) => {
   form.is_active = group.is_active;
   form.tractor_ids = group.tractors?.map(t => t.id) || [];
   form.tps_user_ids = group.tps_users?.map(u => u.id) || [];
-  form.assign_all_tps = hasAllTpsAssigned(group.tps_users || []);
+  form.assign_all_TSR = hasAllTpsAssigned(group.tps_users || []);
   drawerOpen.value = true;
 };
 

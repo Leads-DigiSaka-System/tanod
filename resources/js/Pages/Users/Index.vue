@@ -86,12 +86,12 @@
               <td class="px-6 py-4">
                 <div class="flex flex-col gap-1">
                   <span class="capitalize">{{ user.roles?.[0]?.name || '—' }}</span>
-                  <span v-if="user.roles?.[0]?.name === 'tps'"
+                  <span v-if="user.roles?.[0]?.name === 'tsr'"
                     class="inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium"
-                    :class="user.tps_assign_all_tractors
+                    :class="user.tsr_assign_all_tractors
                       ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
                       : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'">
-                    {{ user.tps_assign_all_tractors ? 'All tractors' : 'Group scoped' }}
+                    {{ user.tsr_assign_all_tractors ? 'All tractors' : 'Group scoped' }}
                   </span>
                 </div>
               </td>
@@ -363,17 +363,17 @@
                 </div>
               </div>
 
-              <!-- TPS Access Mode -->
-              <div v-if="drawerMode === 'regular' && form.role === 'tps'" class="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
+              <!-- TSR Access Mode -->
+              <div v-if="drawerMode === 'regular' && form.role === 'tsr'" class="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
                 <label class="flex items-start gap-3">
-                  <input v-model="form.tps_assign_all_tractors" type="checkbox"
+                  <input v-model="form.tsr_assign_all_tractors" type="checkbox"
                     class="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-700" />
                   <div>
-                    <p class="text-sm font-medium text-gray-900 dark:text-white">Assign this TPS to all tractors</p>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">When enabled, this TPS user can see the full tractor fleet in the mobile app. Leave it off to manage tractor visibility through Group responsibilities.</p>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">Assign this TSR to all tractors</p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">When enabled, this TSR user can see the full tractor fleet in the mobile app. Leave it off to manage tractor visibility through Group responsibilities.</p>
                   </div>
                 </label>
-                <p v-if="form.errors.tps_assign_all_tractors" class="mt-2 text-sm text-red-600 dark:text-red-400">{{ form.errors.tps_assign_all_tractors }}</p>
+                <p v-if="form.errors.tsr_assign_all_tractors" class="mt-2 text-sm text-red-600 dark:text-red-400">{{ form.errors.tsr_assign_all_tractors }}</p>
               </div>
 
               <!-- Profile Photo -->
@@ -486,7 +486,7 @@ const photoPreview = ref(null);
 
 const form = useForm({
   name: '', email: '', password: '', password_confirmation: '',
-  phone: '', gender: '', role: '', tps_assign_all_tractors: false, profile_photo: null, fca_id: '',
+  phone: '', gender: '', role: '', tsr_assign_all_tractors: false, profile_photo: null, fca_id: '',
 });
 
 const drawerTitle = computed(() => {

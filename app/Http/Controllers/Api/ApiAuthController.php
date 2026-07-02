@@ -25,8 +25,8 @@ class ApiAuthController extends Controller
             'description' => 'Coordinate groups, bookings, and tractor operations.',
         ],
         [
-            'name' => 'tps',
-            'label' => 'TPS',
+            'name' => 'tsr',
+            'label' => 'tsr',
             'description' => 'Handle maintenance, service work, and field support.',
         ],
     ];
