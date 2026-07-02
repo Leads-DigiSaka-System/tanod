@@ -248,7 +248,7 @@ Route::prefix('v1')->group(function () {
         Route::get('reports', [ApiReportController::class, 'index']);
 
         // TSR Dashboard
-        Route::prefix('tsr')->middleware('role:tsr')->group(function () {
+        Route::prefix('tsr')->middleware('role:tps')->group(function () {
             Route::get('dashboard', [ApiTsrController::class, 'dashboard']);
             Route::get('tickets', [ApiTsrController::class, 'tickets']);
             Route::get('tickets/form-data', [ApiTsrController::class, 'ticketFormData']);
@@ -273,7 +273,7 @@ Route::prefix('v1')->group(function () {
         });
 
         // TPS alias (mobile app uses /tps instead of /tsr)
-        Route::prefix('tps')->middleware('role:tsr')->group(function () {
+        Route::prefix('tps')->middleware('role:tps')->group(function () {
             Route::get('dashboard', [ApiTsrController::class, 'dashboard']);
             Route::get('tickets', [ApiTsrController::class, 'tickets']);
             Route::get('tickets/form-data', [ApiTsrController::class, 'ticketFormData']);

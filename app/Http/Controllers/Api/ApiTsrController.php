@@ -83,7 +83,10 @@ class ApiTsrController extends Controller
             'tractors_count' => Tractor::whereIn('id', $visibleTractorIds)
                 ->whereHas('device', fn ($q) => $q->notStale())
                 ->count(),
-            'open_tickets' => Ticket::whereIn('tractor_id', $visibleTractorIds)->whereIn('status', ['open', 'in_progress'])->count(),
+            'open_tickets' => Ticket::where(function (Builder $q) use ($user) {
+                $q->where('assigned_to', $user->id)
+                  ->orWhereHas('assignees', fn (Builder $a) => $a->where('user_id', $user->id));
+            })->whereIn('status', ['open', 'in_progress'])->count(),
             'pending_maintenance' => Maintenance::whereIn('tractor_id', $visibleTractorIds)->where('status', 'pending')->count(),
             'active_distributions' => TractorDistribution::whereIn('tractor_id', $manageableTractorIds)->where('status', 'distributed')->count(),
         ]);
@@ -94,7 +97,8 @@ class ApiTsrController extends Controller
      */
     public function tickets(Request $request)
     {
-        $tractorIds = $this->visibleTractorIdsForTsr($request->user());
+        $user = $request->user();
+        $user = $request->user();
         $search = trim((string) $request->input('search', ''));
 
         $tickets = Ticket::query()
@@ -105,7 +109,10 @@ class ApiTsrController extends Controller
                 'latestComment.user:id,name',
             ])
             ->withMax('comments', 'created_at')
-            ->whereIn('tractor_id', $tractorIds)
+            ->where(function (Builder $q) use ($user) {
+                $q->where('assigned_to', $user->id)
+                  ->orWhereHas('assignees', fn (Builder $a) => $a->where('user_id', $user->id));
+            })
             ->when($request->filled('status'), fn (Builder $q) => $q->where('status', $request->status))
             ->when($request->filled('priority'), fn (Builder $q) => $q->where('priority', $request->priority))
             ->when($search !== '', function (Builder $query) use ($search) {
@@ -1005,7 +1012,10 @@ class ApiTsrController extends Controller
         $tractorIds = $this->visibleTractorIdsForTsr($user);
 
         abort_unless(
-            in_array($ticket->tractor_id, $tractorIds) || $ticket->submitted_by === $user->id,
+            in_array($ticket->tractor_id, $tractorIds)
+            || $ticket->submitted_by === $user->id
+            || $ticket->assigned_to === $user->id
+            || $ticket->assignees()->where('user_id', $user->id)->exists(),
             403,
             'You do not have access to this ticket.'
         );
