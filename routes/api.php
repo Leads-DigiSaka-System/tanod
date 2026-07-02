@@ -329,8 +329,8 @@ Route::prefix('v1')->group(function () {
                 // TSR users assigned to the FCA's distributed tractors
                 $tsrIds = \App\Models\TractorDistribution::where('distributed_to', $user->fca_id)
                     ->where('status', 'distributed')
-                    ->whereNotNull('tsr_id')
-                    ->pluck('tsr_id')
+                    ->whereNotNull('tps_id')
+                    ->pluck('tps_id')
                     ->unique();
 
                 $tsrUsers = User::select('id', 'name', 'email', 'phone', 'profile_photo_path')
@@ -340,7 +340,7 @@ Route::prefix('v1')->group(function () {
 
                 foreach ($tsrUsers as $tsr) {
                     $contacts[] = [
-                        'type' => 'tsr',
+                        'type' => 'tps',
                         'name' => $tsr->name,
                         'email' => $tsr->email,
                         'phone' => $tsr->phone,

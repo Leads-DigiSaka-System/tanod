@@ -1279,7 +1279,7 @@ class ApiTsrController extends Controller
             'tractor_ids' => [$validated['tractor_id']],
             'distributed_to' => $validated['distributed_to'],
             'distributed_by' => $user->id,
-            'tsr_id' => $user->id,
+            'tps_id' => $user->id,
             'area' => $validated['area'],
             'distribution_date' => $validated['distribution_date'],
             'notes' => $validated['notes'] ?? null,
