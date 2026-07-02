@@ -236,6 +236,18 @@ class CollectibleController extends Controller
         $installmentBase = max(0, $totalAmount - $downPayment);
         $monthlyAmount = round($installmentBase / $installments, 2);
 
+        // Guard: if monthly amount is zero (e.g. down payment covers the full amount),
+        // there's no installment schedule to compute.
+        if ($monthlyAmount <= 0) {
+            return [
+                'monthly_amount' => 0,
+                'current_month' => 0,
+                'next_due_date' => null,
+                'is_overdue' => false,
+                'schedule' => [],
+            ];
+        }
+
         // Only payments AFTER down payment count toward covering months
         $installmentPayments = max(0, $totalPaid - $downPayment);
         $coveredMonths = (int) floor($installmentPayments / $monthlyAmount);
@@ -291,6 +303,7 @@ class CollectibleController extends Controller
     private function totalInstallmentPayments(Ticket $ticket, float $totalPaid): float
     {
         $downPayment = (float) ($ticket->down_payment ?? 0);
+
         return max(0, $totalPaid - $downPayment);
     }
 
