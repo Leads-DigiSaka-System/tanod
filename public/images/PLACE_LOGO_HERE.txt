@@ -1,0 +1,5 @@
+Place your company logo image here as "leads-logo.png"
+Accepted formats: PNG, JPG
+
+Once placed, the PDF report will automatically use it.
+If no logo is found, the text "LEADSTECH CORPORATION" will be shown instead.

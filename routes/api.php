@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ApiMaintenanceController;
 use App\Http\Controllers\Api\ApiNotificationController;
 use App\Http\Controllers\Api\ApiReportController;
 use App\Http\Controllers\Api\ApiTicketController;
+use App\Http\Controllers\Api\ApiTicketReportController;
 use App\Http\Controllers\Api\ApiTsrController;
 use App\Http\Controllers\Api\ApiTractorController;
 use App\Mail\FarmerWelcomeMail;
@@ -272,6 +273,15 @@ Route::prefix('v1')->group(function () {
             Route::get('distributions', [ApiTsrController::class, 'distributions']);
             Route::get('distributions/form-data', [ApiTsrController::class, 'distributionFormData']);
             Route::post('distributions', [ApiTsrController::class, 'storeDistribution']);
+
+            // Ticket Reports (tsr prefix)
+            Route::get('ticket-reports', [ApiTicketReportController::class, 'index']);
+            Route::get('ticket-reports/{ticketReport}', [ApiTicketReportController::class, 'show']);
+            Route::put('ticket-reports/{ticketReport}', [ApiTicketReportController::class, 'update']);
+            Route::get('ticket-reports/{ticketReport}/pdf', [ApiTicketReportController::class, 'downloadPdf']);
+
+            // FCA info for ticket report form (contacts + serial numbers)
+            Route::get('tickets/{ticket}/report-form-data', [ApiTicketReportController::class, 'reportFormData']);
         });
 
         // TPS alias (mobile app uses /tps instead of /tsr)
@@ -297,6 +307,15 @@ Route::prefix('v1')->group(function () {
             Route::get('distributions', [ApiTsrController::class, 'distributions']);
             Route::get('distributions/form-data', [ApiTsrController::class, 'distributionFormData']);
             Route::post('distributions', [ApiTsrController::class, 'storeDistribution']);
+
+            // Ticket Reports
+            Route::get('ticket-reports', [ApiTicketReportController::class, 'index']);
+            Route::get('ticket-reports/{ticketReport}', [ApiTicketReportController::class, 'show']);
+            Route::put('ticket-reports/{ticketReport}', [ApiTicketReportController::class, 'update']);
+            Route::get('ticket-reports/{ticketReport}/pdf', [ApiTicketReportController::class, 'downloadPdf']);
+
+            // FCA info for ticket report form (contacts + serial numbers)
+            Route::get('tickets/{ticket}/report-form-data', [ApiTicketReportController::class, 'reportFormData']);
         });
 
         // Booking Slots

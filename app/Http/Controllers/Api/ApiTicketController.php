@@ -66,7 +66,9 @@ class ApiTicketController extends Controller
 
         $tractorIds = $this->accessibleTractorIds($user);
         abort_unless(
-            in_array($ticket->tractor_id, $tractorIds) || $ticket->submitted_by === $user->id,
+            in_array($ticket->tractor_id, $tractorIds) || $ticket->submitted_by === $user->id
+            || $ticket->assigned_to === $user->id
+            || $ticket->assignees()->where('user_id', $user->id)->exists(),
             403,
             'You do not have access to this ticket.'
         );
@@ -225,7 +227,9 @@ class ApiTicketController extends Controller
 
         $tractorIds = $this->accessibleTractorIds($user);
         abort_unless(
-            in_array($ticket->tractor_id, $tractorIds) || $ticket->submitted_by === $user->id,
+            in_array($ticket->tractor_id, $tractorIds) || $ticket->submitted_by === $user->id
+            || $ticket->assigned_to === $user->id
+            || $ticket->assignees()->where('user_id', $user->id)->exists(),
             403,
             'You do not have access to this ticket.'
         );
@@ -278,7 +282,9 @@ class ApiTicketController extends Controller
 
         $tractorIds = $this->accessibleTractorIds($user);
         abort_unless(
-            in_array($ticket->tractor_id, $tractorIds) || $ticket->submitted_by === $user->id,
+            in_array($ticket->tractor_id, $tractorIds) || $ticket->submitted_by === $user->id
+            || $ticket->assigned_to === $user->id
+            || $ticket->assignees()->where('user_id', $user->id)->exists(),
             403,
             'You do not have access to this ticket.'
         );
@@ -303,6 +309,17 @@ class ApiTicketController extends Controller
             'parts.*.quantity' => 'nullable|integer|min:1|max:999',
             'dr_photos' => 'nullable|array|max:3',
             'dr_photos.*' => 'image|max:5120',
+            // Report-specific fields
+            'customer_address' => 'nullable|string|max:2000',
+            'contact_no' => 'nullable|string|max:50',
+            'customer_name' => 'nullable|string|max:255',
+            'machine_hours' => 'nullable|string|max:100',
+            'serial_number' => 'nullable|string|max:100',
+            'warranty_type' => 'nullable|string|max:100',
+            'service_performed' => 'nullable|array',
+            'service_performed.*' => 'string|max:50',
+            'repair_start_date' => 'nullable|date',
+            'repair_end_date' => 'nullable|date|after_or_equal:repair_start_date',
         ]);
 
         $resolutionPhotoPath = null;
@@ -348,8 +365,8 @@ class ApiTicketController extends Controller
         $ticket->update($updateData);
 
         // Sync tractor parts
+        $partsData = [];
         if ($request->has('parts')) {
-            $partsData = [];
             foreach ($data['parts'] as $part) {
                 if (! empty($part['name']) && empty($part['id'])) {
                     // Create new part on-the-fly
@@ -361,9 +378,144 @@ class ApiTicketController extends Controller
             $ticket->tractorParts()->sync($partsData);
         }
 
+        // ─── Auto-generate Ticket Report ───
+        if (! ($data['partial'] ?? false)) {
+            $this->generateTicketReport($ticket, $user, $data, $resolutionPhotoPath, $existingDrPaths, $partsData);
+        }
+
         $ticket->load(['tractor:id,no_plate,brand,model', 'submitter:id,name', 'assignees:id,name', 'resolver:id,name', 'comments.user:id,name', 'tractorParts']);
 
         return response()->json(['data' => $this->formatTicket($ticket, full: true)]);
+    }
+
+    /**
+     * Auto-generate a ticket report when a ticket is resolved.
+     */
+    private function generateTicketReport(Ticket $ticket, $user, array $data, ?string $resolutionPhotoPath, array $existingDrPaths, array $partsData): void
+    {
+        // Parse resolution notes into findings/job_done/recommendation/remarks
+        $findings = null;
+        $jobDone = null;
+        $recommendation = null;
+        $remarks = null;
+
+        if ($data['resolution_notes']) {
+            $lines = explode("\n", $data['resolution_notes']);
+            foreach ($lines as $line) {
+                if (str_starts_with($line, 'Findings: ')) {
+                    $findings = substr($line, strlen('Findings: '));
+                } elseif (str_starts_with($line, 'Job Done: ')) {
+                    $jobDone = substr($line, strlen('Job Done: '));
+                } elseif (str_starts_with($line, 'Recommendation: ')) {
+                    $recommendation = substr($line, strlen('Recommendation: '));
+                } elseif (str_starts_with($line, 'Remarks: ')) {
+                    $remarks = substr($line, strlen('Remarks: '));
+                }
+            }
+        }
+
+        // Build parts details
+        $partsDetails = [];
+        $partsTotal = 0;
+        if (! empty($partsData)) {
+            $partModels = \App\Models\TractorPart::whereIn('id', array_keys($partsData))->get()->keyBy('id');
+            foreach ($partsData as $partId => $partInfo) {
+                $partModel = $partModels->get($partId);
+                $qty = (int) ($partInfo['quantity'] ?? 1);
+                $amount = (float) ($partInfo['amount'] ?? 0);
+                $lineTotal = $qty * $amount;
+                $partsTotal += $lineTotal;
+                $partsDetails[] = [
+                    'id' => $partId,
+                    'name' => $partModel?->name ?? 'Part #'.$partId,
+                    'quantity' => $qty,
+                    'amount' => $amount,
+                    'line_total' => $lineTotal,
+                ];
+            }
+        }
+
+        // Build DR photo URLs
+        $drPhotoUrls = [];
+        foreach ($existingDrPaths as $path) {
+            $drPhotoUrls[] = asset('storage/'.$path);
+        }
+
+        // Create the report
+        $ticket->load(['tractor:id,no_plate,brand,model', 'submitter:id,name']);
+
+        // Auto-detect serial number from FCA tractor details based on subject
+        $serialNumber = $data['serial_number'] ?? null;
+        if (! $serialNumber) {
+            $serialNumber = $this->detectSerialNumber($ticket);
+        }
+
+        \App\Models\TicketReport::create([
+            'ticket_id' => $ticket->id,
+            'tps_id' => $user->id,
+            'ticket_no' => 'TKT-'.$ticket->id,
+            'subject' => $ticket->subject,
+            'category' => $ticket->category,
+            'fca_name' => $ticket->fca_name,
+            'submitted_by_name' => $ticket->submitter?->name,
+            'customer_address' => $data['customer_address'] ?? null,
+            'contact_no' => $data['contact_no'] ?? null,
+            'customer_name' => $data['customer_name'] ?? null,
+            'tractor_plate' => $ticket->tractor?->no_plate,
+            'tractor_brand' => $ticket->tractor?->brand,
+            'tractor_model' => $ticket->tractor?->model,
+            'machine_hours' => $data['machine_hours'] ?? null,
+            'serial_number' => $serialNumber,
+            'warranty_type' => $data['warranty_type'] ?? null,
+            'service_performed' => $data['service_performed'] ?? null,
+            'repair_start_date' => $data['repair_start_date'] ?? null,
+            'repair_end_date' => $data['repair_end_date'] ?? null,
+            'findings' => $findings,
+            'job_done' => $jobDone,
+            'recommendation' => $recommendation,
+            'remarks' => $remarks,
+            'service_charge' => $data['service_charge'] ?? null,
+            'down_payment' => $data['down_payment'] ?? null,
+            'installments' => $data['installments'] ?? null,
+            'parts_total' => $partsTotal > 0 ? $partsTotal : null,
+            'parts_details' => ! empty($partsDetails) ? $partsDetails : null,
+            'resolution_photo_url' => $resolutionPhotoPath ? asset('storage/'.$resolutionPhotoPath) : null,
+            'dr_photo_urls' => ! empty($drPhotoUrls) ? $drPhotoUrls : null,
+            'status' => 'draft',
+            'generated_at' => now(),
+        ]);
+    }
+
+    /**
+     * Auto-detect serial number from FCA tractor details based on subject.
+     */
+    private function detectSerialNumber(Ticket $ticket): ?string
+    {
+        if (! $ticket->tractor_id) {
+            return null;
+        }
+
+        $tractor = \App\Models\Tractor::find($ticket->tractor_id);
+        if (! $tractor) {
+            return null;
+        }
+
+        $subject = strtolower($ticket->subject ?? '');
+
+        if (str_contains($subject, 'rovator') || str_contains($subject, 'rotavator')) {
+            return $tractor->rotary_tiller_sn;
+        }
+
+        if (str_contains($subject, 'disc') || str_contains($subject, 'disk plow')) {
+            return $tractor->disc_plow_sn;
+        }
+
+        if (str_contains($subject, 'loader')) {
+            return $tractor->front_loader_sn;
+        }
+
+        // Default: return main tractor serial number (id_no)
+        return $tractor->id_no;
     }
 
     /**
@@ -376,7 +528,9 @@ class ApiTicketController extends Controller
 
         $tractorIds = $this->accessibleTractorIds($user);
         abort_unless(
-            in_array($ticket->tractor_id, $tractorIds) || $ticket->submitted_by === $user->id,
+            in_array($ticket->tractor_id, $tractorIds) || $ticket->submitted_by === $user->id
+            || $ticket->assigned_to === $user->id
+            || $ticket->assignees()->where('user_id', $user->id)->exists(),
             403,
             'You do not have access to this ticket.'
         );
