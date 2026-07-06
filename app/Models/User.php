@@ -130,6 +130,35 @@ class User extends Authenticatable
     }
 
     /**
+     * Get all TSR (TPS) user IDs who have access to a given tractor.
+     *
+     * @return array<int>
+     */
+    public static function tsrIdsForTractor(int $tractorId): array
+    {
+        $tractor = Tractor::find($tractorId);
+        if (! $tractor) {
+            return [];
+        }
+
+        $groupIds = $tractor->groups()->pluck('tractor_groups.id');
+
+        return User::role('tps')
+            ->where('is_active', true)
+            ->where(function ($query) use ($tractor, $groupIds, $tractorId) {
+                $query->where('tps_assign_all_tractors', true)
+                    ->orWhereHas('groups', fn ($q) => $q->whereIn('tractor_groups.id', $groupIds))
+                    ->orWhereHas('distributions', fn ($q) => $q
+                        ->where('tractor_id', $tractorId)
+                        ->where('status', 'distributed')
+                    );
+            })
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /**
      * @return array<int>
      */
     public function accessibleTractorIds(): array

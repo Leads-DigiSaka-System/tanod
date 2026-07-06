@@ -57,6 +57,8 @@ Route::prefix('v1')->group(function () {
         // Tractors
         Route::get('tractors', [ApiTractorController::class, 'index']);
         Route::get('tractors/{tractor}', [ApiTractorController::class, 'show']);
+        Route::put('tractors/{tractor}/rename', [ApiTractorController::class, 'rename']);
+        Route::put('tractors/{tractor}/implements', [ApiTractorController::class, 'updateImplements']);
 
         // Devices & Locations
         Route::get('devices', [ApiDeviceController::class, 'index']);

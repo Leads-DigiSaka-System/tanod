@@ -11,6 +11,7 @@ class TractorResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'name' => $this->name,
             'imei' => $this->imei,
             'no_plate' => $this->no_plate,
             'id_no' => $this->id_no,
@@ -18,6 +19,9 @@ class TractorResource extends JsonResource
             'chassis_no' => $this->chassis_no,
             'brand' => $this->brand,
             'model' => $this->model,
+            'front_loader_sn' => $this->front_loader_sn,
+            'rotary_tiller_sn' => $this->rotary_tiller_sn,
+            'disc_plow_sn' => $this->disc_plow_sn,
             'fuel_consumption' => $this->fuel_consumption,
             'manufacture_date' => $this->manufacture_date,
             'installation_time' => $this->installation_time,

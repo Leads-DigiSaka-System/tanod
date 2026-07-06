@@ -50,4 +50,40 @@ class ApiTractorController extends Controller
 
         return new TractorResource($tractor);
     }
+
+    public function rename(Request $request, Tractor $tractor)
+    {
+        abort_unless(in_array($tractor->id, $request->user()->accessibleTractorIds(), true), 403);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $tractor->update(['name' => $validated['name']]);
+
+        return response()->json([
+            'message' => 'Tractor renamed successfully',
+            'data' => new TractorResource($tractor->fresh()),
+        ]);
+    }
+
+    public function updateImplements(Request $request, Tractor $tractor)
+    {
+        abort_unless(in_array($tractor->id, $request->user()->accessibleTractorIds(), true), 403);
+
+        $validated = $request->validate([
+            'id_no' => 'nullable|string|max:255',
+            'engine_no' => 'nullable|string|max:255',
+            'front_loader_sn' => 'nullable|string|max:255',
+            'rotary_tiller_sn' => 'nullable|string|max:255',
+            'disc_plow_sn' => 'nullable|string|max:255',
+        ]);
+
+        $tractor->update($validated);
+
+        return response()->json([
+            'message' => 'Implement details updated successfully',
+            'data' => new TractorResource($tractor->fresh()),
+        ]);
+    }
 }
