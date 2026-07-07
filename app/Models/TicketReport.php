@@ -39,6 +39,8 @@ class TicketReport extends Model
         'resolution_photo_url',
         'dr_photo_urls',
         'status',
+        'work_status',
+        'work_condition',
         'report_pdf_path',
         'generated_at',
     ];

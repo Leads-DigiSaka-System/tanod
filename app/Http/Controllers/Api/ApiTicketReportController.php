@@ -69,6 +69,8 @@ class ApiTicketReportController extends Controller
             'down_payment' => 'nullable|numeric|min:0|max:99999999.99',
             'installments' => 'nullable|integer|min:1|max:12',
             'status' => 'nullable|in:draft,finalized',
+            'work_status' => 'nullable|in:Completed,Pending,Operational,Non Operational',
+            'work_condition' => 'nullable|in:Operational,Non Operational',
         ]);
 
         $ticketReport->update($data);
@@ -173,7 +175,7 @@ class ApiTicketReportController extends Controller
      */
     private function generatePdf(TicketReport $report): void
     {
-        $report->load(['ticket', 'tps']);
+        $report->load(['ticket.tractor', 'tps']);
 
         // Ensure the reports directory exists
         Storage::disk('public')->makeDirectory('reports');
@@ -226,6 +228,8 @@ class ApiTicketReportController extends Controller
             'resolution_photo_url' => $report->resolution_photo_url,
             'dr_photo_urls' => $report->dr_photo_urls,
             'status' => $report->status,
+            'work_status' => $report->work_status,
+            'work_condition' => $report->work_condition,
             'report_pdf_url' => $report->report_pdf_path
                 ? asset('storage/'.$report->report_pdf_path)
                 : null,

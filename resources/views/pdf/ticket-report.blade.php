@@ -96,6 +96,7 @@ table{
     color:#a00000;
     font-size:13px;
     font-weight:bold;
+    font-family: 'Times New Roman', Times, serif;
 }
 
 .header-line{
@@ -128,7 +129,7 @@ table{
 }
 
 .box{
-    float:left;
+    display:inline-block;
     width:10px;
     height:10px;
     border:1px solid #000;
@@ -136,12 +137,13 @@ table{
     line-height:10px;
     font-size:10px;
     margin-right:3px;
-    margin-top:1px;
+    vertical-align:middle;
 }
 
 .cb-label{
     font-size:8px;
     line-height:12px;
+    vertical-align:middle;
 }
 
 </style>
@@ -197,9 +199,9 @@ $logo2 = public_path('images/leads-logo.png');
 
 </td>
 
-<td style="text-align:left;">
+<td style="text-align:left;  padding-left:12px;">
 
-<span class="report-no">No. {{ preg_replace('/[^0-9]/', '', $report->ticket_no ?? $report->ticket_id) }}</span>
+<span class="report-no">No.    {{ $report->id }}</span>
 
 </td>
 
@@ -251,7 +253,7 @@ Customer Name
 
 <td class="value">
 
-{{ $report->customer_name ?? '' }}
+{{ $report->ticket?->tractor?->name ?? $report->customer_name ?? '' }}
 
 </td>
 
@@ -317,7 +319,7 @@ Contact No.
         </td>
 
         <td width="34%" class="value">
-            {{ $report->subject ?? '' }}
+            Four Wheel Tractor
         </td>
 
         <td width="16%" class="label" style="padding-left:10px;">
@@ -368,6 +370,12 @@ if(!is_array($performed)){
 }
 
 $isWarranty = strtolower($report->warranty_type ?? '') == 'yes';
+
+// Auto-detect type of job from subject
+$subjectLower = strtolower($report->subject ?? '');
+$isRepair = str_starts_with($subjectLower, 'repair');
+$isChangeOil = str_contains($subjectLower, 'pms') || str_contains($subjectLower, 'change oil');
+$isTraining = str_starts_with($subjectLower, 'training') || str_starts_with($subjectLower, 'request training');
 
 @endphp
 
@@ -459,13 +467,13 @@ Warranty Expiration
 
 <td width="33%">
 
-<span class="box">{{ in_array('change oil',$performed) ? '✓' : '' }}</span><span class="cb-label"> Change Oil</span>
+<span class="box">{{ $isChangeOil ? '✓' : '' }}</span><span class="cb-label"> Change Oil</span>
 
 </td>
 
 <td width="34%">
 
-<span class="box">{{ in_array('training',$performed) ? '✓' : '' }}</span><span class="cb-label"> Training</span>
+<span class="box">{{ $isTraining ? '✓' : '' }}</span><span class="cb-label"> Training</span>
 
 </td>
 
@@ -487,7 +495,7 @@ Warranty Expiration
 
 <td style="padding-top:4px;">
 
-<span class="box">{{ in_array('repair',$performed) ? '✓' : '' }}</span><span class="cb-label"> Repair</span>
+<span class="box">{{ $isRepair ? '✓' : '' }}</span><span class="cb-label"> Repair</span>
 
 </td>
 
@@ -512,7 +520,7 @@ Warranty Expiration
 
 <td width="24%">
 <div class="line">
-{{ $report->reported_date ?? '' }}
+{{ $report->ticket?->created_at?->format('m/d/Y') ?? '' }}
 </div>
 </td>
 
@@ -757,49 +765,29 @@ $total += $qty * $cost;
 <tr>
 
 <td width="25%" background="#4ebd58" style="padding:4px;">
-
-<span class="box">
-
-{{ ($report->status ?? '')=="Completed" ? "✓" : "" }}
-
-</span><span class="cb-label"> Completed</span>
-
+<span class="box">{{ ($report->work_status ?? '')=="Completed" ? "✓" : "" }}</span><span class="cb-label"> Completed</span>
 </td>
 
 <td width="25%" background="#ad3838" style="padding:2px;">
+<span class="box">{{ ($report->work_status ?? '')=="Pending" ? "✓" : "" }}</span><span class="cb-label"> Pending</span>
+</td>
 
-<span class="box">
 
-{{ ($report->status ?? '')=="Pending" ? "✓" : "" }}
 
-</span><span class="cb-label"> Pending</span>
 
+<td width="25%">
+<span class="box">{{ ($report->work_condition ?? '')=="Operational" ? "✓" : "" }}</span><span class="cb-label"> Operational</span>
 </td>
 
 <td width="25%">
-
-<span class="box">
-
-{{ ($report->status ?? '')=="Operational" ? "✓" : "" }}
-
-</span><span class="cb-label"> Operational</span>
-
+<span class="box">{{ ($report->work_condition ?? '')=="Non Operational" ? "✓" : "" }}</span><span class="cb-label"> Non Operational</span>
 </td>
 
-<td width="25%">
-
-<span class="box">
-
-{{ ($report->status ?? '')=="Non Operational" ? "✓" : "" }}
-
-</span><span class="cb-label"> Non Operational</span>
-
-</td>
 
 </tr>
 <tr align="center">
     <td></td>
-    <td align="left">
+    <td align="left" style="padding-right:4px;">
         Remarks
     </td>
     <td align="left">
@@ -809,7 +797,7 @@ $total += $qty * $cost;
 </tr>
 <tr align="center">
     <td></td>
-    <td align="left">
+    <td align="left" style="padding-right:4px;">
         <div style="border-bottom:1px solid #000;height:14px;">
             {{ $report->remarks ?? '' }}
         </div>

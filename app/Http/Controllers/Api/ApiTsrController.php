@@ -1202,17 +1202,24 @@ class ApiTsrController extends Controller
     public function distributionFormData(Request $request)
     {
         $user = $request->user();
-        $tractorIds = $this->manageableTractorIdsForTsr($user);
+
+        // Allow TPS to see all tractors for distribution purposes
+        $tractorQuery = Tractor::query()
+            // Exclude tractors with devices stale >365 days
+            ->whereHas('device', fn ($q) => $q->notStale());
+
+        // Non-TPS roles still respect their accessible scope
+        if (! $user->hasAnyRole(['tps', 'super-admin', 'sub-admin'])) {
+            $tractorIds = $this->manageableTractorIdsForTsr($user);
+            $tractorQuery->whereIn('id', $tractorIds);
+        }
 
         // Tractors already actively distributed
-        $distributedTractorIds = TractorDistribution::whereIn('tractor_id', $tractorIds)
-            ->where('status', 'distributed')
+        $distributedTractorIds = TractorDistribution::where('status', 'distributed')
             ->pluck('tractor_id')
             ->all();
 
-        $tractors = Tractor::whereIn('id', $tractorIds)
-            // Exclude tractors with devices stale >365 days
-            ->whereHas('device', fn ($q) => $q->notStale())
+        $tractors = $tractorQuery
             // Only return unassigned tractors
             ->whereNotIn('id', $distributedTractorIds)
             ->select('id', 'no_plate', 'imei', 'brand', 'model')
@@ -1255,9 +1262,11 @@ class ApiTsrController extends Controller
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
 
-        // Distribution remains limited to the TSR user's assignment scope.
-        if (! in_array((int) $validated['tractor_id'], $tractorIds)) {
-            return response()->json(['message' => 'You can view this tractor, but only tractors in your TSR assignment scope can be distributed.'], 403);
+        // Allow TPS/super-admin/sub-admin to distribute any tractor they can view
+        if (! $user->hasAnyRole(['tps', 'super-admin', 'sub-admin'])) {
+            if (! in_array((int) $validated['tractor_id'], $tractorIds)) {
+                return response()->json(['message' => 'You can view this tractor, but only tractors in your TSR assignment scope can be distributed.'], 403);
+            }
         }
 
         // Ensure the tractor is not already actively distributed

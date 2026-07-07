@@ -482,6 +482,7 @@ class ApiTicketController extends Controller
             'resolution_photo_url' => $resolutionPhotoPath ? asset('storage/'.$resolutionPhotoPath) : null,
             'dr_photo_urls' => ! empty($drPhotoUrls) ? $drPhotoUrls : null,
             'status' => 'draft',
+            'work_status' => 'Completed',
             'generated_at' => now(),
         ]);
     }
