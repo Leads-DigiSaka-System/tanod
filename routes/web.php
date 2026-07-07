@@ -149,6 +149,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('reports/device-status', [ReportController::class, 'deviceStatus'])->name('reports.device-status');
     Route::get('reports/alerts-history', [ReportController::class, 'alertsReport'])->name('reports.alerts-history');
     Route::get('reports/ticket-summary', [ReportController::class, 'ticketReport'])->name('reports.ticket-summary');
+    Route::get('reports/ticket-service-reports/{ticketReport}/download', [ReportController::class, 'downloadTicketServiceReport'])->name('reports.ticket-service-reports.download');
+    Route::delete('reports/ticket-service-reports/{ticketReport}', [ReportController::class, 'destroyTicketServiceReport'])->name('reports.ticket-service-reports.destroy');
 
     // Support Contact
     Route::get('/support-contact', function (Illuminate\Http\Request $request) {

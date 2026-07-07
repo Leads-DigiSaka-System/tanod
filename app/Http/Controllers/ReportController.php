@@ -9,20 +9,17 @@ use App\Models\Device;
 use App\Models\Maintenance;
 use App\Models\ReportSubscription;
 use App\Models\Ticket;
+use App\Models\TicketReport;
 use App\Models\Tractor;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
 {
-    public function index()
-    {
-        return Inertia::render('Reports/Index');
-    }
-
     public function tractorUsage(Request $request)
     {
         $request->validate([
@@ -586,6 +583,10 @@ class ReportController extends Controller
             ->orderBy('name')
             ->get();
 
+        $ticketReports = TicketReport::with(['ticket:id,subject', 'tps:id,name'])
+            ->latest()
+            ->paginate(15);
+
         return Inertia::render('Reports/Index', [
             'groupedSubscriptions' => $grouped,
             'allUsers' => $users,
@@ -593,6 +594,7 @@ class ReportController extends Controller
             'intervals' => ReportSubscription::intervals(),
             'daysOfWeek' => ReportSubscription::daysOfWeek(),
             'timeOptions' => ReportSubscription::timeOptions(),
+            'ticketReports' => $ticketReports,
         ]);
     }
 
@@ -709,5 +711,34 @@ class ReportController extends Controller
         $next = $base->copy()->setDay(min($dayOfMonth, $base->daysInMonth));
 
         return $next->isPast() ? $next->addMonth()->setDay(min($dayOfMonth, $next->daysInMonth)) : $next;
+    }
+
+    /**
+     * Download a ticket service report PDF.
+     */
+    public function downloadTicketServiceReport(TicketReport $ticketReport)
+    {
+        abort_unless($ticketReport->report_pdf_path, 404, 'PDF not found.');
+
+        $path = Storage::disk('public')->path($ticketReport->report_pdf_path);
+
+        abort_unless(file_exists($path), 404, 'PDF file not found on disk.');
+
+        return response()->download($path, 'service-report-'.$ticketReport->id.'.pdf');
+    }
+
+    /**
+     * Delete a ticket service report.
+     */
+    public function destroyTicketServiceReport(TicketReport $ticketReport)
+    {
+        // Delete the PDF file if it exists
+        if ($ticketReport->report_pdf_path) {
+            Storage::disk('public')->delete($ticketReport->report_pdf_path);
+        }
+
+        $ticketReport->delete();
+
+        return redirect()->back()->with('success', 'Service report deleted successfully.');
     }
 }

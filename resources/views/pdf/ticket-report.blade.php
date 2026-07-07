@@ -530,7 +530,7 @@ Warranty Expiration
 
 <td width="24%">
 <div class="line">
-{{ $report->reported_time ?? '' }}
+{{ $report->ticket?->created_at?->format('h:i A') ?? '' }}
 </div>
 </td>
 
@@ -543,7 +543,7 @@ Warranty Expiration
 <b>Customer Complaint / Claim</b>
 
 <div class="line" style="margin-top:4px;">
-{{ $report->customer_complaint ?? '' }}
+{{ $report->subject ?? '' }}
 </div>
 
 <div class="line"></div>
@@ -553,7 +553,7 @@ Warranty Expiration
 <b>Unit Detailed Activity Before Failure</b>
 
 <div class="line" style="margin-top:4px;">
-{{ $report->activity_before_failure ?? '' }}
+{{ $report->ticket?->description ?? '' }}
 </div>
 
 <div class="line"></div>

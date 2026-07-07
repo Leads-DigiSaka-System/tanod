@@ -111,6 +111,7 @@ class ApiTicketController extends Controller
             'pms_checklist.*.notes' => 'nullable|string|max:500',
             'auto_resolve' => 'nullable|boolean',
             'action_taken' => 'nullable|string|in:Self PMS,Third Party,Need Technician Help,Self Repair,Third Party Repair',
+            'reported_date' => 'nullable|date',
         ]);
 
         $data['priority'] = $data['priority'] ?? 'medium';
@@ -152,6 +153,7 @@ class ApiTicketController extends Controller
             'tractor_id' => $data['tractor_id'] ?? null,
             'submitted_by' => $user->id,
             'fca_name' => $fcaName,
+            'reported_date' => $data['reported_date'] ?? null,
             'status' => ! empty($data['auto_resolve']) ? 'resolved' : 'open',
             'photo_path' => $photoPath,
             'nameplate_photo_path' => $nameplatePath,
