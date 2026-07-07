@@ -60,7 +60,7 @@ class ApiMaintenanceController extends Controller
     }
 
     /**
-     * Create a PMS record (self-service) or a PMS request (for TPS help).
+     * Create a PMS record (self-service) or a PMS request (for TSR help).
      */
     public function store(StorePmsRecordRequest $request): JsonResponse
     {
@@ -173,14 +173,14 @@ class ApiMaintenanceController extends Controller
     }
 
     /**
-     * TPS completes a PMS request.
+     * TSR completes a PMS request.
      */
     public function complete(Request $request, Maintenance $maintenance): JsonResponse
     {
         /** @var \App\Models\User $user */
         $user = $request->user();
 
-        abort_unless($user->hasRole('tps'), 403, 'Only TPS can complete PMS requests.');
+        abort_unless($user->hasRole('tsr'), 403, 'Only TSR can complete PMS requests.');
         abort_unless($maintenance->status === 'scheduled', 422, 'This PMS is not in scheduled status.');
 
         $data = $request->validate([

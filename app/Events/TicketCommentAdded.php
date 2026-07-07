@@ -33,16 +33,16 @@ class TicketCommentAdded implements ShouldBroadcastNow, ShouldDispatchAfterCommi
             ->where('is_active', true)
             ->pluck('id');
 
-        // TPS users via tractor group membership
-        $tpsIds = collect();
+        // TSR users via tractor group membership
+        $tsrIds = collect();
         if ($ticket->tractor_id) {
-            $tpsIds = collect(User::tpsIdsForTractor($ticket->tractor_id));
+            $tsrIds = collect(User::tsrIdsForTractor($ticket->tractor_id));
         }
 
         return $ticket->assignees()->pluck('users.id')
             ->merge([$ticket->submitted_by, $ticket->assigned_to])
             ->merge($adminIds)
-            ->merge($tpsIds)
+            ->merge($tsrIds)
             ->when($ticket->tractor, fn ($col) => $col->merge([$ticket->tractor->assigned_to]))
             ->filter()
             ->unique()

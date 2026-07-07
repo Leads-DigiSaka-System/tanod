@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\Log;
  * 3) Live location data — offline detection (no heartbeat for 30+ min).
  * 4) Live location data — idle detection (online, speed=0 for 60+ min).
  *
- * Notifications are sent to admins + TPS/FCA users assigned to the tractor.
+ * Notifications are sent to admins + TSR/FCA users assigned to the tractor.
  * FCM push is sent to users with an fcm_token.
  *
  * Runs every 2 minutes.
@@ -311,7 +311,7 @@ class SyncJimiAlarms implements ShouldQueue
     /**
      * Create alert in DB and send notifications to:
      * - All super-admin and sub-admin users
-     * - TPS users in the tractor's groups
+     * - TSR users in the tractor's groups
      * - FCA users who have the tractor distributed to them
      *
      * Also sends FCM push to all notified users with a token.
@@ -361,7 +361,7 @@ class SyncJimiAlarms implements ShouldQueue
     /**
      * Get all users who should receive an alert for this device's tractor:
      * - super-admin, sub-admin (always)
-     * - TPS users in the tractor's groups
+     * - TSR users in the tractor's groups
      * - FCA users who have the tractor distributed to them
      *
      * @return \Illuminate\Support\Collection<int, User>
@@ -376,7 +376,7 @@ class SyncJimiAlarms implements ShouldQueue
             return $admins;
         }
 
-        $tpsUsers = User::role('tps')
+        $tsrUsers = User::role('tsr')
             ->where('is_active', true)
             ->whereHas('groups', fn ($q) => $q->whereIn(
                 'tractor_groups.id',
@@ -390,7 +390,7 @@ class SyncJimiAlarms implements ShouldQueue
                 ->where('status', 'distributed'))
             ->get();
 
-        return $admins->merge($tpsUsers)->merge($fcaUsers)->unique('id');
+        return $admins->merge($tsrUsers)->merge($fcaUsers)->unique('id');
     }
 
     /**
@@ -415,7 +415,7 @@ class SyncJimiAlarms implements ShouldQueue
             Http::withHeaders([
                 'Authorization' => "key={$serverKey}",
                 'Content-Type' => 'application/json',
-            ])->post('https://fcm.googleapis.com/fcm/send', [
+            ])->post('htTSR://fcm.googleapis.com/fcm/send', [
                 'registration_ids' => $tokens,
                 'notification' => [
                     'title' => $title,

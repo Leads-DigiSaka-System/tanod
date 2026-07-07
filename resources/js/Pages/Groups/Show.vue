@@ -58,9 +58,9 @@
         </div>
       </div>
 
-      <!-- TPS Users card -->
+      <!-- TSR Users card -->
       <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 dark:bg-gray-800 dark:border-gray-700">
-        <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Assigned TPS ({{ group.tps_users?.length || 0 }})</h3>
+        <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Assigned TSR ({{ group.tps_users?.length || 0 }})</h3>
         <div v-if="group.tps_users?.length" class="space-y-3">
           <div v-for="u in group.tps_users" :key="u.id"
             class="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-700">
@@ -77,7 +77,7 @@
           <svg class="w-10 h-10 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
           </svg>
-          <p class="mt-2 text-sm text-gray-400 dark:text-gray-500">No TPS assigned.</p>
+          <p class="mt-2 text-sm text-gray-400 dark:text-gray-500">No TSR assigned.</p>
         </div>
       </div>
     </div>

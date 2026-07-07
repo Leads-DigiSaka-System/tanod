@@ -98,9 +98,10 @@ class ApiTicketController extends Controller
             'priority' => ['nullable', Rule::in(['low', 'medium', 'high', 'critical'])],
             'category' => 'nullable|string|max:100',
             'tractor_id' => 'nullable|exists:tractors,id',
-            'nameplate_photo' => 'required|file|mimes:jpg,jpeg,png,webp,mp4,mov,avi|max:51200',
-            'dashboard_photo' => 'required|file|mimes:jpg,jpeg,png,webp,mp4,mov,avi|max:51200',
-            'damage_photos' => 'required|array|min:1|max:10',
+            'photo' => 'nullable|file|mimes:jpg,jpeg,png,webp,mp4,mov,avi|max:51200',
+            'nameplate_photo' => 'nullable|file|mimes:jpg,jpeg,png,webp,mp4,mov,avi|max:51200',
+            'dashboard_photo' => 'nullable|file|mimes:jpg,jpeg,png,webp,mp4,mov,avi|max:51200',
+            'damage_photos' => 'nullable|array|min:1|max:10',
             'damage_photos.*' => 'file|mimes:jpg,jpeg,png,webp,mp4,mov,avi|max:51200',
             'pms_checklist' => 'nullable|array',
             'pms_checklist.*.name' => 'required_with:pms_checklist|string',
@@ -117,8 +118,22 @@ class ApiTicketController extends Controller
             abort_unless(in_array((int) $data['tractor_id'], $tractorIds), 403, 'You do not have access to this tractor.');
         }
 
-        $nameplatePath = $request->file('nameplate_photo')->store('tickets/nameplates', 'public');
-        $dashboardPath = $request->file('dashboard_photo')->store('tickets/dashboards', 'public');
+        // Handle photo uploads — supports both mobile (single 'photo') and web (separate fields)
+        $photoPath = null;
+        $nameplatePath = null;
+        $dashboardPath = null;
+
+        if ($request->hasFile('photo')) {
+            $photoPath = $request->file('photo')->store('tickets/photos', 'public');
+        }
+
+        if ($request->hasFile('nameplate_photo')) {
+            $nameplatePath = $request->file('nameplate_photo')->store('tickets/nameplates', 'public');
+        }
+
+        if ($request->hasFile('dashboard_photo')) {
+            $dashboardPath = $request->file('dashboard_photo')->store('tickets/dashboards', 'public');
+        }
 
         $fcaName = null;
         if ($user->hasRole('fca')) {
@@ -136,6 +151,7 @@ class ApiTicketController extends Controller
             'submitted_by' => $user->id,
             'fca_name' => $fcaName,
             'status' => ! empty($data['auto_resolve']) ? 'resolved' : 'open',
+            'photo_path' => $photoPath,
             'nameplate_photo_path' => $nameplatePath,
             'dashboard_photo_path' => $dashboardPath,
             'pms_checklist' => $data['pms_checklist'] ?? null,
@@ -146,11 +162,13 @@ class ApiTicketController extends Controller
             'resolved_at' => ! empty($data['auto_resolve']) ? now() : null,
         ]);
 
-        foreach ($request->file('damage_photos') as $i => $file) {
-            $ticket->damagePhotos()->create([
-                'photo_path' => $file->store('tickets/damages', 'public'),
-                'sort_order' => $i,
-            ]);
+        if ($request->hasFile('damage_photos')) {
+            foreach ($request->file('damage_photos') as $i => $file) {
+                $ticket->damagePhotos()->create([
+                    'photo_path' => $file->store('tickets/damages', 'public'),
+                    'sort_order' => $i,
+                ]);
+            }
         }
 
         $ticket->load(['tractor:id,no_plate,brand,model', 'submitter:id,name', 'damagePhotos']);
@@ -171,12 +189,12 @@ class ApiTicketController extends Controller
             ]);
         }
 
-        // Notify TPS users assigned to the tractor's group
-        $tpsIds = [];
+        // Notify TSR users assigned to the tractor's group
+        $tsrIds = [];
         if ($ticket->tractor_id) {
-            $tpsIds = User::tpsIdsForTractor($ticket->tractor_id);
+            $tsrIds = User::tsrIdsForTractor($ticket->tractor_id);
 
-            foreach ($tpsIds as $tpsId) {
+            foreach ($tsrIds as $tpsId) {
                 Notification::create([
                     'user_id' => $tpsId,
                     'type' => 'ticket_created',
@@ -187,7 +205,12 @@ class ApiTicketController extends Controller
             }
         }
 
-        TicketCreated::dispatch($ticket, array_unique([...$adminIds, ...$tpsIds]));
+        try {
+            TicketCreated::dispatch($ticket, array_unique([...$adminIds, ...$tsrIds]));
+        } catch (\Throwable $e) {
+            // Broadcast failure (e.g. SSL cert issue) should not block ticket creation
+            \Illuminate\Support\Facades\Log::warning('Ticket broadcast failed: '.$e->getMessage());
+        }
 
         return response()->json(['data' => $this->formatTicket($ticket)], 201);
     }
@@ -386,7 +409,11 @@ class ApiTicketController extends Controller
             ]);
         }
 
-        \App\Events\TicketStatusUpdated::dispatch($ticket, 'closed', $recipientIds);
+        try {
+            \App\Events\TicketStatusUpdated::dispatch($ticket, 'closed', $recipientIds);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Ticket close broadcast failed: '.$e->getMessage());
+        }
 
         return response()->json(['data' => $this->formatTicket($ticket, full: true)]);
     }
@@ -413,7 +440,7 @@ class ApiTicketController extends Controller
             return null;
         }
 
-        return request()->getSchemeAndHttpHost().'/storage/'.$path;
+        return asset('storage/'.$path);
     }
 
     /**

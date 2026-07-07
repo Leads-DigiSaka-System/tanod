@@ -107,10 +107,13 @@
               </td>
               <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">{{ formatDateOnly(ticket.reported_date) || formatDate(ticket.created_at) }}</td>
               <td class="px-5 py-3.5">
-                <div class="flex items-center justify-end">
+                <div class="flex items-center justify-end gap-0.5">
                   <Link :href="`/tickets/${ticket.id}`" class="p-2 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 transition-colors" title="View">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                   </Link>
+                  <button @click="confirmDelete(ticket)" class="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors" title="Delete">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -131,6 +134,49 @@
     </div>
 
     <Pagination :links="tickets.links" class="mt-6" />
+
+    <!-- Delete Confirmation Modal -->
+    <Modal :show="showDeleteModal" max-width="sm" @close="closeDeleteModal">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+            <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Delete Ticket</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400">This action cannot be undone.</p>
+          </div>
+        </div>
+      </template>
+
+      <div class="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+        <p>Are you sure you want to delete this ticket?</p>
+        <div class="rounded-lg bg-gray-50 dark:bg-gray-800/50 p-3 space-y-1">
+          <p class="font-medium text-gray-900 dark:text-white truncate">{{ ticketToDelete?.subject }}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">
+            #{{ ticketToDelete?.id }} &middot; {{ statusLabel(ticketToDelete?.status) }}
+          </p>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3 w-full">
+          <button @click="closeDeleteModal" type="button"
+            class="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600 dark:focus:ring-gray-500 transition-colors">
+            Cancel
+          </button>
+          <button @click="deleteTicket" type="button"
+            class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-offset-gray-800 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+            Yes, Delete Ticket
+          </button>
+        </div>
+      </template>
+    </Modal>
   </AppLayout>
 </template>
 
@@ -139,6 +185,7 @@ import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
+import Modal from '@/Components/Modal.vue';
 import { formatDate, formatDateOnly } from '@/utils/dateFormat';
 
 const props = defineProps({ tickets: Object, filters: Object });
@@ -148,6 +195,30 @@ const statusFilter = ref(props.filters?.status || '');
 const priorityFilter = ref(props.filters?.priority || '');
 const sort = ref(props.filters?.sort || 'created_at');
 const direction = ref(props.filters?.direction || 'desc');
+
+// ── Delete state ──
+const showDeleteModal = ref(false);
+const ticketToDelete = ref(null);
+
+function confirmDelete(ticket) {
+  ticketToDelete.value = ticket;
+  showDeleteModal.value = true;
+}
+
+function closeDeleteModal() {
+  showDeleteModal.value = false;
+  ticketToDelete.value = null;
+}
+
+function deleteTicket() {
+  if (!ticketToDelete.value) return;
+  router.delete(`/tickets/${ticketToDelete.value.id}`, {
+    preserveState: true,
+    replace: true,
+    onSuccess: () => closeDeleteModal(),
+    onError: () => closeDeleteModal(),
+  });
+}
 
 let timer;
 const debouncedFilter = () => { clearTimeout(timer); timer = setTimeout(applyFilter, 300); };

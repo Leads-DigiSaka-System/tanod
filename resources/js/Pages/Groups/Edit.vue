@@ -106,14 +106,14 @@
         </div>
       </div>
 
-      <!-- Assign TPS Card -->
+      <!-- Assign TSR Card -->
       <div class="bg-white rounded-xl border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
         <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Set TPS Responsibilities</h2>
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Set TSR Responsibilities</h2>
           <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             {{ form.assign_all_tps
-              ? `All ${allTpsCount} TPS users will be assigned to this group when you save.`
-              : `${form.tps_user_ids.length} selected. These assignments define coordination responsibility for this group. TPS users already set to all tractors are managed from Users and will not appear here.` }}
+              ? `All ${allTpsCount} TSR users will be assigned to this group when you save.`
+              : `${form.tps_user_ids.length} selected. These assignments define coordination responsibility for this group. TSR users already set to all tractors are managed from Users and will not appear here.` }}
           </p>
         </div>
         <div class="p-4 space-y-4">
@@ -122,13 +122,13 @@
               class="mt-1 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700" />
             <div>
               <p class="text-sm font-medium text-gray-900 dark:text-white">Assign this group to all TPS</p>
-              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Every current TPS user will be linked to the tractors in this group. Turn this off to choose specific TPS users instead.</p>
-              <p v-if="!allTpsCount" class="mt-1 text-xs text-amber-600 dark:text-amber-400">No TPS users are available yet.</p>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Every current TSR user will be linked to the tractors in this group. Turn this off to choose specific TSR users instead.</p>
+              <p v-if="!allTpsCount" class="mt-1 text-xs text-amber-600 dark:text-amber-400">No TSR users are available yet.</p>
             </div>
           </label>
 
           <div v-if="form.assign_all_tps" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
-            All {{ allTpsCount }} TPS users will be assigned automatically when this group is saved.
+            All {{ allTpsCount }} TSR users will be assigned automatically when this group is saved.
           </div>
 
           <template v-else>
@@ -160,7 +160,7 @@
                 </div>
               </label>
               <p v-if="!filteredTpsUsers.length" class="text-center py-6 text-sm text-gray-400 dark:text-gray-500">
-                {{ tpsSearch ? 'No TPS users match your search.' : 'No TPS users available.' }}
+                {{ tpsSearch ? 'No TSR users match your search.' : 'No TSR users available.' }}
               </p>
             </div>
           </template>

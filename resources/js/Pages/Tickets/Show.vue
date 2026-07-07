@@ -765,7 +765,7 @@ const displayRole = (roles) => {
   if (!roles?.length) return '';
   const r = roles[0];
   if (r === 'super-admin' || r === 'sub-admin') return 'Admin';
-  if (r === 'tps') return 'TPS';
+  if (r === 'tsr') return 'tsr';
   if (r === 'fca') return 'FCA';
   if (r === 'farmer') return 'Farmer';
   return '';

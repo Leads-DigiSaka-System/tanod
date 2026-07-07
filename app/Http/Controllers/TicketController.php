@@ -116,7 +116,9 @@ class TicketController extends Controller
                 'service_charge' => $ticket->service_charge,
                 'down_payment' => $ticket->down_payment,
                 'installments' => $ticket->installments,
-                'photo_url' => $ticket->photo_path ? Storage::disk('public')->url($ticket->photo_path) : null,
+                'photo_url' => $ticket->photo_path
+                    ? asset('storage/'.$ticket->photo_path)
+                    : null,
                 'nameplate_photo_url' => $ticket->nameplate_photo_path
                     ? asset('storage/'.$ticket->nameplate_photo_path)
                     : null,
@@ -142,7 +144,7 @@ class TicketController extends Controller
                 'pms_checklist' => $ticket->pms_checklist,
                 'resolution_notes' => $ticket->resolution_notes,
                 'resolution_photo_url' => $ticket->resolution_photo_path
-                    ? Storage::disk('public')->url($ticket->resolution_photo_path)
+                    ? asset('storage/'.$ticket->resolution_photo_path)
                     : null,
                 'resolved_at' => $ticket->resolved_at?->toIso8601String(),
                 'created_at' => $ticket->created_at?->toIso8601String(),
@@ -167,7 +169,7 @@ class TicketController extends Controller
                 'comments' => $ticket->comments->map(fn ($c) => [
                     'id' => $c->id,
                     'body' => $c->body,
-                    'attachment_url' => $c->attachment_path ? Storage::disk('public')->url($c->attachment_path) : null,
+                    'attachment_url' => $c->attachment_path ? asset('storage/'.$c->attachment_path) : null,
                     'user' => $c->user ? ['id' => $c->user->id, 'name' => $c->user->name] : null,
                     'created_at' => $c->created_at?->toIso8601String(),
                 ])->all(),
@@ -228,6 +230,21 @@ class TicketController extends Controller
         }
 
         return back()->with('success', 'Ticket status updated.');
+    }
+
+    public function destroy(Ticket $ticket)
+    {
+        $user = request()->user();
+
+        // Only super-admin, sub-admin, or the ticket submitter can delete
+        if (! $user->hasAnyRole(['super-admin', 'sub-admin']) && $ticket->submitted_by !== $user->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $ticket->delete(); // soft delete
+
+        return redirect()->route('tickets.index')
+            ->with('success', 'Ticket deleted successfully.');
     }
 
     public function assign(Request $request, Ticket $ticket)

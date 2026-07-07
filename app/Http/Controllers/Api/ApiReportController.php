@@ -27,7 +27,7 @@ class ApiReportController extends Controller
             $sections = $this->adminReport();
         } elseif ($user->hasRole('fca')) {
             $sections = $this->fcaReport($user);
-        } elseif ($user->hasRole('tps')) {
+        } elseif ($user->hasRole('tsr')) {
             $sections = $this->tpsReport($user);
         } elseif ($user->hasRole('farmer')) {
             $sections = $this->farmerReport($user);
@@ -137,7 +137,7 @@ class ApiReportController extends Controller
             'rows' => [
                 ['label' => 'Total Users', 'value' => User::where('is_active', true)->count()],
                 ['label' => 'FCA', 'value' => User::role('fca')->where('is_active', true)->count()],
-                ['label' => 'TPS', 'value' => User::role('tps')->where('is_active', true)->count()],
+                ['label' => 'tsr', 'value' => User::role('tsr')->where('is_active', true)->count()],
                 ['label' => 'Farmers', 'value' => User::role('farmer')->where('is_active', true)->count()],
             ],
         ];

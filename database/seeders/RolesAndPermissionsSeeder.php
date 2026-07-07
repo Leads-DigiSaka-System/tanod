@@ -42,7 +42,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'maintenance.view', 'maintenance.create', 'maintenance.edit', 'maintenance.delete',
             'maintenance.perform', 'maintenance.complete',
 
-            // Distribution (TPS)
+            // Distribution (tsr)
             'distributions.view', 'distributions.create', 'distributions.edit',
 
             // GeoFence
@@ -93,9 +93,9 @@ class RolesAndPermissionsSeeder extends Seeder
             ]))->toArray()
         );
 
-        // TPS (Technical Personnel/Service) — distribution, maintenance, tractor ops
-        $tps = Role::firstOrCreate(['name' => 'tps']);
-        $tps->givePermissionTo([
+        // tsr (Technical Personnel/Service) — distribution, maintenance, tractor ops
+        $tsr = Role::firstOrCreate(['name' => 'tsr']);
+        $tsr->givePermissionTo([
             'tractors.view', 'tractors.edit', 'tractors.assign',
             'devices.view', 'devices.sync',
             'groups.view',

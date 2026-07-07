@@ -14,7 +14,7 @@ class ApiGeoFenceController extends Controller
     /**
      * List geofences relevant to the authenticated user.
      * - admin: all
-     * - tps: geofences for devices in their accessible tractor scope
+     * - TSR: geofences for devices in their accessible tractor scope
      * - fca: geofences for devices on their distributed tractors
      */
     public function index(Request $request)
@@ -55,7 +55,7 @@ class ApiGeoFenceController extends Controller
     /**
      * Create a geofence.
      * FCA can create for devices on their assigned tractors.
-     * TPS / admin can create for devices in their scope.
+     * TSR / admin can create for devices in their scope.
      */
     public function store(Request $request, JimiGeoFenceService $jimiService)
     {

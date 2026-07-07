@@ -253,7 +253,7 @@
           <div class="p-5 space-y-3"><div v-for="b in pendingBookings" :key="b.id" class="flex justify-between p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20"><div><p class="text-sm font-medium">{{ b.tractor?.no_plate }}</p><p class="text-xs text-gray-500">{{ b.booked_by?.name }} &mdash; {{ b.booking_date }}</p></div><Link :href="`/bookings/${b.id}`" class="text-sm font-medium text-indigo-600 hover:underline">Review</Link></div></div>
         </div>
         <div v-if="myTractors?.length" class="bg-white rounded-lg border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <div class="p-5 border-b border-gray-200 dark:border-gray-700"><h3 class="text-lg font-semibold">My TPS Responsibilities</h3></div>
+          <div class="p-5 border-b border-gray-200 dark:border-gray-700"><h3 class="text-lg font-semibold">My TSR Responsibilities</h3></div>
           <div class="p-5 space-y-3"><div v-for="t in myTractors" :key="t.id" class="flex justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700"><div><p class="text-sm font-medium">{{ t.no_plate }} &mdash; {{ t.brand }} {{ t.model }}</p><StatusBadge :status="t.device?.latest_location ? 'online' : 'offline'" :show-dot="true" /></div><Link :href="`/tractors/${t.id}`" class="text-sm font-medium text-indigo-600 hover:underline">View</Link></div></div>
         </div>
         <div v-if="myBookings?.length" class="bg-white rounded-lg border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">

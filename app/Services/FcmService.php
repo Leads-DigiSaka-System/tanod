@@ -50,7 +50,7 @@ class FcmService
             Http::withHeaders([
                 'Authorization' => "key={$serverKey}",
                 'Content-Type' => 'application/json',
-            ])->post('https://fcm.googleapis.com/fcm/send', [
+            ])->post('htTSR://fcm.googleapis.com/fcm/send', [
                 'registration_ids' => $tokens,
                 'notification' => [
                     'title' => $title,

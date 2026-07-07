@@ -37,6 +37,7 @@ class Ticket extends Model
         'resolved_by',
         'resolved_at',
         'pms_checklist',
+        'collectible_status',
     ];
 
     protected function casts(): array
@@ -49,7 +50,25 @@ class Ticket extends Model
             'dr_photo_paths' => 'array',
             'reported_date' => 'date',
             'resolved_at' => 'datetime',
+            'collectible_status' => 'string',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // New ticket with status 'resolved' → goes to To Approve
+        static::creating(function (self $ticket) {
+            if ($ticket->status === 'resolved' && $ticket->collectible_status !== 'paid') {
+                $ticket->collectible_status = 'to_approve';
+            }
+        });
+
+        // Existing ticket updated to 'resolved' → goes to To Approve
+        static::updating(function (self $ticket) {
+            if ($ticket->isDirty('status') && $ticket->status === 'resolved' && $ticket->collectible_status !== 'paid') {
+                $ticket->collectible_status = 'to_approve';
+            }
+        });
     }
 
     /**
@@ -118,6 +137,16 @@ class Ticket extends Model
         return $this->belongsToMany(TractorPart::class, 'ticket_tractor_part')
             ->withPivot('amount', 'quantity')
             ->withTimestamps();
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(TicketPayment::class)->latest('paid_at');
+    }
+
+    public function submitterContact(): string
+    {
+        return $this->submitter?->phone ?? '—';
     }
 
     public function userCanAccessChannel(User $user): bool

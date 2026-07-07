@@ -28,7 +28,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\File;
 use Throwable;
 
-class ApiTpsController extends Controller
+class ApiTsrController extends Controller
 {
     private const FCA_PMS_CATEGORIES = [
         'ENGINE OIL',
@@ -71,30 +71,34 @@ class ApiTpsController extends Controller
     private const FCA_DAMAGE_OPERATIONAL_OPTIONS = ['Yes', 'No'];
 
     /**
-     * Dashboard summary for TPS user.
+     * Dashboard summary for TSR user.
      */
     public function dashboard(Request $request)
     {
         $user = $request->user();
-        $visibleTractorIds = $this->visibleTractorIdsForTps($user);
-        $manageableTractorIds = $this->manageableTractorIdsForTps($user);
+        $visibleTractorIds = $this->visibleTractorIdsForTsr($user);
+        $manageableTractorIds = $this->manageableTractorIdsForTsr($user);
 
         return response()->json([
             'tractors_count' => Tractor::whereIn('id', $visibleTractorIds)
                 ->whereHas('device', fn ($q) => $q->notStale())
                 ->count(),
-            'open_tickets' => Ticket::whereIn('tractor_id', $visibleTractorIds)->whereIn('status', ['open', 'in_progress'])->count(),
+            'open_tickets' => Ticket::where(function (Builder $q) use ($user) {
+                $q->where('assigned_to', $user->id)
+                  ->orWhereHas('assignees', fn (Builder $a) => $a->where('user_id', $user->id));
+            })->whereIn('status', ['open', 'in_progress'])->count(),
             'pending_maintenance' => Maintenance::whereIn('tractor_id', $visibleTractorIds)->where('status', 'pending')->count(),
             'active_distributions' => TractorDistribution::whereIn('tractor_id', $manageableTractorIds)->where('status', 'distributed')->count(),
         ]);
     }
 
     /**
-     * List tickets visible to the TPS user.
+     * List tickets visible to the TSR user.
      */
     public function tickets(Request $request)
     {
-        $tractorIds = $this->visibleTractorIdsForTps($request->user());
+        $user = $request->user();
+        $user = $request->user();
         $search = trim((string) $request->input('search', ''));
 
         $tickets = Ticket::query()
@@ -105,7 +109,10 @@ class ApiTpsController extends Controller
                 'latestComment.user:id,name',
             ])
             ->withMax('comments', 'created_at')
-            ->whereIn('tractor_id', $tractorIds)
+            ->where(function (Builder $q) use ($user) {
+                $q->where('assigned_to', $user->id)
+                  ->orWhereHas('assignees', fn (Builder $a) => $a->where('user_id', $user->id));
+            })
             ->when($request->filled('status'), fn (Builder $q) => $q->where('status', $request->status))
             ->when($request->filled('priority'), fn (Builder $q) => $q->where('priority', $request->priority))
             ->when($search !== '', function (Builder $query) use ($search) {
@@ -130,11 +137,11 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * List maintenances (PMS) visible to the TPS user.
+     * List maintenances (PMS) visible to the TSR user.
      */
     public function maintenances(Request $request)
     {
-        $tractorIds = $this->visibleTractorIdsForTps($request->user());
+        $tractorIds = $this->visibleTractorIdsForTsr($request->user());
 
         $maintenances = Maintenance::with(['tractor:id,no_plate,brand,model', 'issueType:id,name', 'performer:id,name'])
             ->whereIn('tractor_id', $tractorIds)
@@ -146,11 +153,11 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * List farmer feedbacks visible to the TPS user.
+     * List farmer feedbacks visible to the TSR user.
      */
     public function feedbacks(Request $request)
     {
-        $tractorIds = $this->visibleTractorIdsForTps($request->user());
+        $tractorIds = $this->visibleTractorIdsForTsr($request->user());
         $search = trim((string) $request->input('search', ''));
 
         $feedbacks = FarmerFeedback::with(['tractor:id,no_plate,brand,model', 'submitter:id,name', 'booking:id,booking_date,purpose'])
@@ -177,14 +184,14 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * List active TPS users for assignment and in-charge suggestions.
+     * List active TSR users for assignment and in-charge suggestions.
      */
     public function users(Request $request)
     {
         $search = trim((string) $request->input('search', ''));
 
         $users = User::query()
-            ->role('tps')
+            ->role('tsr')
             ->where('is_active', true)
             ->select('id', 'name', 'email', 'phone')
             ->when($search !== '', function (Builder $query) use ($search) {
@@ -208,11 +215,11 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * List tractors visible on the TPS account.
+     * List tractors visible on the TSR account.
      */
     public function tractors(Request $request)
     {
-        $tractorIds = $this->visibleTractorIdsForTps($request->user());
+        $tractorIds = $this->visibleTractorIdsForTsr($request->user());
         $search = trim((string) $request->input('search', ''));
 
         $tractors = Tractor::with(['device:id,imei,device_name,sim,sim_iccid', 'groups:id,name'])
@@ -239,12 +246,12 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * List distributions for tractors in TPS user's assigned scope.
+     * List distributions for tractors in TSR user's assigned scope.
      */
     public function distributions(Request $request)
     {
         $user = $request->user();
-        $tractorIds = $this->manageableTractorIdsForTps($user);
+        $tractorIds = $this->manageableTractorIdsForTsr($user);
         $search = trim((string) $request->input('search', ''));
 
         $distributions = TractorDistribution::with(['tractor:id,no_plate,name,brand,model', 'distributedToUser:id,name,email'])
@@ -271,7 +278,7 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * List FCA users for the TPS dashboard.
+     * List FCA users for the TSR dashboard.
      */
     public function fcas(Request $request)
     {
@@ -311,7 +318,7 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * Province options for the TPS FCA create form.
+     * Province options for the TSR FCA create form.
      */
     public function fcaLocationProvinces()
     {
@@ -374,7 +381,7 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * Store or update an FCA draft for the current TPS user.
+     * Store or update an FCA draft for the current TSR user.
      */
     public function storeFcaDraft(Request $request)
     {
@@ -420,7 +427,7 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * Delete an FCA draft owned by the current TPS user.
+     * Delete an FCA draft owned by the current TSR user.
      */
     public function destroyFcaDraft(Request $request, FcaDraft $draft)
     {
@@ -450,7 +457,7 @@ class ApiTpsController extends Controller
     {
         $fca = $this->ensureEditableFca($fca);
 
-        $visibleTractorIds = $this->visibleTractorIdsForTps($request->user());
+        $visibleTractorIds = $this->visibleTractorIdsForTsr($request->user());
         $validated = $this->validateFcaSubmission($request, $visibleTractorIds, $fca);
         $locationNames = $this->resolveFcaLocationNames($validated);
 
@@ -473,7 +480,7 @@ class ApiTpsController extends Controller
      */
     public function storeFca(Request $request)
     {
-        $visibleTractorIds = $this->visibleTractorIdsForTps($request->user());
+        $visibleTractorIds = $this->visibleTractorIdsForTsr($request->user());
 
         $validated = $this->validateFcaSubmission($request, $visibleTractorIds);
         $locationNames = $this->resolveFcaLocationNames($validated);
@@ -961,21 +968,21 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * Get tractor IDs visible to all TPS users.
+     * Get tractor IDs visible to all TSR users.
      *
      * @return array<int>
      */
-    private function visibleTractorIdsForTps(User $user): array
+    private function visibleTractorIdsForTsr(User $user): array
     {
         return $user->accessibleTractorIds();
     }
 
     /**
-     * Get tractor IDs that remain manageable for the TPS user.
+     * Get tractor IDs that remain manageable for the TSR user.
      *
      * @return array<int>
      */
-    private function manageableTractorIdsForTps(\App\Models\User $user): array
+    private function manageableTractorIdsForTsr(\App\Models\User $user): array
     {
         return $user->accessibleTractorIds();
     }
@@ -985,7 +992,7 @@ class ApiTpsController extends Controller
      */
     public function ticketFormData(Request $request)
     {
-        $tractorIds = $this->visibleTractorIdsForTps($request->user());
+        $tractorIds = $this->visibleTractorIdsForTsr($request->user());
 
         $tractors = Tractor::whereIn('id', $tractorIds)
             // Exclude tractors with devices stale >365 days
@@ -997,15 +1004,18 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * Show a single ticket detail for TPS user.
+     * Show a single ticket detail for TSR user.
      */
     public function ticketDetail(Request $request, Ticket $ticket)
     {
         $user = $request->user();
-        $tractorIds = $this->visibleTractorIdsForTps($user);
+        $tractorIds = $this->visibleTractorIdsForTsr($user);
 
         abort_unless(
-            in_array($ticket->tractor_id, $tractorIds) || $ticket->submitted_by === $user->id,
+            in_array($ticket->tractor_id, $tractorIds)
+            || $ticket->submitted_by === $user->id
+            || $ticket->assigned_to === $user->id
+            || $ticket->assignees()->where('user_id', $user->id)->exists(),
             403,
             'You do not have access to this ticket.'
         );
@@ -1030,7 +1040,7 @@ class ApiTpsController extends Controller
     public function requestAssistance(Request $request, Ticket $ticket)
     {
         $user = $request->user();
-        $tractorIds = $this->visibleTractorIdsForTps($user);
+        $tractorIds = $this->visibleTractorIdsForTsr($user);
 
         abort_unless(
             in_array($ticket->tractor_id, $tractorIds) || $ticket->submitted_by === $user->id,
@@ -1067,7 +1077,7 @@ class ApiTpsController extends Controller
 
         // Send SMS to admins with phone numbers
         $smsService = app(M360SmsService::class);
-        $smsMessage = "TANOD Alert: TPS {$user->name} requests assistance for ticket \"{$ticket->subject}\" (Tractor: {$tractorLabel}). Message: {$data['message']}";
+        $smsMessage = "TANOD Alert: TSR {$user->name} requests assistance for ticket \"{$ticket->subject}\" (Tractor: {$tractorLabel}). Message: {$data['message']}";
 
         foreach ($admins as $admin) {
             if (! empty($admin->phone)) {
@@ -1192,7 +1202,7 @@ class ApiTpsController extends Controller
     public function distributionFormData(Request $request)
     {
         $user = $request->user();
-        $tractorIds = $this->manageableTractorIdsForTps($user);
+        $tractorIds = $this->manageableTractorIdsForTsr($user);
 
         // Tractors already actively distributed
         $distributedTractorIds = TractorDistribution::whereIn('tractor_id', $tractorIds)
@@ -1227,12 +1237,12 @@ class ApiTpsController extends Controller
     }
 
     /**
-     * Store a new tractor distribution from the TPS mobile app.
+     * Store a new tractor distribution from the TSR mobile app.
      */
     public function storeDistribution(Request $request)
     {
         $user = $request->user();
-        $tractorIds = $this->manageableTractorIdsForTps($user);
+        $tractorIds = $this->manageableTractorIdsForTsr($user);
 
         $validated = $request->validate([
             'tractor_id' => ['required', 'integer', 'exists:tractors,id'],
@@ -1245,9 +1255,9 @@ class ApiTpsController extends Controller
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
 
-        // Distribution remains limited to the TPS user's assignment scope.
+        // Distribution remains limited to the TSR user's assignment scope.
         if (! in_array((int) $validated['tractor_id'], $tractorIds)) {
-            return response()->json(['message' => 'You can view this tractor, but only tractors in your TPS assignment scope can be distributed.'], 403);
+            return response()->json(['message' => 'You can view this tractor, but only tractors in your TSR assignment scope can be distributed.'], 403);
         }
 
         // Ensure the tractor is not already actively distributed

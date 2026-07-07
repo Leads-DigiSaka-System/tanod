@@ -12,7 +12,7 @@ class ApiAlertController extends Controller
     /**
      * List alerts filtered by the authenticated user's role.
      * - super-admin / sub-admin: all alerts
-     * - tps: alerts for tractors in their accessible scope
+     * - TSR: alerts for tractors in their accessible scope
      * - fca: alerts for tractors distributed to them
      * - farmer: alerts for tractors distributed to their FCA
      *

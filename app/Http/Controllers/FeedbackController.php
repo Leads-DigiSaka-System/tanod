@@ -69,6 +69,20 @@ class FeedbackController extends Controller
         ]);
     }
 
+    public function destroy(FarmerFeedback $feedback)
+    {
+        $user = request()->user();
+
+        if (! $user->hasAnyRole(['super-admin', 'sub-admin']) && $feedback->submitted_by !== $user->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $feedback->delete();
+
+        return redirect()->route('feedback.index')
+            ->with('success', 'Feedback deleted successfully.');
+    }
+
     public function review(Request $request, FarmerFeedback $feedback)
     {
         $request->validate([

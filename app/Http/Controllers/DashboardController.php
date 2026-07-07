@@ -33,8 +33,8 @@ class DashboardController extends Controller
 
         if ($user->hasAnyRole(['super-admin', 'sub-admin'])) {
             $data = $this->adminDashboard();
-        } elseif ($user->hasRole('tps')) {
-            $data = $this->tpsDashboard($user);
+        } elseif ($user->hasRole('tsr')) {
+            $data = $this->tsrDashboard($user);
         } elseif ($user->hasRole('fca')) {
             $data = $this->fcaDashboard($user);
         } else {
@@ -521,7 +521,7 @@ class DashboardController extends Controller
         return max((int) config('jimi.online_threshold_minutes', 10), 1);
     }
 
-    private function tpsDashboard(User $user): array
+    private function tsrDashboard(User $user): array
     {
         return [
             'stats' => [

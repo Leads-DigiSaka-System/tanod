@@ -17,7 +17,7 @@ class ApiFeedbackController extends Controller
      * List feedbacks visible to the user.
      * - farmer: own feedbacks
      * - fca: feedbacks on tractors distributed to them
-     * - tps: feedbacks on assigned tractors or the full fleet when enabled
+     * - TSR: feedbacks on assigned tractors or the full fleet when enabled
      * - admin: all
      */
     public function index(Request $request)
@@ -36,7 +36,7 @@ class ApiFeedbackController extends Controller
         } elseif ($user->hasRole('fca')) {
             $query->whereHas('tractor.distributions', fn (Builder $q) => $q->where('distributed_to', $user->id)
                 ->where('status', 'distributed'));
-        } elseif ($user->hasRole('tps')) {
+        } elseif ($user->hasRole('tsr')) {
             $query->whereIn('tractor_id', $user->accessibleTractorIds());
         } else {
             $query->whereRaw('0 = 1');
@@ -81,7 +81,7 @@ class ApiFeedbackController extends Controller
         $feedback = FarmerFeedback::create($validated);
         $feedback->load(['tractor:id,no_plate,brand,model,device_id', 'submitter:id,name']);
 
-        // Notify FCA and TPS who have access to this tractor
+        // Notify FCA and TSR who have access to this tractor
         $this->notifyRecipients($feedback, $user);
 
         return response()->json(['data' => $feedback, 'message' => 'Feedback submitted.'], 201);
@@ -109,7 +109,7 @@ class ApiFeedbackController extends Controller
     }
 
     /**
-     * Notify FCA and TPS users who have access to the tractor.
+     * Notify FCA and TSR users who have access to the tractor.
      */
     private function notifyRecipients(FarmerFeedback $feedback, User $farmer): void
     {
@@ -122,9 +122,9 @@ class ApiFeedbackController extends Controller
             ->unique()
             ->all();
 
-        $tpsIds = User::tpsIdsForTractor($tractor->id);
+        $tsrIds = User::tsrIdsForTractor($tractor->id);
 
-        $recipientIds = collect([...$fcaIds, ...$tpsIds])
+        $recipientIds = collect([...$fcaIds, ...$tsrIds])
             ->unique()
             ->values()
             ->all();

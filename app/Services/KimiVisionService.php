@@ -17,7 +17,7 @@ class KimiVisionService
     {
         $this->apiKey = config('services.kimi.api_key');
         $this->model = config('services.kimi.model', 'moonshot-v1-8k-vision-preview');
-        $this->baseUrl = config('services.kimi.base_url', 'https://api.moonshot.cn/v1');
+        $this->baseUrl = config('services.kimi.base_url', 'htTSR://api.moonshot.cn/v1');
     }
 
     /**
