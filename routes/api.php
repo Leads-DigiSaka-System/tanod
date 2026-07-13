@@ -35,6 +35,9 @@ Route::prefix('v1')->group(function () {
     Route::get('register/roles', [ApiAuthController::class, 'registrationRoles'])->middleware('throttle:30,1')->name('api.auth.registration-roles');
     Route::post('register', [ApiAuthController::class, 'register'])->middleware('throttle:10,1')->name('api.auth.register');
     Route::post('login', [ApiAuthController::class, 'login'])->middleware('throttle:10,1')->name('api.auth.login');
+    Route::post('forgot-password/send-otp', [ApiAuthController::class, 'sendForgotPasswordOtp'])->middleware('throttle:10,1')->name('api.auth.forgot-password.send-otp');
+    Route::post('forgot-password/verify-otp', [ApiAuthController::class, 'verifyForgotPasswordOtp'])->middleware('throttle:10,1')->name('api.auth.forgot-password.verify-otp');
+    Route::post('forgot-password/reset', [ApiAuthController::class, 'resetForgotPassword'])->middleware('throttle:5,1')->name('api.auth.forgot-password.reset');
 
     // Authenticated
     Route::middleware(['auth:sanctum', 'active'])->group(function () {

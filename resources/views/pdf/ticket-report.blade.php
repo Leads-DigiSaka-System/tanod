@@ -7,7 +7,7 @@
 *{
     margin:0;
     padding:0;
-    box-sizing:border-box;
+    /* box-sizing:border-box; */
 }
 
 body{
@@ -530,7 +530,7 @@ Warranty Expiration
 
 <td width="24%">
 <div class="line">
-{{ $report->ticket?->created_at?->format('h:i A') ?? '' }}
+{{ $report->ticket?->reported_date?->format('m/d/Y') ?? '' }}
 </div>
 </td>
 
