@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class TractorImage extends Model
 {
-    protected $fillable = ['tractor_id', 'path', 'sort_order'];
+    protected $fillable = ['tractor_id', 'path', 'type', 'sort_order'];
 
     public function tractor()
     {
