@@ -27,7 +27,7 @@
               <div class="flex items-center gap-2 mt-2 flex-wrap">
                 <StatusBadge :status="ticket.status" />
                 <span v-if="ticket.category" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{{ ticket.category }}</span>
-                <span v-if="ticket.fca_name" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{{ ticket.fca_name }}</span>
+                <span v-if="ticket.tractor?.name || ticket.organization_name" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{{ ticket.tractor?.name || ticket.organization_name }}</span>
                 <span v-if="ticket.tractor" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/></svg>
                   {{ ticket.tractor.no_plate }}

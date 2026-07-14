@@ -124,6 +124,71 @@
             </div>
           </div>
         </div>
+
+        <!-- Ticket / Repair History Card -->
+        <div class="bg-white rounded-lg border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+          <div class="flex items-center p-6 pb-4">
+            <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900 mr-3">
+              <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            </div>
+            <div class="flex-1">
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Ticket / Repair History</h2>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Service requests and repairs logged for this tractor</p>
+            </div>
+            <span v-if="tractor.tickets?.length" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+              {{ tractor.tickets.length }} tickets
+            </span>
+          </div>
+          <div v-if="tractor.tickets?.length" class="px-6 pb-6">
+            <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+              <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                  <tr>
+                    <th scope="col" class="px-4 py-3">Date</th>
+                    <th scope="col" class="px-4 py-3">Subject</th>
+                    <th scope="col" class="px-4 py-3">Category</th>
+                    <th scope="col" class="px-4 py-3">Priority</th>
+                    <th scope="col" class="px-4 py-3">Assigned To</th>
+                    <th scope="col" class="px-4 py-3">Charge</th>
+                    <th scope="col" class="px-4 py-3 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="t in tractor.tickets" :key="t.id"
+                    class="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
+                    <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600 dark:text-gray-400">
+                      {{ t.created_at ? formatDate(t.created_at) : '—' }}
+                    </td>
+                    <td class="px-4 py-3 font-medium text-gray-900 dark:text-white max-w-[200px] truncate" :title="t.subject">
+                      {{ t.subject }}
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                        :class="categoryClass(t.category)">
+                        {{ t.category || '—' }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                        :class="priorityClass(t.priority)">
+                        {{ t.priority || '—' }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap">{{ t.assignee?.name || '—' }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap font-mono text-xs">{{ t.service_charge ? '₱' + Number(t.service_charge).toLocaleString() : '—' }}</td>
+                    <td class="px-4 py-3 text-right"><StatusBadge :status="t.status" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div v-else class="px-6 pb-6">
+            <div class="flex flex-col items-center justify-center py-8">
+              <svg class="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+              <p class="text-sm text-gray-500 dark:text-gray-400">No ticket or repair history yet</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Sidebar -->
@@ -194,6 +259,7 @@
 import { computed } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
+import { formatDate } from '@/utils/dateFormat';
 
 const props = defineProps({ tractor: Object });
 
@@ -201,4 +267,25 @@ const isOnline = computed(() => {
   if (!props.tractor.device?.latest_location?.heartbeat_at) return false;
   return (Date.now() - new Date(props.tractor.device.latest_location.heartbeat_at).getTime()) < 600000;
 });
+
+const categoryClass = (cat) => {
+  const map = {
+    'repair': 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+    'maintenance': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+    'warranty': 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+    'installation': 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+    'others': 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+  };
+  return map[cat?.toLowerCase()] || map['others'];
+};
+
+const priorityClass = (pri) => {
+  const map = {
+    'critical': 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+    'high': 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+    'medium': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+    'low': 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  };
+  return map[pri?.toLowerCase()] || 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+};
 </script>

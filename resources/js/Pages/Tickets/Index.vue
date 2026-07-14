@@ -59,7 +59,7 @@
               </th>
               <th v-for="col in [
                 { label: 'Type', field: 'category' },
-                { label: 'FCA Name', field: 'fca_name' },
+                { label: 'Name', field: 'tractor_name' },
                 { label: 'Subject', field: 'subject' },
                 { label: 'Action Taken', field: 'description' },
                 { label: 'Service Charge', field: 'service_charge' },
@@ -88,7 +88,7 @@
                 </span>
               </td>
               <td class="px-5 py-3.5">
-                <p class="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[200px]" :title="ticket.fca_name">{{ ticket.fca_name || '—' }}</p>
+                <p class="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[200px]" :title="ticket.tractor?.name || ticket.organization_name">{{ ticket.tractor?.name || ticket.organization_name || '—' }}</p>
               </td>
               <td class="px-5 py-3.5 max-w-[280px]">
                 <p class="text-sm font-medium text-gray-900 dark:text-white truncate" :title="ticket.subject">{{ ticket.subject }}</p>

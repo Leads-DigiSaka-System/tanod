@@ -108,6 +108,11 @@ class Tractor extends Model
         return $this->hasMany(Alert::class);
     }
 
+    public function tickets()
+    {
+        return $this->hasMany(Ticket::class);
+    }
+
     public function farmAssets()
     {
         return $this->hasMany(FarmAsset::class);

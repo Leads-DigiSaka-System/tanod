@@ -27,18 +27,6 @@
       </div>
     </div>
 
-    <!-- Loading Overlay -->
-    <div v-if="pageLoading"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm transition-opacity">
-      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl px-8 py-6 flex flex-col items-center gap-3 border border-gray-200 dark:border-gray-700">
-        <svg class="w-10 h-10 text-emerald-600 animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
-        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Loading...</p>
-      </div>
-    </div>
-
     <!-- Tabs -->
     <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
       <nav class="-mb-px flex gap-6">
@@ -96,7 +84,17 @@
         </div>
       </div>
       <!-- Table -->
-      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700 relative">
+        <!-- Loading overlay -->
+        <div v-if="pageLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 dark:bg-gray-800/70 backdrop-blur-[1px]">
+          <div class="flex flex-col items-center gap-3">
+            <svg class="animate-spin h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 animate-pulse">Loading...</p>
+          </div>
+        </div>
         <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
           <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
@@ -159,7 +157,17 @@
         </div>
       </div>
       <!-- Flat FCA Distributions Table -->
-      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700 relative">
+        <!-- Loading overlay -->
+        <div v-if="pageLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 dark:bg-gray-800/70 backdrop-blur-[1px]">
+          <div class="flex flex-col items-center gap-3">
+            <svg class="animate-spin h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 animate-pulse">Loading...</p>
+          </div>
+        </div>
         <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
           <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
@@ -179,7 +187,7 @@
                 class="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
                 <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ dist.id }}</td>
                 <td class="px-6 py-4">{{ fca.name }}</td>
-                <td class="px-6 py-4">{{ fca.organization_name || '—' }}</td>
+                <td class="px-6 py-4">{{ fca.organization_name || dist.tractor?.no_plate || '—' }}</td>
                 <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ dist.tractor?.no_plate || '—' }}</td>
                 <td class="px-6 py-4">{{ [fca.barangay, fca.city, fca.province].filter(Boolean).join(', ') || '—' }}</td>
                 <td class="px-6 py-4">{{ dist.tractor?.total_distance ?? '—' }}</td>
@@ -221,7 +229,17 @@
         </div>
       </div>
       <!-- Flat TSR Responsibilities Table -->
-      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700 relative">
+        <!-- Loading overlay -->
+        <div v-if="pageLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 dark:bg-gray-800/70 backdrop-blur-[1px]">
+          <div class="flex flex-col items-center gap-3">
+            <svg class="animate-spin h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 animate-pulse">Loading...</p>
+          </div>
+        </div>
         <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
           <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
