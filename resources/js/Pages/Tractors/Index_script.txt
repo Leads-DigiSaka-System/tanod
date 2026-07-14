@@ -1,0 +1,91 @@
+﻿<script setup>import { ref, computed }
+from 'vue';
+import { Head, Link, router, useForm }
+from '@inertiajs/vue3';
+import AppLayout from '@/Layouts/AppLayout.vue';
+import Pagination from '@/Components/Pagination.vue';
+import SlideOver from '@/Components/SlideOver.vue';
+import StatusBadge from '@/Components/StatusBadge.vue';
+import { formatDate }
+from '@/utils/dateFormat';
+const props = defineProps({  tractors: Object,  fcaDistributions: Array,  tsrAssignments: Array,  filters: Object,  groups: Array,  fcaUsers: Array,  allTractors: Array,}
+);
+// --- Tabs ---const activeTab = ref(props.filters?.tab || 'all');
+const switchTab = (tab) => {  activeTab.value = tab;
+router.get('/tractors', { tab }
+, { preserveState: true, replace: true }
+);
+};
+// --- All Tractors Filters ---const search = ref(props.filters?.search || '');
+const selectedGroup = ref(props.filters?.group_id || '');
+const selectedStatus = ref(props.filters?.status || '');
+let timer;
+const debouncedFilter = () => { clearTimeout(timer);
+timer = setTimeout(applyAllFilter, 300);
+};
+const applyAllFilter = () => {  router.get('/tractors', {    tab: 'all',    search: search.value || undefined,    group_id: selectedGroup.value || undefined,    status: selectedStatus.value || undefined,  }
+, { preserveState: true, replace: true }
+);
+};
+// --- FCA Filters ---const fcaSearch = ref(props.filters?.fca_search || '');
+const fcaStatusFilter = ref(props.filters?.fca_status || '');
+let fcaTimer;
+const debouncedFcaFilter = () => { clearTimeout(fcaTimer);
+fcaTimer = setTimeout(applyFcaFilter, 300);
+};
+const applyFcaFilter = () => {  router.get('/tractors', {    tab: 'fca',    fca_search: fcaSearch.value || undefined,    fca_status: fcaStatusFilter.value || undefined,  }
+, { preserveState: true, replace: true }
+);
+};
+// --- TSR Filters ---const tpsSearch = ref(props.filters?.tsr_search || '');
+let tpsTimer;
+const debouncedTpsFilter = () => { clearTimeout(tpsTimer);
+tpsTimer = setTimeout(applyTpsFilter, 300);
+};
+const applyTpsFilter = () => {  router.get('/tractors', {    tab: 'tsr',    tsr_search: tpsSearch.value || undefined,  }
+, { preserveState: true, replace: true }
+);
+};
+// --- Online status ---const getOnlineStatus = (tractor) => {  if (!tractor.device?.latest_location?.heartbeat_at) return 'offline';
+const heartbeat = new Date(tractor.device.latest_location.heartbeat_at);
+return (Date.now() - heartbeat.getTime()) < 600000 ? 'online' : 'offline';
+};
+// --- FCA collapsible state ---const expandedFca = ref(new Set());
+const toggleFca = (id) => {  const next = new Set(expandedFca.value);
+next.has(id) ? next.delete(id) : next.add(id);
+expandedFca.value = next;
+};
+// --- TSR collapsible state ---const expandedTSR = ref(new Set());
+const toggleTSR = (id) => {  const next = new Set(expandedTsr.value);
+next.has(id) ? next.delete(id) : next.add(id);
+expandedTsr.value = next;
+};
+// --- Drawer (FCA distribute only) ---const drawerOpen = ref(false);
+const tractorSearchQuery = ref('');
+const filteredTractors = computed(() => {  const q = tractorSearchQuery.value.toLowerCase().trim();
+if (!q) return props.allTractors;
+return props.allTractors.filter(t =>    `${t.no_plate}
+${t.brand}
+${t.model}
+`.toLowerCase().includes(q)  );
+}
+);
+const selectAllTractors = () => {  const visibleIds = filteredTractors.value.map(t => t.id);
+const merged = new Set([...drawerForm.tractor_ids, ...visibleIds]);
+drawerForm.tractor_ids = [...merged];
+};
+const drawerForm = useForm({  tractor_ids: [],  distributed_to: '',  distribution_date: new Date().toISOString().slice(0, 10),  area: '',  notes: '',}
+);
+const openDistributeDrawer = () => {  drawerForm.reset();
+drawerForm.clearErrors();
+drawerForm.tractor_ids = [];
+drawerForm.distribution_date = new Date().toISOString().slice(0, 10);
+tractorSearchQuery.value = '';
+drawerOpen.value = true;
+};
+const closeDrawer = () => {  drawerOpen.value = false;
+};
+const submitDrawer = () => {  drawerForm.post('/tractors/distribute', {    onSuccess: () => closeDrawer(),  }
+);
+};
+</script>
