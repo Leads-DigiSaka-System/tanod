@@ -110,7 +110,7 @@
             <tr v-for="tractor in tractors?.data" :key="tractor.id"
               class="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
               <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ tractor.id }}</td>
-              <td class="px-6 py-4">{{ tractor.brand }} {{ tractor.model }}</td>
+              <td class="px-6 py-4">{{ tractor.name || '—' }}</td>
               <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ tractor.no_plate }}</td>
               <td class="px-6 py-4">{{ tractor.total_distance ?? '—' }}</td>
               <td class="px-6 py-4">{{ tractor.running_hours ?? '—' }}</td>
