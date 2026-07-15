@@ -85,7 +85,7 @@ class ApiTsrController extends Controller
                 ->count(),
             'open_tickets' => Ticket::where(function (Builder $q) use ($user) {
                 $q->where('assigned_to', $user->id)
-                  ->orWhereHas('assignees', fn (Builder $a) => $a->where('user_id', $user->id));
+                    ->orWhereHas('assignees', fn (Builder $a) => $a->where('user_id', $user->id));
             })->whereIn('status', ['open', 'in_progress'])->count(),
             'pending_maintenance' => Maintenance::whereIn('tractor_id', $visibleTractorIds)->where('status', 'pending')->count(),
             'active_distributions' => TractorDistribution::whereIn('tractor_id', $manageableTractorIds)->where('status', 'distributed')->count(),
@@ -111,7 +111,7 @@ class ApiTsrController extends Controller
             ->withMax('comments', 'created_at')
             ->where(function (Builder $q) use ($user) {
                 $q->where('assigned_to', $user->id)
-                  ->orWhereHas('assignees', fn (Builder $a) => $a->where('user_id', $user->id));
+                    ->orWhereHas('assignees', fn (Builder $a) => $a->where('user_id', $user->id));
             })
             ->when($request->filled('status'), fn (Builder $q) => $q->where('status', $request->status))
             ->when($request->filled('priority'), fn (Builder $q) => $q->where('priority', $request->priority))
@@ -191,7 +191,7 @@ class ApiTsrController extends Controller
         $search = trim((string) $request->input('search', ''));
 
         $users = User::query()
-            ->role('tsr')
+            ->role('tps')
             ->where('is_active', true)
             ->select('id', 'name', 'email', 'phone')
             ->when($search !== '', function (Builder $query) use ($search) {
