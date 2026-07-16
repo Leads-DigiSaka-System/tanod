@@ -245,8 +245,8 @@ class ApiDeviceController extends Controller
             'today' => [Carbon::now($tz)->startOfDay(), Carbon::now($tz)],
             'yesterday' => [Carbon::now($tz)->subDay()->startOfDay(), Carbon::now($tz)->subDay()->endOfDay()],
             '3days' => [Carbon::now($tz)->subDays(3)->startOfDay(), Carbon::now($tz)],
-            'week' => [Carbon::now($tz)->startOfWeek(), Carbon::now($tz)],
-            'month' => [Carbon::now($tz)->startOfMonth(), Carbon::now($tz)],
+            'week' => [Carbon::now($tz)->subDays(7)->startOfDay(), Carbon::now($tz)],
+            'month' => [Carbon::now($tz)->subDays(30)->startOfDay(), Carbon::now($tz)],
             'custom' => [Carbon::parse($from, $tz)->startOfDay(), Carbon::parse($to, $tz)->endOfDay()],
             default => [Carbon::now($tz)->subDays(3)->startOfDay(), Carbon::now($tz)],
         };

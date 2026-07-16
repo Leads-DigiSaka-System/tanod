@@ -156,6 +156,7 @@ class TractorController extends Controller
             'bookings' => fn ($q) => $q->latest()->take(5),
             'distributions' => fn ($q) => $q->latest()->take(5),
             'alerts' => fn ($q) => $q->latest()->take(5),
+            'tickets' => fn ($q) => $q->with(['submitter', 'assignee'])->latest()->take(10),
         ]);
 
         return Inertia::render('Tractors/Show', [

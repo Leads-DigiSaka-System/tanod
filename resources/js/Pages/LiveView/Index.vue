@@ -1612,16 +1612,8 @@ watch(playbackIndex, (idx, oldIdx) => {
   if (!point) return;
   const pos = new google.maps.LatLng(point.lat, point.lng);
 
-  // Calculate rotation based on bearing to next or from previous point
+  // Keep tractor icon upright — no rotation applied
   if (playbackMarker) {
-    let bearing = 0;
-    const prevPoint = trackData.value.points[Math.max(0, idx - 1)];
-    if (prevPoint && (prevPoint.lat !== point.lat || prevPoint.lng !== point.lng)) {
-      bearing = calcBearing(prevPoint.lat, prevPoint.lng, point.lat, point.lng);
-    }
-    if (playbackMarkerImage) {
-      playbackMarkerImage.style.transform = `rotate(${bearing}deg)`;
-    }
     playbackMarker.position = pos;
   }
 

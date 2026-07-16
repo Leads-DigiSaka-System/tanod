@@ -85,7 +85,7 @@ class ApiTsrController extends Controller
                 ->count(),
             'open_tickets' => Ticket::where(function (Builder $q) use ($user) {
                 $q->where('assigned_to', $user->id)
-                  ->orWhereHas('assignees', fn (Builder $a) => $a->where('user_id', $user->id));
+                    ->orWhereHas('assignees', fn (Builder $a) => $a->where('user_id', $user->id));
             })->whereIn('status', ['open', 'in_progress'])->count(),
             'pending_maintenance' => Maintenance::whereIn('tractor_id', $visibleTractorIds)->where('status', 'pending')->count(),
             'active_distributions' => TractorDistribution::whereIn('tractor_id', $manageableTractorIds)->where('status', 'distributed')->count(),
@@ -111,7 +111,7 @@ class ApiTsrController extends Controller
             ->withMax('comments', 'created_at')
             ->where(function (Builder $q) use ($user) {
                 $q->where('assigned_to', $user->id)
-                  ->orWhereHas('assignees', fn (Builder $a) => $a->where('user_id', $user->id));
+                    ->orWhereHas('assignees', fn (Builder $a) => $a->where('user_id', $user->id));
             })
             ->when($request->filled('status'), fn (Builder $q) => $q->where('status', $request->status))
             ->when($request->filled('priority'), fn (Builder $q) => $q->where('priority', $request->priority))
@@ -191,7 +191,7 @@ class ApiTsrController extends Controller
         $search = trim((string) $request->input('search', ''));
 
         $users = User::query()
-            ->role('tsr')
+            ->role('tps')
             ->where('is_active', true)
             ->select('id', 'name', 'email', 'phone')
             ->when($search !== '', function (Builder $query) use ($search) {
@@ -1202,17 +1202,24 @@ class ApiTsrController extends Controller
     public function distributionFormData(Request $request)
     {
         $user = $request->user();
-        $tractorIds = $this->manageableTractorIdsForTsr($user);
+
+        // Allow TPS to see all tractors for distribution purposes
+        $tractorQuery = Tractor::query()
+            // Exclude tractors with devices stale >365 days
+            ->whereHas('device', fn ($q) => $q->notStale());
+
+        // Non-TPS roles still respect their accessible scope
+        if (! $user->hasAnyRole(['tps', 'super-admin', 'sub-admin'])) {
+            $tractorIds = $this->manageableTractorIdsForTsr($user);
+            $tractorQuery->whereIn('id', $tractorIds);
+        }
 
         // Tractors already actively distributed
-        $distributedTractorIds = TractorDistribution::whereIn('tractor_id', $tractorIds)
-            ->where('status', 'distributed')
+        $distributedTractorIds = TractorDistribution::where('status', 'distributed')
             ->pluck('tractor_id')
             ->all();
 
-        $tractors = Tractor::whereIn('id', $tractorIds)
-            // Exclude tractors with devices stale >365 days
-            ->whereHas('device', fn ($q) => $q->notStale())
+        $tractors = $tractorQuery
             // Only return unassigned tractors
             ->whereNotIn('id', $distributedTractorIds)
             ->select('id', 'no_plate', 'imei', 'brand', 'model')
@@ -1255,9 +1262,11 @@ class ApiTsrController extends Controller
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
 
-        // Distribution remains limited to the TSR user's assignment scope.
-        if (! in_array((int) $validated['tractor_id'], $tractorIds)) {
-            return response()->json(['message' => 'You can view this tractor, but only tractors in your TSR assignment scope can be distributed.'], 403);
+        // Allow TPS/super-admin/sub-admin to distribute any tractor they can view
+        if (! $user->hasAnyRole(['tps', 'super-admin', 'sub-admin'])) {
+            if (! in_array((int) $validated['tractor_id'], $tractorIds)) {
+                return response()->json(['message' => 'You can view this tractor, but only tractors in your TSR assignment scope can be distributed.'], 403);
+            }
         }
 
         // Ensure the tractor is not already actively distributed

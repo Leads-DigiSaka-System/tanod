@@ -409,6 +409,103 @@
       </Transition>
     </Teleport>
 
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- Ticket Service Reports -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="mt-10">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white">TPS Service Reports</h2>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Auto-generated service reports from resolved tickets</p>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-100 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/80">
+                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Report #</th>
+                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Subject</th>
+                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">TPS</th>
+                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Generated</th>
+                <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50 dark:divide-gray-700/50">
+              <tr v-for="report in ticketReports?.data" :key="report.id" class="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
+                <td class="px-4 py-3.5 text-sm font-semibold text-gray-900 dark:text-white">#{{ report.id }}</td>
+                <td class="px-4 py-3.5 text-sm text-gray-700 dark:text-gray-300 max-w-xs truncate">{{ report.subject }}</td>
+                <td class="px-4 py-3.5 text-sm text-gray-600 dark:text-gray-400">{{ report.tps?.name || '—' }}</td>
+                <td class="px-4 py-3.5">
+                  <span
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                    :class="report.status === 'finalized'
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'"
+                  >
+                    {{ report.status === 'finalized' ? 'Finalized' : 'Draft' }}
+                  </span>
+                </td>
+                <td class="px-4 py-3.5 text-sm text-gray-500 dark:text-gray-400">{{ report.generated_at ? new Date(report.generated_at).toLocaleDateString() : '—' }}</td>
+                <td class="px-4 py-3.5 text-right">
+                  <div class="flex items-center justify-end gap-2">
+                    <a
+                      v-if="report.report_pdf_path"
+                      :href="`/reports/ticket-service-reports/${report.id}/download`"
+                      class="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 transition-colors"
+                      title="Download PDF"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </a>
+                    <span v-else class="text-xs text-gray-400 dark:text-gray-500 italic">No PDF</span>
+                    <button
+                      @click="deleteReport(report)"
+                      class="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
+                      title="Delete"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="ticketReports?.data?.length" class="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+          <p class="text-xs text-gray-500 dark:text-gray-400">
+            Showing {{ ticketReports.from }}–{{ ticketReports.to }} of {{ ticketReports.total }} reports
+          </p>
+          <div class="flex items-center gap-2">
+            <Link
+              v-if="ticketReports.prev_page_url"
+              :href="ticketReports.prev_page_url"
+              class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 transition"
+            >
+              Previous
+            </Link>
+            <Link
+              v-if="ticketReports.next_page_url"
+              :href="ticketReports.next_page_url"
+              class="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition"
+            >
+              Next
+            </Link>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div v-if="!ticketReports?.data?.length" class="px-5 py-16 text-center">
+          <svg class="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <p class="text-sm text-gray-500 dark:text-gray-400">No service reports yet.</p>
+          <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Reports are auto-generated when a TPS resolves a ticket.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Global Confirm Dialog -->
     <ConfirmDialog
       ref="confirmDialog"
@@ -435,6 +532,7 @@ const props = defineProps({
   intervals: Object,
   daysOfWeek: Array,
   timeOptions: Array,
+  ticketReports: Object,
 });
 
 const showModal = ref(false);
@@ -547,6 +645,18 @@ const deleteSubscription = (id) => {
     variant: 'danger',
     onConfirm: () => {
       router.delete(`/reports/subscriptions/${id}`, { preserveScroll: true });
+    },
+  });
+};
+
+const deleteReport = (report) => {
+  showConfirm({
+    title: 'Delete service report?',
+    message: `Are you sure you want to delete report #${report.id}${report.subject ? ' (' + report.subject + ')' : ''}? This action cannot be undone.`,
+    confirmLabel: 'Delete',
+    variant: 'danger',
+    onConfirm: () => {
+      router.delete(`/reports/ticket-service-reports/${report.id}`, { preserveScroll: true });
     },
   });
 };

@@ -161,6 +161,12 @@ class TicketController extends Controller
                     'no_plate' => $ticket->tractor->no_plate,
                     'brand' => $ticket->tractor->brand,
                     'model' => $ticket->tractor->model,
+                    'name' => $ticket->tractor->name,
+                    'id_no' => $ticket->tractor->id_no,
+                    'engine_no' => $ticket->tractor->engine_no,
+                    'front_loader_sn' => $ticket->tractor->front_loader_sn,
+                    'rotary_tiller_sn' => $ticket->tractor->rotary_tiller_sn,
+                    'disc_plow_sn' => $ticket->tractor->disc_plow_sn,
                 ] : null,
                 'assignees' => $ticket->assignees->map(fn ($u) => [
                     'id' => $u->id,

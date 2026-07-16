@@ -27,10 +27,14 @@
               <div class="flex items-center gap-2 mt-2 flex-wrap">
                 <StatusBadge :status="ticket.status" />
                 <span v-if="ticket.category" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{{ ticket.category }}</span>
-                <span v-if="ticket.fca_name" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{{ ticket.fca_name }}</span>
+                <span v-if="ticket.tractor?.name || ticket.organization_name" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{{ ticket.tractor?.name || ticket.organization_name }}</span>
                 <span v-if="ticket.tractor" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/></svg>
                   {{ ticket.tractor.no_plate }}
+                </span>
+                <!-- Tractor SN / Name based on subject -->
+                <span v-if="tractorSn" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                  {{ tractorSn }}
                 </span>
               </div>
             </div>
@@ -657,6 +661,37 @@ const totalAmount = computed(() => {
 const balance = computed(() => {
   const down = props.ticket.down_payment ? parseFloat(props.ticket.down_payment) : 0;
   return Math.max(0, totalAmount.value - down);
+});
+
+/**
+ * Returns the relevant tractor SN/label based on ticket subject.
+ * - Repair - Tractor → tractor id_no (serial number)
+ * - Repair - Loader → front_loader_sn
+ * - Repair - Disc Plow → disc_plow_sn
+ * - Repair - Rovator → rotary_tiller_sn
+ * - PMS, Spare Part, Training Request → tractor name
+ */
+const tractorSn = computed(() => {
+  const tractor = props.ticket.tractor;
+  if (!tractor) return null;
+  const subject = (props.ticket.subject || '').toLowerCase();
+
+  // Check specific implements first (before generic "repair")
+  if (subject.includes('loader')) {
+    return tractor.front_loader_sn || tractor.name || null;
+  }
+  if (subject.includes('disc plow')) {
+    return tractor.disc_plow_sn || tractor.name || null;
+  }
+  if (subject.includes('rovator')) {
+    return tractor.rotary_tiller_sn || tractor.name || null;
+  }
+  // Repair - Tractor → serial number
+  if (subject.includes('repair')) {
+    return tractor.id_no || tractor.engine_no || tractor.name || null;
+  }
+  // PMS, Spare Part, Training Request — show tractor name
+  return tractor.name || null;
 });
 
 // Local comments for real-time updates

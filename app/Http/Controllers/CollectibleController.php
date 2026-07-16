@@ -18,6 +18,9 @@ class CollectibleController extends Controller
             ->whereIn('status', ['resolved', 'closed'])
             ->with([
                 'submitter',
+                'tractor',
+                'assignee',
+                'assignees',
                 'tractorParts',
                 'payments' => fn ($q) => $q->with('collector'),
             ]);
@@ -143,7 +146,7 @@ class CollectibleController extends Controller
             $serviceCharge = (float) ($ticket->service_charge ?? 0);
             $totalAmount = $totalParts + $serviceCharge;
             $downPayment = (float) ($ticket->down_payment ?? 0);
-            $totalPaid = (float) $ticket->payments()->sum('amount') + $downPayment;
+            $totalPaid = (float) $ticket->payments()->sum('amount');
 
             if ($totalPaid >= $totalAmount) {
                 $ticket->update(['collectible_status' => 'paid']);
@@ -170,8 +173,8 @@ class CollectibleController extends Controller
         $serviceCharge = (float) ($ticket->service_charge ?? 0);
         $totalAmount = $totalParts + $serviceCharge;
         $downPayment = (float) ($ticket->down_payment ?? 0);
-        $totalPaid = (float) $ticket->payments->sum('amount') + $downPayment;
-        $remainingBalance = $totalAmount - $totalPaid;
+        $totalPaid = (float) $ticket->payments->sum('amount');
+        $remainingBalance = max(0, $totalAmount - $totalPaid);
         $lastPayment = $ticket->payments->first();
 
         $installments = (int) ($ticket->installments ?? 0);
@@ -180,6 +183,22 @@ class CollectibleController extends Controller
         return [
             'id' => $ticket->id,
             'fca_name' => $ticket->fca_name,
+            'organization_name' => $ticket->submitter?->organization_name ?: $ticket->fca_name,
+            'tractor' => $ticket->tractor ? [
+                'id' => $ticket->tractor->id,
+                'name' => $ticket->tractor->name,
+                'no_plate' => $ticket->tractor->no_plate,
+                'brand' => $ticket->tractor->brand,
+                'model' => $ticket->tractor->model,
+            ] : null,
+            'assignee' => $ticket->assignee ? [
+                'id' => $ticket->assignee->id,
+                'name' => $ticket->assignee->name,
+            ] : null,
+            'assignees' => $ticket->assignees?->map(fn ($a) => [
+                'id' => $a->id,
+                'name' => $a->name,
+            ]) ?? [],
             'submitter' => $ticket->submitter ? [
                 'id' => $ticket->submitter->id,
                 'name' => $ticket->submitter->name,

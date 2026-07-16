@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterApiUserRequest;
 use App\Http\Resources\UserResource;
 use App\Mail\AccountDeletionRequestedMail;
+use App\Mail\ForgotPasswordOtpMail;
 use App\Models\User;
 use App\Services\M360SmsService;
 use Illuminate\Http\Request;
@@ -343,6 +344,131 @@ class ApiAuthController extends Controller
             'deletion_requested' => $user->deletion_requested_at !== null,
             'deletion_requested_at' => $user->deletion_requested_at,
             'deletion_scheduled_for' => $user->deletion_scheduled_for,
+        ]);
+    }
+
+    public function sendForgotPasswordOtp(Request $request)
+    {
+        $request->validate([
+            'contact' => 'required|string',
+        ]);
+
+        $contact = $request->input('contact');
+        $field = filter_var($contact, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
+
+        $user = User::where($field, $contact)->first();
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'Account not found.',
+            ], 404);
+        }
+
+        if (! $user->is_active) {
+            return response()->json([
+                'message' => 'This account has been deactivated.',
+            ], 403);
+        }
+
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        $cacheKey = "forgot_password_otp_{$user->id}";
+        Cache::put($cacheKey, $code, now()->addMinutes(10));
+
+        // Send OTP via email
+        if ($user->email) {
+            Mail::to($user->email)->send(new ForgotPasswordOtpMail(
+                name: $user->name,
+                otp: $code,
+            ));
+        }
+
+        // Send OTP via SMS if phone number exists
+        if ($user->phone) {
+            $message = "Your TanodTractor password reset OTP is: {$code}. This code expires in 10 minutes.";
+            app(M360SmsService::class)->send($user->phone, $message);
+        }
+
+        return response()->json([
+            'message' => 'OTP sent successfully.',
+        ]);
+    }
+
+    public function verifyForgotPasswordOtp(Request $request)
+    {
+        $request->validate([
+            'contact' => 'required|string',
+            'otp' => 'required|string|size:6',
+        ]);
+
+        $contact = $request->input('contact');
+        $field = filter_var($contact, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
+
+        $user = User::where($field, $contact)->first();
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'Account not found.',
+            ], 404);
+        }
+
+        $cacheKey = "forgot_password_otp_{$user->id}";
+        $storedCode = Cache::get($cacheKey);
+
+        if (! $storedCode || $storedCode !== $request->otp) {
+            return response()->json([
+                'message' => 'The OTP code is invalid or has expired.',
+            ], 422);
+        }
+
+        // Mark OTP as verified by storing a verified token
+        $verifiedToken = str_pad((string) random_int(0, 99999999), 8, '0', STR_PAD_LEFT);
+        Cache::put("forgot_password_verified_{$user->id}", $verifiedToken, now()->addMinutes(10));
+        Cache::forget($cacheKey);
+
+        return response()->json([
+            'message' => 'OTP verified successfully.',
+            'verified_token' => $verifiedToken,
+        ]);
+    }
+
+    public function resetForgotPassword(Request $request)
+    {
+        $request->validate([
+            'contact' => 'required|string',
+            'verified_token' => 'required|string',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $contact = $request->input('contact');
+        $field = filter_var($contact, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
+
+        $user = User::where($field, $contact)->first();
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'Account not found.',
+            ], 404);
+        }
+
+        $verifiedTokenKey = "forgot_password_verified_{$user->id}";
+        $storedToken = Cache::get($verifiedTokenKey);
+
+        if (! $storedToken || $storedToken !== $request->verified_token) {
+            return response()->json([
+                'message' => 'OTP verification is required or has expired.',
+            ], 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->password),
+            'must_change_password' => false,
+        ]);
+
+        Cache::forget($verifiedTokenKey);
+
+        return response()->json([
+            'message' => 'Password has been reset successfully.',
         ]);
     }
 

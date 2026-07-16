@@ -87,6 +87,7 @@ class ApiAlertController extends Controller
 
     /**
      * Scope alerts by user role via the tractor relationship.
+     * Only shows alerts for tractors the user owns or is assigned to.
      */
     private function scopeByRole(Builder $query, \App\Models\User $user): void
     {
@@ -102,6 +103,10 @@ class ApiAlertController extends Controller
             return;
         }
 
-        $query->whereIn('tractor_id', $tractorIds);
+        // Only show alerts linked to the user's tractors
+        $query->where(function (Builder $q) use ($tractorIds) {
+            $q->whereIn('tractor_id', $tractorIds)
+              ->orWhereHas('device', fn (Builder $dq) => $dq->whereIn('tractor_id', $tractorIds));
+        });
     }
 }

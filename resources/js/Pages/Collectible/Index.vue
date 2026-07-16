@@ -66,8 +66,8 @@
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-gray-100 dark:border-gray-700/50">
-                <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">FCA Name</th>
-                <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Contact No.</th>
+                <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Name</th>
+                <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Assigned TPS</th>
                 <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Remaining Balance</th>
                 <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Payment</th>
                 <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Due Date</th>
@@ -80,15 +80,18 @@
                 <td class="px-5 py-4">
                   <div class="flex items-center gap-3">
                     <div class="flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold text-white shrink-0" style="background-color: #007f3d;">
-                      {{ (ticket.fca_name || '?').charAt(0).toUpperCase() }}
+                      {{ displayInitial(ticket) }}
                     </div>
                     <div class="min-w-0">
-                      <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ ticket.fca_name || '—' }}</p>
+                      <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ displayName(ticket) }}</p>
                       <p class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ ticket.subject }}</p>
                     </div>
                   </div>
                 </td>
-                <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">{{ ticket.submitter?.phone || '—' }}</td>
+                <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">
+                  <span v-if="ticket.assignee?.name">{{ ticket.assignee.name }}</span>
+                  <span v-else class="text-gray-400">—</span>
+                </td>
                 <td class="px-5 py-4">
                   <span class="text-sm font-semibold text-red-600 dark:text-red-400">₱{{ formatNumber(ticket.remaining_balance) }}</span>
                 </td>
@@ -159,7 +162,8 @@
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-gray-100 dark:border-gray-700/50">
-                <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">FCA Name</th>
+                <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Name</th>
+                <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Assigned TPS</th>
                 <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Ticket</th>
                 <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Amount</th>
                 <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Resolved Date</th>
@@ -171,10 +175,14 @@
                 <td class="px-5 py-4">
                   <div class="flex items-center gap-3">
                     <div class="flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold text-white shrink-0" style="background-color: #007f3d;">
-                      {{ (ticket.fca_name || '?').charAt(0).toUpperCase() }}
+                      {{ displayInitial(ticket) }}
                     </div>
-                    <p class="text-sm font-medium text-gray-900 dark:text-white">{{ ticket.fca_name || '—' }}</p>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">{{ displayName(ticket) }}</p>
                   </div>
+                </td>
+                <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">
+                  <span v-if="ticket.assignee?.name">{{ ticket.assignee.name }}</span>
+                  <span v-else class="text-gray-400">—</span>
                 </td>
                 <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400 max-w-[200px] truncate">{{ ticket.subject }}</td>
                 <td class="px-5 py-4 text-sm font-semibold text-gray-700 dark:text-gray-300">₱{{ formatNumber(ticket.total_amount) }}</td>
@@ -195,7 +203,7 @@
                 </td>
               </tr>
               <tr v-if="!tickets.data?.length">
-                <td colspan="5" class="px-5 py-16 text-center">
+                <td colspan="6" class="px-5 py-16 text-center">
                   <div class="flex flex-col items-center gap-3">
                     <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
                       <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -229,7 +237,8 @@
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-gray-100 dark:border-gray-700/50">
-                <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">FCA Name</th>
+                <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Name</th>
+                <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Assigned TPS</th>
                 <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Contact No.</th>
                 <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Amount Paid</th>
                 <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Date Fully Paid</th>
@@ -241,10 +250,14 @@
                 <td class="px-5 py-4">
                   <div class="flex items-center gap-3">
                     <div class="flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold text-white shrink-0" style="background-color: #007f3d;">
-                      {{ (ticket.fca_name || '?').charAt(0).toUpperCase() }}
+                      {{ displayInitial(ticket) }}
                     </div>
-                    <p class="text-sm font-medium text-gray-900 dark:text-white">{{ ticket.fca_name || '—' }}</p>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">{{ displayName(ticket) }}</p>
                   </div>
+                </td>
+                <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">
+                  <span v-if="ticket.assignee?.name">{{ ticket.assignee.name }}</span>
+                  <span v-else class="text-gray-400">—</span>
                 </td>
                 <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-400">{{ ticket.submitter?.phone || '—' }}</td>
                 <td class="px-5 py-4 text-sm font-semibold text-emerald-600 dark:text-emerald-400">₱{{ formatNumber(ticket.total_paid) }}</td>
@@ -258,7 +271,7 @@
                 </td>
               </tr>
               <tr v-if="!tickets.data?.length">
-                <td colspan="5" class="px-5 py-16 text-center">
+                <td colspan="6" class="px-5 py-16 text-center">
                   <div class="flex flex-col items-center gap-3">
                     <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
                       <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -299,7 +312,7 @@
           <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0" style="background-color: #007f3d;">
             <div>
               <h2 class="text-lg font-semibold text-white">Collectible Details</h2>
-              <p class="text-sm text-green-100">{{ selectedTicket?.fca_name }} &middot; #{{ selectedTicket?.id }}</p>
+              <p class="text-sm text-green-100">{{ displayName(selectedTicket) }} &middot; #{{ selectedTicket?.id }}</p>
             </div>
             <button @click="closeDrawer" class="rounded-lg p-1.5 text-green-100 hover:text-white hover:bg-white/20 transition-colors">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -324,10 +337,10 @@
                 <!-- FCA Info -->
                 <div class="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50">
                   <div class="flex items-center justify-center w-12 h-12 rounded-full text-lg font-bold text-white shrink-0" style="background-color: #007f3d;">
-                    {{ (ticketDetail.fca_name || '?').charAt(0).toUpperCase() }}
+                    {{ displayInitial(ticketDetail) }}
                   </div>
                   <div>
-                    <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ ticketDetail.fca_name }}</p>
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ displayName(ticketDetail) }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ ticketDetail.submitter?.phone || '—' }} &middot; {{ ticketDetail.submitter?.email || '—' }}</p>
                     <p v-if="ticketDetail.tractor" class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       {{ ticketDetail.tractor.brand }} {{ ticketDetail.tractor.model }} &middot; {{ ticketDetail.tractor.no_plate }}
@@ -614,6 +627,14 @@ const switchTab = (tab) => {
 function formatNumber(val) {
   if (val === null || val === undefined) return '0.00';
   return Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// --- Helper: Display name (tractor.name || organization_name) ---
+function displayName(ticket) {
+  return ticket.tractor?.name || ticket.organization_name || ticket.tractor?.no_plate || ticket.fca_name || '—';
+}
+function displayInitial(ticket) {
+  return (ticket.tractor?.name || ticket.organization_name || ticket.tractor?.no_plate || ticket.fca_name || '?').charAt(0).toUpperCase();
 }
 
 // --- Detail Drawer ---
