@@ -35,6 +35,7 @@
           <tr>
             <th scope="col" class="px-6 py-3">Tractor</th>
             <th scope="col" class="px-6 py-3">Distributed To</th>
+            <th scope="col" class="px-6 py-3">Coop</th>
             <th scope="col" class="px-6 py-3">Distributed By</th>
             <th scope="col" class="px-6 py-3">Area</th>
             <th scope="col" class="px-6 py-3">Status</th>
@@ -48,6 +49,7 @@
               {{ dist.tractor?.brand }} {{ dist.tractor?.model }} — {{ dist.tractor?.no_plate }}
             </td>
             <td class="px-6 py-4">{{ dist.distributed_to_user?.name || '—' }}</td>
+            <td class="px-6 py-4">{{ dist.distributed_to_user?.organization_name || '—' }}</td>
             <td class="px-6 py-4">{{ dist.distributed_by_user?.name || '—' }}</td>
             <td class="px-6 py-4">{{ dist.area || '—' }}</td>
             <td class="px-6 py-4"><StatusBadge :status="dist.status" /></td>
@@ -67,7 +69,7 @@
             </td>
           </tr>
           <tr v-if="!distributions.data?.length">
-            <td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No distributions found.</td>
+            <td colspan="8" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No distributions found.</td>
           </tr>
         </tbody>
       </table>

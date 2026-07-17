@@ -40,12 +40,16 @@
             <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ distribution.area || '—' }}</dd>
           </div>
           <div>
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Distributed Date</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ distribution.distributed_at ? formatDate(distribution.distributed_at) : formatDate(distribution.created_at) }}</dd>
+            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Distribution Date</dt>
+            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ distribution.distribution_date ? formatDate(distribution.distribution_date) : '—' }}</dd>
           </div>
-          <div v-if="distribution.returned_at">
-            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Returned Date</dt>
-            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatDate(distribution.returned_at) }}</dd>
+          <div v-if="distribution.return_date">
+            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Return Date</dt>
+            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatDate(distribution.return_date) }}</dd>
+          </div>
+          <div v-if="distribution.latitude && distribution.longitude">
+            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Geotag</dt>
+            <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ Number(distribution.latitude).toFixed(5) }}, {{ Number(distribution.longitude).toFixed(5) }}</dd>
           </div>
           <div v-if="distribution.notes">
             <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Notes</dt>
@@ -57,12 +61,54 @@
       <div class="space-y-6">
         <!-- Tractor Card -->
         <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 dark:bg-gray-800 dark:border-gray-700">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Tractor</h3>
+          <div class="flex items-center gap-2 mb-4">
+            <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Tractor Information</h3>
+          </div>
           <div v-if="distribution.tractor">
-            <Link :href="`/tractors/${distribution.tractor.id}`" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">
-              {{ distribution.tractor.brand }} {{ distribution.tractor.model }}
-            </Link>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Plate: {{ distribution.tractor.no_plate }}</p>
+            <dl class="space-y-3">
+              <div class="flex justify-between">
+                <dt class="text-sm text-gray-500 dark:text-gray-400">Name</dt>
+                <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ distribution.tractor.name || '—' }}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-sm text-gray-500 dark:text-gray-400">Brand & Model</dt>
+                <dd class="text-sm font-medium text-gray-900 dark:text-white">
+                  <Link :href="`/tractors/${distribution.tractor.id}`" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">
+                    {{ distribution.tractor.brand }} {{ distribution.tractor.model }}
+                  </Link>
+                </dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-sm text-gray-500 dark:text-gray-400">Plate No.</dt>
+                <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ distribution.tractor.no_plate || '—' }}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-sm text-gray-500 dark:text-gray-400">Engine No.</dt>
+                <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ distribution.tractor.engine_no || '—' }}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-sm text-gray-500 dark:text-gray-400">Chassis No.</dt>
+                <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ distribution.tractor.chassis_no || '—' }}</dd>
+              </div>
+
+              <!-- Implements Section -->
+              <div class="border-t border-gray-100 dark:border-gray-700 pt-3 mt-3">
+                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Implements</p>
+                <div class="flex justify-between">
+                  <dt class="text-sm text-gray-500 dark:text-gray-400">Front Loader SN</dt>
+                  <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ distribution.tractor.front_loader_sn || '—' }}</dd>
+                </div>
+                <div class="flex justify-between mt-2">
+                  <dt class="text-sm text-gray-500 dark:text-gray-400">Rotary Tiller SN</dt>
+                  <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ distribution.tractor.rotary_tiller_sn || '—' }}</dd>
+                </div>
+                <div class="flex justify-between mt-2">
+                  <dt class="text-sm text-gray-500 dark:text-gray-400">Disc Plow SN</dt>
+                  <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ distribution.tractor.disc_plow_sn || '—' }}</dd>
+                </div>
+              </div>
+            </dl>
           </div>
           <div v-else class="flex flex-col items-center justify-center py-4">
             <svg class="w-10 h-10 text-gray-300 dark:text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10m10 0H3m10 0h2m4 0h1a1 1 0 001-1v-4l-3-5h-4v10"/></svg>
@@ -72,20 +118,49 @@
 
         <!-- People Card -->
         <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 dark:bg-gray-800 dark:border-gray-700">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">People</h3>
+          <div class="flex items-center gap-2 mb-4">
+            <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">People</h3>
+          </div>
           <dl class="space-y-4">
-            <div>
-              <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Distributed To</dt>
-              <dd class="mt-1 text-sm text-gray-900 dark:text-white">
-                <Link v-if="distribution.distributed_to_user" :href="`/users/${distribution.distributed_to_user.id}`" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">{{ distribution.distributed_to_user.name }}</Link>
+            <div class="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3">
+              <dt class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Distributed To (FCA)</dt>
+              <dd class="text-sm text-gray-900 dark:text-white">
+                <div v-if="distribution.distributed_to_user">
+                  <Link :href="`/users/${distribution.distributed_to_user.id}`" class="font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">
+                    {{ distribution.distributed_to_user.name }}
+                  </Link>
+                  <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ distribution.distributed_to_user.email }}</p>
+                  <p v-if="distribution.distributed_to_user.phone" class="text-xs text-gray-500 dark:text-gray-400">{{ distribution.distributed_to_user.phone }}</p>
+                  <p v-if="distribution.distributed_to_user.organization_name" class="mt-0.5 text-xs font-medium text-gray-600 dark:text-gray-300">{{ distribution.distributed_to_user.organization_name }}</p>
+                  <div v-if="distribution.distributed_to_user.province || distribution.distributed_to_user.city" class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                    {{ [distribution.distributed_to_user.city, distribution.distributed_to_user.province].filter(Boolean).join(', ') }}
+                  </div>
+                </div>
                 <span v-else class="text-gray-400 dark:text-gray-500">—</span>
               </dd>
             </div>
-            <div>
-              <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Distributed By</dt>
-              <dd class="mt-1 text-sm text-gray-900 dark:text-white">
-                <Link v-if="distribution.distributed_by_user" :href="`/users/${distribution.distributed_by_user.id}`" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">{{ distribution.distributed_by_user.name }}</Link>
+            <div class="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3">
+              <dt class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Distributed By</dt>
+              <dd class="text-sm text-gray-900 dark:text-white">
+                <div v-if="distribution.distributed_by_user">
+                  <Link :href="`/users/${distribution.distributed_by_user.id}`" class="font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">
+                    {{ distribution.distributed_by_user.name }}
+                  </Link>
+                  <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ distribution.distributed_by_user.email }}</p>
+                  <p v-if="distribution.distributed_by_user.phone" class="text-xs text-gray-500 dark:text-gray-400">{{ distribution.distributed_by_user.phone }}</p>
+                </div>
                 <span v-else class="text-gray-400 dark:text-gray-500">—</span>
+              </dd>
+            </div>
+            <div v-if="distribution.tps_user" class="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3">
+              <dt class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Responsible TPS</dt>
+              <dd class="text-sm text-gray-900 dark:text-white">
+                <Link :href="`/users/${distribution.tps_user.id}`" class="font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">
+                  {{ distribution.tps_user.name }}
+                </Link>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ distribution.tps_user.email }}</p>
+                <p v-if="distribution.tps_user.phone" class="text-xs text-gray-500 dark:text-gray-400">{{ distribution.tps_user.phone }}</p>
               </dd>
             </div>
           </dl>

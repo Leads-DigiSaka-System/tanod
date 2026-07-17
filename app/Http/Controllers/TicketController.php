@@ -32,7 +32,10 @@ class TicketController extends Controller
             $direction = 'desc';
         }
 
+        $cutoffDate = '2026-07-09';
+
         $tickets = Ticket::with(['submitter', 'assignees', 'tractor'])
+            ->where('created_at', '>', $cutoffDate . ' 23:59:59')
             ->when(! $user->hasAnyRole(['super-admin', 'sub-admin']), fn ($q) => $q->where('submitted_by', $user->id))
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->priority, fn ($q, $p) => $q->where('priority', $p))
@@ -41,8 +44,15 @@ class TicketController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        $oldTickets = Ticket::with(['submitter', 'assignees', 'tractor'])
+            ->where('created_at', '<=', $cutoffDate . ' 23:59:59')
+            ->when(! $user->hasAnyRole(['super-admin', 'sub-admin']), fn ($q) => $q->where('submitted_by', $user->id))
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
+
         return Inertia::render('Tickets/Index', [
             'tickets' => $tickets,
+            'oldTickets' => $oldTickets,
             'filters' => $request->only(['search', 'status', 'priority', 'sort', 'direction']),
         ]);
     }

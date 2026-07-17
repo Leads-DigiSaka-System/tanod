@@ -15,7 +15,7 @@ class DistributionController extends Controller
 {
     public function index(Request $request)
     {
-        $distributions = TractorDistribution::with(['tractor', 'distributedToUser', 'distributedByUser', 'tpsUser'])
+        $distributions = TractorDistribution::with(['tractor', 'distributedToUser.fcaProfile', 'distributedByUser', 'tpsUser'])
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->search, fn ($q, $s) => $q->whereHas('tractor', fn ($q) => $q->where('no_plate', 'like', "%{$s}%")))
             ->latest()
@@ -64,7 +64,7 @@ class DistributionController extends Controller
 
     public function show(TractorDistribution $distribution)
     {
-        $distribution->load(['tractor.device.latestLocation', 'distributedToUser', 'distributedByUser']);
+        $distribution->load(['tractor.device.latestLocation', 'distributedToUser', 'distributedByUser', 'tpsUser']);
 
         return Inertia::render('Distributions/Show', [
             'distribution' => $distribution,

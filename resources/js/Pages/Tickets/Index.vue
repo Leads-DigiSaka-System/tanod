@@ -44,7 +44,27 @@
       </div>
     </div>
 
-    <!-- Table -->
+    <!-- Tabs -->
+    <div class="flex items-center gap-1 mb-6">
+      <button @click="activeTab = 'current'"
+        :class="activeTab === 'current'
+          ? 'bg-white text-gray-900 shadow-sm border border-gray-200/60 dark:bg-gray-800 dark:text-white dark:border-gray-700/50'
+          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
+        class="px-4 py-2 text-sm font-semibold rounded-lg transition-colors">
+        Current
+      </button>
+      <button @click="activeTab = 'old'"
+        :class="activeTab === 'old'
+          ? 'bg-white text-gray-900 shadow-sm border border-gray-200/60 dark:bg-gray-800 dark:text-white dark:border-gray-700/50'
+          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
+        class="px-4 py-2 text-sm font-semibold rounded-lg transition-colors">
+        Old Data
+        <span v-if="oldTickets?.total" class="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-[11px] font-bold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{{ oldTickets.total }}</span>
+      </button>
+    </div>
+
+    <!-- Current Tab -->
+    <template v-if="activeTab === 'current'">
     <div class="bg-white rounded-xl border border-gray-200/60 shadow-sm overflow-hidden mb-6 dark:bg-gray-800/60 dark:border-gray-700/50">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -134,6 +154,91 @@
     </div>
 
     <Pagination :links="tickets.links" class="mt-6" />
+    </template>
+
+    <!-- Old Data Tab -->
+    <template v-if="activeTab === 'old'">
+    <div class="bg-white rounded-xl border border-gray-200/60 shadow-sm overflow-hidden mb-6 dark:bg-gray-800/60 dark:border-gray-700/50">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-100 dark:border-gray-700/50">
+              <th scope="col" class="px-5 py-3.5 w-16">
+                <span class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">#</span>
+              </th>
+              <th v-for="col in [
+                { label: 'Type', field: 'category' },
+                { label: 'Name', field: 'tractor_name' },
+                { label: 'Subject', field: 'subject' },
+                { label: 'Action Taken', field: 'description' },
+                { label: 'Service Charge', field: 'service_charge' },
+                { label: 'Status', field: 'status' },
+                { label: 'Reported', field: 'reported_date' },
+              ]" :key="col.field" scope="col" class="px-5 py-3.5">
+                <span class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ col.label }}</span>
+              </th>
+              <th scope="col" class="px-5 py-3.5 text-right w-16">
+                <span class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-50 dark:divide-gray-700/30">
+            <tr v-for="ticket in oldTickets.data" :key="ticket.id" class="group hover:bg-gray-50/80 dark:hover:bg-gray-700/30 transition-colors">
+              <td class="px-5 py-3.5">
+                <span class="text-xs font-mono text-gray-400 dark:text-gray-500">#{{ ticket.id }}</span>
+              </td>
+              <td class="px-5 py-3.5">
+                <span class="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 ring-1 ring-amber-200/50 dark:bg-amber-900/20 dark:text-amber-400 dark:ring-amber-800/30">
+                  {{ ticket.category || 'repair' }}
+                </span>
+              </td>
+              <td class="px-5 py-3.5">
+                <p class="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[200px]" :title="ticket.tractor?.name || ticket.organization_name">{{ ticket.tractor?.name || ticket.organization_name || '—' }}</p>
+              </td>
+              <td class="px-5 py-3.5 max-w-[280px]">
+                <p class="text-sm font-medium text-gray-900 dark:text-white truncate" :title="ticket.subject">{{ ticket.subject }}</p>
+              </td>
+              <td class="px-5 py-3.5 max-w-[220px]">
+                <p class="text-xs text-gray-500 dark:text-gray-400 truncate" :title="ticket.description">{{ ticket.description || '—' }}</p>
+              </td>
+              <td class="px-5 py-3.5 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                  {{ ticket.service_charge ? `₱${Number(ticket.service_charge).toLocaleString()}` : '—' }}
+                </td>
+                <td class="px-5 py-3.5">
+                  <span :class="statusBadgeClass(ticket.status)" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold">
+                    <span :class="statusDotClass(ticket.status)" class="w-1.5 h-1.5 rounded-full"></span>
+                    {{ statusLabel(ticket.status) }}
+                  </span>
+                </td>
+                <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">{{ formatDateOnly(ticket.reported_date) || formatDate(ticket.created_at) }}</td>
+                <td class="px-5 py-3.5">
+                  <div class="flex items-center justify-end gap-0.5">
+                    <Link :href="`/tickets/${ticket.id}`" class="p-2 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 transition-colors" title="View">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    </Link>
+                    <button @click="confirmDelete(ticket)" class="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors" title="Delete">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="!oldTickets.data?.length">
+                <td colspan="9" class="px-5 py-16 text-center">
+                  <div class="flex flex-col items-center gap-3">
+                    <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
+                      <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    </div>
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">No old tickets found</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <Pagination :links="oldTickets.links" class="mt-4" />
+    </template>
 
     <!-- Delete Confirmation Modal -->
     <Modal :show="showDeleteModal" max-width="sm" @close="closeDeleteModal">
@@ -188,7 +293,9 @@ import Pagination from '@/Components/Pagination.vue';
 import Modal from '@/Components/Modal.vue';
 import { formatDate, formatDateOnly } from '@/utils/dateFormat';
 
-const props = defineProps({ tickets: Object, filters: Object });
+const props = defineProps({ tickets: Object, oldTickets: Object, filters: Object });
+
+const activeTab = ref('current');
 
 const search = ref(props.filters?.search || '');
 const statusFilter = ref(props.filters?.status || '');
