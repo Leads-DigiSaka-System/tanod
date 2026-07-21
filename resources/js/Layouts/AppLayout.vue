@@ -173,6 +173,7 @@ const route = window.route || ((name) => {
     'support-contact.index': '/support-contact',
     'collectibles.index': '/collectibles',
     'miscellaneous.index': '/miscellaneous',
+    'api-integration.index': '/api-integration',
     'users.index': '/users',
     'profile': '/profile',
     'logout': '/logout',
@@ -198,6 +199,7 @@ const navigation = computed(() => {
     { name: 'Support Contact', href: route('support-contact.index'), icon: 'support', show: hasRole('super-admin', 'sub-admin') },
     { name: 'Collectibles', href: route('collectibles.index'), icon: 'collectible', show: hasRole('super-admin', 'sub-admin') },
     { name: 'Miscellaneous', href: route('miscellaneous.index'), icon: 'misc', show: hasRole('super-admin', 'sub-admin') },
+    { name: 'API Integration', href: route('api-integration.index'), icon: 'api', show: hasRole('super-admin', 'sub-admin') },
     { name: 'Users', href: route('users.index'), icon: 'users', show: hasRole('super-admin', 'sub-admin') },
   ];
   return items.filter(i => i.show);

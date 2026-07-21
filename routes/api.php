@@ -12,14 +12,41 @@ use App\Http\Controllers\Api\ApiNotificationController;
 use App\Http\Controllers\Api\ApiReportController;
 use App\Http\Controllers\Api\ApiTicketController;
 use App\Http\Controllers\Api\ApiTicketReportController;
-use App\Http\Controllers\Api\ApiTsrController;
 use App\Http\Controllers\Api\ApiTractorController;
+use App\Http\Controllers\Api\ApiTsrController;
+use App\Http\Controllers\Api\Integration\AlertController as IntegrationAlertController;
+use App\Http\Controllers\Api\Integration\OverviewController as IntegrationOverviewController;
+use App\Http\Controllers\Api\Integration\TractorController as IntegrationTractorController;
 use App\Mail\FarmerWelcomeMail;
 use App\Models\Notification;
 use App\Models\User;
 use App\Services\M360SmsService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| Third-party Integration API (v1)
+|--------------------------------------------------------------------------
+| Read-only API authenticated by admin-issued, integration-scoped tokens.
+*/
+Route::prefix('integration/v1')
+    ->middleware(['auth:sanctum', 'active', 'integration.token', 'throttle:integration-api'])
+    ->name('api.integration.v1.')
+    ->group(function () {
+        Route::get('summary', [IntegrationOverviewController::class, 'summary'])->name('summary');
+        Route::get('alert-types', [IntegrationOverviewController::class, 'alertTypes'])->name('alert-types');
+        Route::get('live/tractors', [IntegrationOverviewController::class, 'liveTractors'])->name('live.tractors');
+        Route::get('tractors', [IntegrationTractorController::class, 'index'])->name('tractors.index');
+        Route::get('tractors/{tractor}', [IntegrationTractorController::class, 'show'])->name('tractors.show');
+        Route::get('tractors/{tractor}/location', [IntegrationTractorController::class, 'location'])->name('tractors.location');
+        Route::get('tractors/{tractor}/location-history', [IntegrationTractorController::class, 'locationHistory'])->name('tractors.location-history');
+        Route::get('tractors/{tractor}/mileage', [IntegrationTractorController::class, 'mileage'])->name('tractors.mileage');
+        Route::get('tractors/{tractor}/track-data', [IntegrationTractorController::class, 'trackData'])->name('tractors.track-data');
+        Route::get('tractors/{tractor}/alerts', [IntegrationTractorController::class, 'alerts'])->name('tractors.alerts');
+        Route::get('tractors/{tractor}/maintenance', [IntegrationTractorController::class, 'maintenance'])->name('tractors.maintenance');
+        Route::get('alerts', [IntegrationAlertController::class, 'index'])->name('alerts.index');
+    });
 
 /*
 |--------------------------------------------------------------------------

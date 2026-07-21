@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\ApiIntegrationController;
 use App\Http\Controllers\AlertController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BookingController;
@@ -215,6 +216,12 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Miscellaneous
     Route::middleware('role:super-admin|sub-admin')->group(function () {
+        Route::get('/api-integration', [ApiIntegrationController::class, 'index'])->name('api-integration.index');
+        Route::post('/api-integration/tokens', [ApiIntegrationController::class, 'store'])->name('api-integration.tokens.store');
+        Route::get('/api-integration/tokens/{token}/reveal', [ApiIntegrationController::class, 'reveal'])->name('api-integration.tokens.reveal');
+        Route::post('/api-integration/tokens/{token}/rotate', [ApiIntegrationController::class, 'rotate'])->name('api-integration.tokens.rotate');
+        Route::delete('/api-integration/tokens/{token}', [ApiIntegrationController::class, 'destroy'])->name('api-integration.tokens.destroy');
+
         Route::get('/miscellaneous', [\App\Http\Controllers\Admin\MiscellaneousController::class, 'index'])->name('miscellaneous.index');
         Route::post('/miscellaneous/parts', [\App\Http\Controllers\Admin\MiscellaneousController::class, 'store'])->name('miscellaneous.parts.store');
         Route::put('/miscellaneous/parts/{part}', [\App\Http\Controllers\Admin\MiscellaneousController::class, 'update'])->name('miscellaneous.parts.update');
