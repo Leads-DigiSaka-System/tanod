@@ -379,15 +379,20 @@
               <div class="min-w-0">
                 <p class="text-[10px] text-gray-400 uppercase tracking-wider">Reporter</p>
                 <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ ticket.submitter?.name || '—' }}</p>
+                <p v-if="submitterOrgName" class="text-[11px] text-gray-500 truncate">{{ submitterOrgName }}</p>
               </div>
             </div>
             <div v-if="ticket.tractor" class="flex items-center gap-3">
               <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30 shrink-0">
                 <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" /></svg>
               </div>
-              <div class="min-w-0">
+              <div class="min-w-0 flex-1">
                 <p class="text-[10px] text-gray-400 uppercase tracking-wider">Tractor</p>
                 <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ ticket.tractor.no_plate }} · {{ ticket.tractor.brand }}</p>
+                <button v-if="tractorImages.length" @click="showNameplateModal = true" class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 transition-colors">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                  View Nameplate
+                </button>
               </div>
             </div>
             <div class="flex items-center gap-3">
@@ -578,6 +583,40 @@
         </div>
       </Transition>
     </Teleport>
+
+    <!-- Nameplate Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showNameplateModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" @click="showNameplateModal = false">
+          <div class="relative w-full max-w-2xl max-h-[90vh] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden" @click.stop>
+            <!-- Header -->
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+              <div>
+                <h3 class="text-sm font-bold text-gray-900 dark:text-white">Implement Nameplates</h3>
+                <p class="text-xs text-gray-500 mt-0.5">{{ ticket.tractor?.no_plate }} · {{ ticket.tractor?.brand }}</p>
+              </div>
+              <button @click="showNameplateModal = false" class="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <!-- Grid of nameplate photos -->
+            <div class="p-5 overflow-y-auto max-h-[70vh]">
+              <div v-if="!tractorImages.length" class="text-center py-10 text-sm text-gray-400">
+                No nameplate photos available.
+              </div>
+              <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div v-for="img in tractorImages" :key="img.id" class="group relative">
+                  <div @click="previewImage = { url: img.url, label: img.label }" class="aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 cursor-zoom-in hover:shadow-md transition-shadow">
+                    <img :src="img.url" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  </div>
+                  <p class="mt-1.5 text-[11px] font-medium text-gray-500 dark:text-gray-400 text-center">{{ img.label }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </AppLayout>
 </template>
 
@@ -694,6 +733,16 @@ const tractorSn = computed(() => {
   return tractor.name || null;
 });
 
+/**
+ * Organization name of the ticket reporter.
+ * Checks: submitter.organization_name → ticket.fca_name → null
+ */
+const submitterOrgName = computed(() => {
+  return props.ticket.submitter?.organization_name
+    || props.ticket.fca_name
+    || null;
+});
+
 // Local comments for real-time updates
 const localComments = ref([...(props.ticket.comments || [])]);
 const commentsContainer = ref(null);
@@ -702,6 +751,25 @@ const fileInput = ref(null);
 const selectedFile = ref(null);
 const attachmentPreview = ref(null);
 const previewImage = ref(null); // { url, label }
+const showNameplateModal = ref(false);
+
+/**
+ * Tractor implement nameplate photos with human-readable labels.
+ */
+const tractorImages = computed(() => {
+  const images = props.ticket.tractor?.images || [];
+  const labelMap = {
+    id_no: 'Serial Number',
+    engine_no: 'Engine Number',
+    front_loader_sn: 'Front Loader',
+    rotary_tiller_sn: 'Rotavator',
+    disc_plow_sn: 'Disc Plow',
+  };
+  return images.map(img => ({
+    ...img,
+    label: labelMap[img.type] || img.type,
+  }));
+});
 
 const scrollToBottom = () => {
   nextTick(() => {
