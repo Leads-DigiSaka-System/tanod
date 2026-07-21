@@ -536,7 +536,17 @@
                         <div class="relative">
                           <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 dark:text-gray-400">₱</span>
                           <input v-model="paymentForm.amount" type="number" step="0.01" min="0.01" :max="ticketDetail.remaining_balance" placeholder="0.00"
-                            class="w-full rounded-lg border-gray-300 pl-8 pr-3 py-2.5 text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                            class="w-full rounded-lg border-gray-300 pl-8 pr-3 py-2.5 text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            :class="parseFloat(paymentForm.amount) > ticketDetail.remaining_balance ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : ''" />
+                        </div>
+                        <!-- Live max indicator -->
+                        <div class="mt-1 flex items-center justify-between">
+                          <span class="text-[11px]" :class="parseFloat(paymentForm.amount) > ticketDetail.remaining_balance ? 'text-red-500 font-semibold' : 'text-gray-400'">
+                            Max: ₱{{ formatNumber(ticketDetail.remaining_balance) }}
+                          </span>
+                          <span v-if="parseFloat(paymentForm.amount) > ticketDetail.remaining_balance" class="text-[10px] text-red-500 font-medium">
+                            ⚠ Exceeds balance
+                          </span>
                         </div>
                         <p v-if="paymentForm.errors.amount" class="mt-1 text-xs text-red-600">{{ paymentForm.errors.amount }}</p>
                         <button v-if="ticketDetail.monthly_amount > 0" type="button" @click="paymentForm.amount = ticketDetail.monthly_amount"
@@ -675,6 +685,15 @@ function closeDrawer() {
 
 function submitPayment() {
   if (!selectedTicket.value) return;
+  if (!ticketDetail.value) return;
+
+  const maxAmount = ticketDetail.value.remaining_balance;
+  const entered = parseFloat(paymentForm.amount);
+
+  if (entered > maxAmount) {
+    paymentForm.amount = maxAmount.toFixed(2);
+    return;
+  }
 
   paymentForm.post(`/collectibles/${selectedTicket.value.id}/payment`, {
     preserveState: true,

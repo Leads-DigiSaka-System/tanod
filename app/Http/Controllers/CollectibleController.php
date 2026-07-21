@@ -16,6 +16,13 @@ class CollectibleController extends Controller
 
         $query = Ticket::query()
             ->whereIn('status', ['resolved', 'closed'])
+            // Only include tickets that have actual financial items
+            // (skip zero-balance tickets like third-party / self-repair)
+            ->where(function ($q) {
+                $q->where('service_charge', '>', 0)
+                    ->orWhere('down_payment', '>', 0)
+                    ->orWhereHas('tractorParts', fn ($q) => $q->where('ticket_tractor_part.amount', '>', 0));
+            })
             ->with([
                 'submitter',
                 'tractor',
@@ -42,10 +49,12 @@ class CollectibleController extends Controller
                 break;
             case 'collectible':
             default:
-                $query->where(function ($q) {
-                    $q->where('collectible_status', 'collectible')
-                        ->orWhereNull('collectible_status');
-                });
+                // Only show tickets from July 10, 2026 onwards
+                $query->where('resolved_at', '>=', '2026-07-10')
+                    ->where(function ($q) {
+                        $q->where('collectible_status', 'collectible')
+                            ->orWhereNull('collectible_status');
+                    });
                 break;
         }
 
@@ -146,7 +155,7 @@ class CollectibleController extends Controller
             $serviceCharge = (float) ($ticket->service_charge ?? 0);
             $totalAmount = $totalParts + $serviceCharge;
             $downPayment = (float) ($ticket->down_payment ?? 0);
-            $totalPaid = (float) $ticket->payments()->sum('amount');
+            $totalPaid = (float) $ticket->payments()->sum('amount') + $downPayment;
 
             if ($totalPaid >= $totalAmount) {
                 $ticket->update(['collectible_status' => 'paid']);
@@ -162,7 +171,17 @@ class CollectibleController extends Controller
 
     public function approve(Ticket $ticket)
     {
-        $ticket->update(['collectible_status' => 'collectible']);
+        // Check if already fully paid (e.g., down payment covers everything)
+        $totalParts = $ticket->tractorParts->sum(fn ($p) => ($p->pivot->amount * $p->pivot->quantity));
+        $serviceCharge = (float) ($ticket->service_charge ?? 0);
+        $totalAmount = $totalParts + $serviceCharge;
+        $downPayment = (float) ($ticket->down_payment ?? 0);
+        $paymentsTotal = (float) $ticket->payments()->sum('amount');
+        $totalPaid = $paymentsTotal + $downPayment;
+
+        $status = $totalPaid >= $totalAmount ? 'paid' : 'collectible';
+
+        $ticket->update(['collectible_status' => $status]);
 
         return redirect()->back()->with('success', 'Ticket approved for collection.');
     }
@@ -173,7 +192,7 @@ class CollectibleController extends Controller
         $serviceCharge = (float) ($ticket->service_charge ?? 0);
         $totalAmount = $totalParts + $serviceCharge;
         $downPayment = (float) ($ticket->down_payment ?? 0);
-        $totalPaid = (float) $ticket->payments->sum('amount');
+        $totalPaid = (float) $ticket->payments->sum('amount') + $downPayment;
         $remainingBalance = max(0, $totalAmount - $totalPaid);
         $lastPayment = $ticket->payments->first();
 
@@ -336,14 +355,22 @@ class CollectibleController extends Controller
 
     private function getTabCounts(): array
     {
+        $hasBalance = fn ($q) => $q->where('service_charge', '>', 0)
+            ->orWhere('down_payment', '>', 0)
+            ->orWhereHas('tractorParts', fn ($pq) => $pq->where('ticket_tractor_part.amount', '>', 0));
+
+        $baseQuery = Ticket::whereIn('status', ['resolved', 'closed'])
+            ->where($hasBalance);
+
         return [
-            'collectible' => Ticket::whereIn('status', ['resolved', 'closed'])
+            'collectible' => (clone $baseQuery)
+                ->where('resolved_at', '>=', '2026-07-10')
                 ->where(function ($q) {
                     $q->where('collectible_status', 'collectible')
                         ->orWhereNull('collectible_status');
                 })
                 ->count(),
-            'to_approve' => Ticket::whereIn('status', ['resolved', 'closed'])
+            'to_approve' => (clone $baseQuery)
                 ->where(function ($q) {
                     $q->where('collectible_status', 'to_approve')
                         ->orWhere(function ($q2) {
@@ -352,7 +379,7 @@ class CollectibleController extends Controller
                         });
                 })
                 ->count(),
-            'paid' => Ticket::whereIn('status', ['resolved', 'closed'])
+            'paid' => (clone $baseQuery)
                 ->where('collectible_status', 'paid')
                 ->count(),
         ];
