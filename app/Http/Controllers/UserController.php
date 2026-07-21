@@ -50,6 +50,29 @@ class UserController extends Controller
             'roles' => Role::all(['id', 'name']),
             'regularRoles' => Role::whereIn('name', ['super-admin', 'sub-admin', 'tps'])->get(['id', 'name']),
             'fcaList' => User::role('fca')->select('id', 'name')->orderBy('name')->get(),
+            'rolePermissions' => Role::query()
+                ->with('permissions:id,name')
+                ->withCount('users')
+                ->where('guard_name', 'web')
+                ->orderByRaw("CASE name WHEN 'super-admin' THEN 1 WHEN 'sub-admin' THEN 2 WHEN 'tps' THEN 3 WHEN 'fca' THEN 4 WHEN 'farmer' THEN 5 ELSE 6 END")
+                ->get(['id', 'name', 'guard_name'])
+                ->map(fn (Role $role): array => [
+                    'id' => $role->id,
+                    'name' => $role->name,
+                    'label' => str($role->name)->replace('-', ' ')->upper(),
+                    'users_count' => $role->users_count,
+                    'is_protected' => $role->name === 'super-admin',
+                    'permissions' => $role->permissions->pluck('name')->values(),
+                ]),
+            'permissionGroups' => collect(config('admin-permissions'))->map(function (array $group): array {
+                $group['permissions'] = collect($group['permissions'])->map(fn (string $permission): array => [
+                    'name' => $permission,
+                    'label' => str($permission)->after('.')->replace('_', ' ')->title(),
+                ])->all();
+
+                return $group;
+            })->all(),
+            'canManageRolePermissions' => $request->user()->hasRole('super-admin'),
         ]);
     }
 

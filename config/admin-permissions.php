@@ -1,0 +1,130 @@
+<?php
+
+return [
+    [
+        'key' => 'dashboard',
+        'label' => 'Dashboard',
+        'description' => 'System overview and operational statistics.',
+        'permissions' => ['dashboard.view'],
+    ],
+    [
+        'key' => 'live_view',
+        'label' => 'Live View',
+        'description' => 'Live tractor map, tracking, and share links.',
+        'permissions' => ['live_view.view'],
+    ],
+    [
+        'key' => 'tractors',
+        'label' => 'Tractors',
+        'description' => 'Fleet records, assignments, imports, and exports.',
+        'permissions' => ['tractors.view', 'tractors.create', 'tractors.edit', 'tractors.delete', 'tractors.assign', 'tractors.import', 'tractors.export'],
+    ],
+    [
+        'key' => 'devices',
+        'label' => 'Devices',
+        'description' => 'GPS devices, device records, and synchronization.',
+        'permissions' => ['devices.view', 'devices.create', 'devices.edit', 'devices.delete', 'devices.sync'],
+    ],
+    [
+        'key' => 'groups',
+        'label' => 'Groups',
+        'description' => 'Tractor groups and personnel assignments.',
+        'permissions' => ['groups.view', 'groups.create', 'groups.edit', 'groups.delete', 'groups.assign'],
+    ],
+    [
+        'key' => 'bookings',
+        'label' => 'Bookings',
+        'description' => 'Booking requests, approval, and rejection.',
+        'permissions' => ['bookings.view', 'bookings.create', 'bookings.edit', 'bookings.delete', 'bookings.approve', 'bookings.reject'],
+    ],
+    [
+        'key' => 'maintenance',
+        'label' => 'Maintenance',
+        'description' => 'Preventive maintenance and service work.',
+        'permissions' => ['maintenance.view', 'maintenance.create', 'maintenance.edit', 'maintenance.delete', 'maintenance.perform', 'maintenance.complete'],
+    ],
+    [
+        'key' => 'distributions',
+        'label' => 'Distributions',
+        'description' => 'Tractor distribution and handover records.',
+        'permissions' => ['distributions.view', 'distributions.create', 'distributions.edit'],
+    ],
+    [
+        'key' => 'geofences',
+        'label' => 'Geo-Fences',
+        'description' => 'Geographic boundaries and assigned areas.',
+        'permissions' => ['geofences.view', 'geofences.create', 'geofences.edit', 'geofences.delete'],
+    ],
+    [
+        'key' => 'alerts',
+        'label' => 'Alerts',
+        'description' => 'Fleet alerts and acknowledgement actions.',
+        'permissions' => ['alerts.view', 'alerts.acknowledge'],
+    ],
+    [
+        'key' => 'tickets',
+        'label' => 'Tickets',
+        'description' => 'Support tickets and personnel assignments.',
+        'permissions' => ['tickets.view', 'tickets.create', 'tickets.edit', 'tickets.assign'],
+    ],
+    [
+        'key' => 'feedback',
+        'label' => 'Feedback',
+        'description' => 'User feedback creation and review.',
+        'permissions' => ['feedback.view', 'feedback.create', 'feedback.review'],
+    ],
+    [
+        'key' => 'reports',
+        'label' => 'Reports',
+        'description' => 'Operational reports and data exports.',
+        'permissions' => ['reports.view', 'reports.export'],
+    ],
+    [
+        'key' => 'support_contacts',
+        'label' => 'Support Contact',
+        'description' => 'Support personnel and province coverage.',
+        'permissions' => ['support_contacts.view', 'support_contacts.manage'],
+    ],
+    [
+        'key' => 'collectibles',
+        'label' => 'Collectibles',
+        'description' => 'Collections, payments, and approvals.',
+        'permissions' => ['collectibles.view', 'collectibles.manage'],
+    ],
+    [
+        'key' => 'miscellaneous',
+        'label' => 'Miscellaneous',
+        'description' => 'Parts and miscellaneous administration.',
+        'permissions' => ['miscellaneous.view', 'miscellaneous.manage'],
+    ],
+    [
+        'key' => 'api_integrations',
+        'label' => 'API Integration',
+        'description' => 'Third-party API token issuance and management.',
+        'permissions' => ['api_integrations.view', 'api_integrations.manage'],
+    ],
+    [
+        'key' => 'users',
+        'label' => 'Users',
+        'description' => 'User accounts, roles, and access management.',
+        'permissions' => ['users.view', 'users.create', 'users.edit', 'users.delete', 'users.approve'],
+    ],
+    [
+        'key' => 'notifications',
+        'label' => 'Notifications',
+        'description' => 'Notification inbox and broadcast actions.',
+        'permissions' => ['notifications.view', 'notifications.send'],
+    ],
+    [
+        'key' => 'farm_assets',
+        'label' => 'Farm Assets',
+        'description' => 'FCA and farmer asset records.',
+        'permissions' => ['farm_assets.view', 'farm_assets.create', 'farm_assets.edit', 'farm_assets.delete'],
+    ],
+    [
+        'key' => 'system',
+        'label' => 'System Administration',
+        'description' => 'Settings and activity log access.',
+        'permissions' => ['settings.manage', 'activity_logs.view'],
+    ],
+];

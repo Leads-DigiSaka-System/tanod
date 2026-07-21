@@ -151,8 +151,10 @@ const toggleDarkMode = () => {
 
 const user = computed(() => page.props.auth?.user);
 const roles = computed(() => user.value?.roles || []);
+const permissions = computed(() => user.value?.permissions || []);
 
 const hasRole = (...roleNames) => roleNames.some(r => roles.value.includes(r));
+const can = (permission) => hasRole('super-admin') || permissions.value.includes(permission);
 
 const route = window.route || ((name) => {
   const routes = {
@@ -173,6 +175,7 @@ const route = window.route || ((name) => {
     'support-contact.index': '/support-contact',
     'collectibles.index': '/collectibles',
     'miscellaneous.index': '/miscellaneous',
+    'api-integration.index': '/api-integration',
     'users.index': '/users',
     'profile': '/profile',
     'logout': '/logout',
@@ -182,23 +185,24 @@ const route = window.route || ((name) => {
 
 const navigation = computed(() => {
   const items = [
-    { name: 'Dashboard', href: route('dashboard'), icon: 'dashboard', show: true },
-    { name: 'Live View', href: route('live-view.index'), icon: 'map', show: hasRole('super-admin', 'sub-admin', 'tps') },
-    { name: 'Tractors', href: route('tractors.index'), icon: 'tractor', show: true },
-    { name: 'Devices', href: route('devices.index'), icon: 'device', show: hasRole('super-admin', 'sub-admin', 'tps') },
-    { name: 'Groups', href: route('groups.index'), icon: 'group', show: hasRole('super-admin', 'sub-admin') },
-    { name: 'Bookings', href: route('bookings.index'), icon: 'calendar', show: true },
-    { name: 'Maintenance', href: route('maintenance.index'), icon: 'wrench', show: hasRole('super-admin', 'sub-admin', 'tps') },
-    { name: 'Distributions', href: route('distributions.index'), icon: 'share', show: hasRole('super-admin', 'sub-admin', 'tps') },
-    { name: 'Geo-Fences', href: route('geofences.index'), icon: 'fence', show: hasRole('super-admin', 'sub-admin', 'tps') },
-    { name: 'Alerts', href: route('alerts.index'), icon: 'alert', show: hasRole('super-admin', 'sub-admin', 'tps') },
-    { name: 'Tickets', href: route('tickets.index'), icon: 'ticket', show: true },
-    { name: 'Feedback', href: route('feedback.index'), icon: 'feedback', show: hasRole('super-admin', 'sub-admin', 'fca', 'farmer') },
-    { name: 'Reports', href: route('reports.index'), icon: 'report', show: hasRole('super-admin', 'sub-admin', 'tps') },
-    { name: 'Support Contact', href: route('support-contact.index'), icon: 'support', show: hasRole('super-admin', 'sub-admin') },
-    { name: 'Collectibles', href: route('collectibles.index'), icon: 'collectible', show: hasRole('super-admin', 'sub-admin') },
-    { name: 'Miscellaneous', href: route('miscellaneous.index'), icon: 'misc', show: hasRole('super-admin', 'sub-admin') },
-    { name: 'Users', href: route('users.index'), icon: 'users', show: hasRole('super-admin', 'sub-admin') },
+    { name: 'Dashboard', href: route('dashboard'), icon: 'dashboard', show: can('dashboard.view') },
+    { name: 'Live View', href: route('live-view.index'), icon: 'map', show: can('live_view.view') },
+    { name: 'Tractors', href: route('tractors.index'), icon: 'tractor', show: can('tractors.view') },
+    { name: 'Devices', href: route('devices.index'), icon: 'device', show: can('devices.view') },
+    { name: 'Groups', href: route('groups.index'), icon: 'group', show: can('groups.view') },
+    { name: 'Bookings', href: route('bookings.index'), icon: 'calendar', show: can('bookings.view') },
+    { name: 'Maintenance', href: route('maintenance.index'), icon: 'wrench', show: can('maintenance.view') },
+    { name: 'Distributions', href: route('distributions.index'), icon: 'share', show: can('distributions.view') },
+    { name: 'Geo-Fences', href: route('geofences.index'), icon: 'fence', show: can('geofences.view') },
+    { name: 'Alerts', href: route('alerts.index'), icon: 'alert', show: can('alerts.view') },
+    { name: 'Tickets', href: route('tickets.index'), icon: 'ticket', show: can('tickets.view') },
+    { name: 'Feedback', href: route('feedback.index'), icon: 'feedback', show: can('feedback.view') },
+    { name: 'Reports', href: route('reports.index'), icon: 'report', show: can('reports.view') },
+    { name: 'Support Contact', href: route('support-contact.index'), icon: 'support', show: can('support_contacts.view') },
+    { name: 'Collectibles', href: route('collectibles.index'), icon: 'collectible', show: can('collectibles.view') },
+    { name: 'Miscellaneous', href: route('miscellaneous.index'), icon: 'misc', show: can('miscellaneous.view') },
+    { name: 'API Integration', href: route('api-integration.index'), icon: 'api', show: can('api_integrations.view') },
+    { name: 'Users', href: route('users.index'), icon: 'users', show: can('users.view') },
   ];
   return items.filter(i => i.show);
 });

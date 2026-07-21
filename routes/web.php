@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\ApiIntegrationController;
 use App\Http\Controllers\AlertController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BookingController;
@@ -12,7 +13,9 @@ use App\Http\Controllers\GroupController;
 use App\Http\Controllers\LiveViewController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PublicApiDocumentationController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TractorController;
 use App\Http\Controllers\UserController;
@@ -38,6 +41,13 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 */
 Route::get('/share/{token}', [LiveViewController::class, 'showShare'])->name('share.show');
 Route::get('/share/{token}/data', [LiveViewController::class, 'shareData'])->name('share.data');
+
+// Public API documentation (access is granted by an issued integration token)
+Route::get('/api-docs', [PublicApiDocumentationController::class, 'index'])->name('api-docs.index');
+Route::post('/api-docs/authenticate', [PublicApiDocumentationController::class, 'authenticate'])
+    ->middleware('throttle:10,1')
+    ->name('api-docs.authenticate');
+Route::post('/api-docs/logout', [PublicApiDocumentationController::class, 'logout'])->name('api-docs.logout');
 
 /*
 |--------------------------------------------------------------------------
@@ -210,11 +220,20 @@ Route::middleware(['auth', 'active'])->group(function () {
     })->name('support-contact.assign.store');
 
     // Users (admin only)
+    Route::put('users/roles/{role}/permissions', [RolePermissionController::class, 'update'])
+        ->name('users.roles.permissions.update')
+        ->middleware('role:super-admin');
     Route::resource('users', UserController::class)->middleware('permission:users.view');
     Route::post('users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggle-active')->middleware('permission:users.edit');
 
     // Miscellaneous
     Route::middleware('role:super-admin|sub-admin')->group(function () {
+        Route::get('/api-integration', [ApiIntegrationController::class, 'index'])->name('api-integration.index');
+        Route::post('/api-integration/tokens', [ApiIntegrationController::class, 'store'])->name('api-integration.tokens.store');
+        Route::get('/api-integration/tokens/{token}/reveal', [ApiIntegrationController::class, 'reveal'])->name('api-integration.tokens.reveal');
+        Route::post('/api-integration/tokens/{token}/rotate', [ApiIntegrationController::class, 'rotate'])->name('api-integration.tokens.rotate');
+        Route::delete('/api-integration/tokens/{token}', [ApiIntegrationController::class, 'destroy'])->name('api-integration.tokens.destroy');
+
         Route::get('/miscellaneous', [\App\Http\Controllers\Admin\MiscellaneousController::class, 'index'])->name('miscellaneous.index');
         Route::post('/miscellaneous/parts', [\App\Http\Controllers\Admin\MiscellaneousController::class, 'store'])->name('miscellaneous.parts.store');
         Route::put('/miscellaneous/parts/{part}', [\App\Http\Controllers\Admin\MiscellaneousController::class, 'update'])->name('miscellaneous.parts.update');

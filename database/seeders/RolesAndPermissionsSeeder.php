@@ -21,6 +21,9 @@ class RolesAndPermissionsSeeder extends Seeder
         |----------------------------------------------------------------------
         */
         $permissions = [
+            // Main navigation
+            'dashboard.view', 'live_view.view',
+
             // User management
             'users.view', 'users.create', 'users.edit', 'users.delete', 'users.approve',
 
@@ -68,6 +71,12 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // Settings / System
             'settings.manage', 'activity_logs.view',
+
+            // Administration menus
+            'support_contacts.view', 'support_contacts.manage',
+            'collectibles.view', 'collectibles.manage',
+            'miscellaneous.view', 'miscellaneous.manage',
+            'api_integrations.view', 'api_integrations.manage',
         ];
 
         foreach ($permissions as $permission) {
@@ -93,9 +102,10 @@ class RolesAndPermissionsSeeder extends Seeder
             ]))->toArray()
         );
 
-        // tsr (Technical Personnel/Service) — distribution, maintenance, tractor ops
-        $tsr = Role::firstOrCreate(['name' => 'tsr']);
-        $tsr->givePermissionTo([
+        // TPS (Technical Personnel/Service) — distribution, maintenance, tractor ops
+        $tps = Role::firstOrCreate(['name' => 'tps']);
+        $tps->givePermissionTo([
+            'dashboard.view', 'live_view.view',
             'tractors.view', 'tractors.edit', 'tractors.assign',
             'devices.view', 'devices.sync',
             'groups.view',
@@ -114,6 +124,7 @@ class RolesAndPermissionsSeeder extends Seeder
         // FCA/Coop — manages tractors they received, bookings, farmers
         $fca = Role::firstOrCreate(['name' => 'fca']);
         $fca->givePermissionTo([
+            'dashboard.view',
             'tractors.view',
             'devices.view',
             'groups.view',
@@ -132,6 +143,7 @@ class RolesAndPermissionsSeeder extends Seeder
         // Farmer/Renter — can rent tractors, give feedback
         $farmer = Role::firstOrCreate(['name' => 'farmer']);
         $farmer->givePermissionTo([
+            'dashboard.view',
             'tractors.view',
             'bookings.view', 'bookings.create',
             'notifications.view',
