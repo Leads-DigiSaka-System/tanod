@@ -8,9 +8,11 @@ use App\Models\Device;
 use App\Models\DeviceLocation;
 use App\Models\DeviceShare;
 use App\Services\Jimi\JimiDeviceService;
+use App\Services\Jimi\JimiTrackingService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class ApiDeviceController extends Controller
@@ -163,10 +165,14 @@ class ApiDeviceController extends Controller
     }
 
     /**
-     * Fetch historical GPS track data from the database for a device.
-     * Uses recorded device_locations for smooth playback.
+     * Fetch historical GPS track data for a device by merging two data sources:
+     *
+     * 1. JIMI API (jimi.device.track.list) — primary, full historical track
+     * 2. Local device_locations table — fallback for any extra recent pings
+     *
+     * Points are merged, deduplicated by lat/lng/gps_time, and sorted chronologically.
      */
-    public function trackData(Request $request)
+    public function trackData(Request $request, JimiTrackingService $trackingService)
     {
         $request->validate([
             'device_id' => 'required|exists:devices,id',
@@ -176,6 +182,7 @@ class ApiDeviceController extends Controller
         ]);
 
         $device = $this->findAccessibleDevice($request->user(), (int) $request->device_id);
+        $imei = $device->imei;
 
         [$beginTime, $endTime] = $this->calculateDateRange(
             $request->period,
@@ -183,21 +190,33 @@ class ApiDeviceController extends Controller
             $request->to
         );
 
-        $points = DeviceLocation::where('device_id', $device->id)
+        // ── 1. Fetch from JIMI API (cached 5 min) ──
+        $cacheKey = "mobile_track_data_v2_{$imei}_{$beginTime}_{$endTime}";
+
+        $jimiPoints = Cache::remember($cacheKey, 300, function () use ($trackingService, $imei, $beginTime, $endTime) {
+            $chunks = $this->getDateChunks($beginTime, $endTime, 2);
+            $allPoints = [];
+
+            foreach ($chunks as [$chunkStart, $chunkEnd]) {
+                $points = $trackingService->fetchTrackData($imei, $chunkStart, $chunkEnd);
+                if (is_array($points)) {
+                    $allPoints = array_merge($allPoints, $points);
+                }
+            }
+
+            return $allPoints;
+        });
+
+        // ── 2. Also fetch from local device_locations (not cached) ──
+        $localLocations = DeviceLocation::where('device_id', $device->id)
             ->whereBetween('heartbeat_at', [$beginTime, $endTime])
             ->whereNotNull('lat')
             ->whereNotNull('lng')
             ->orderBy('heartbeat_at')
-            ->get(['lat', 'lng', 'speed', 'direction', 'heartbeat_at'])
-            ->map(fn (DeviceLocation $loc) => [
-                'lat' => $loc->lat,
-                'lng' => $loc->lng,
-                'speed' => $loc->speed ?? 0.0,
-                'direction' => (float) $loc->direction,
-                'gps_time' => $loc->heartbeat_at?->toIso8601String(),
-            ])
-            ->values()
-            ->all();
+            ->get(['lat', 'lng', 'speed', 'direction', 'heartbeat_at']);
+
+        // ── 3. Merge both sources, deduplicate by coordinate + time ──
+        $points = $this->mergeTrackPoints($jimiPoints, $localLocations);
 
         return response()->json([
             'success' => true,
@@ -207,6 +226,110 @@ class ApiDeviceController extends Controller
             'end_time' => $endTime,
             'points' => $points,
         ]);
+    }
+
+    /**
+     * Merge raw JIMI API points with local DB records, deduplicating
+     * by rounded lat/lng and gps time so the same ping isn't counted twice.
+     */
+    private function mergeTrackPoints(array $jimiRaw, $localLocations): array
+    {
+        $seen = [];
+        $merged = [];
+
+        // ── Process JIMI API points first ──
+        foreach ($jimiRaw as $p) {
+            $lat = (float) ($p['lat'] ?? 0);
+            $lng = (float) ($p['lng'] ?? 0);
+
+            if ($lat == 0 && $lng == 0) {
+                continue;
+            }
+
+            $gpsTime = $p['gpsTime'] ?? $p['positionTime'] ?? null;
+            $key = $this->pointDedupKey($lat, $lng, $gpsTime);
+
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+
+            $merged[] = [
+                'lat' => $lat,
+                'lng' => $lng,
+                'speed' => (float) ($p['speed'] ?? $p['gpsSpeed'] ?? 0),
+                'direction' => (float) ($p['course'] ?? $p['direction'] ?? 0),
+                'gps_time' => $gpsTime,
+            ];
+        }
+
+        // ── Then add local DB records that aren't duplicates ──
+        foreach ($localLocations as $loc) {
+            $lat = (float) $loc->lat;
+            $lng = (float) $loc->lng;
+
+            if ($lat == 0 && $lng == 0) {
+                continue;
+            }
+
+            $gpsTime = $loc->heartbeat_at?->toIso8601String();
+            $key = $this->pointDedupKey($lat, $lng, $gpsTime);
+
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+
+            $merged[] = [
+                'lat' => $lat,
+                'lng' => $lng,
+                'speed' => (float) ($loc->speed ?? 0),
+                'direction' => (float) ($loc->direction ?? 0),
+                'gps_time' => $gpsTime,
+            ];
+        }
+
+        // ── Sort chronologically ──
+        usort($merged, function ($a, $b) {
+            return ($a['gps_time'] ?? '') <=> ($b['gps_time'] ?? '');
+        });
+
+        return $merged;
+    }
+
+    /**
+     * Build a stable dedup key from lat/lng/gps_time (rounded to 4 decimals).
+     */
+    private function pointDedupKey(float $lat, float $lng, ?string $gpsTime): string
+    {
+        $rLat = round($lat, 4);
+        $rLng = round($lng, 4);
+        $time = $gpsTime ?? 'null';
+
+        return "{$rLat}|{$rLng}|{$time}";
+    }
+
+    /**
+     * Split a date range into smaller chunks (JIMI API works best with ≤2-day windows).
+     */
+    private function getDateChunks(string $beginTime, string $endTime, int $days = 2): array
+    {
+        $chunks = [];
+        $current = Carbon::parse($beginTime);
+        $end = Carbon::parse($endTime);
+
+        while ($current < $end) {
+            $chunkEnd = $current->copy()->addDays($days);
+            if ($chunkEnd > $end) {
+                $chunkEnd = $end;
+            }
+            $chunks[] = [$current->format('Y-m-d H:i:s'), $chunkEnd->format('Y-m-d H:i:s')];
+            $current = $chunkEnd;
+        }
+
+        return $chunks;
     }
 
     /**
