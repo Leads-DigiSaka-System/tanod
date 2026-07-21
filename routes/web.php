@@ -15,6 +15,7 @@ use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicApiDocumentationController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TractorController;
 use App\Http\Controllers\UserController;
@@ -219,6 +220,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     })->name('support-contact.assign.store');
 
     // Users (admin only)
+    Route::put('users/roles/{role}/permissions', [RolePermissionController::class, 'update'])
+        ->name('users.roles.permissions.update')
+        ->middleware('role:super-admin');
     Route::resource('users', UserController::class)->middleware('permission:users.view');
     Route::post('users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggle-active')->middleware('permission:users.edit');
 
