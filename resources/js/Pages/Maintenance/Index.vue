@@ -45,78 +45,78 @@
     </div>
 
     <!-- ═══ MAINTENANCE TABLE ═══ -->
-    <div class="bg-white rounded-xl border border-gray-200/60 shadow-sm overflow-hidden mb-6 dark:bg-gray-800/60 dark:border-gray-700/50">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-gray-100 dark:border-gray-700/50">
-              <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Tractor</th>
-              <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Issue Type</th>
-              <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Description</th>
-              <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
-              <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Date</th>
-              <th scope="col" class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Actions</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-50 dark:divide-gray-700/30">
-            <tr v-for="m in maintenances.data" :key="m.id" class="group hover:bg-gray-50/80 dark:hover:bg-gray-700/30 transition-colors">
-              <td class="px-5 py-3.5 max-w-[220px]">
-                <div class="flex items-center gap-3 min-w-0">
-                  <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 overflow-hidden group-hover:ring-2 group-hover:ring-indigo-300 dark:group-hover:ring-indigo-700 transition-all">
-                    <img src="/images/tym-1.png" alt="Tractor" class="h-7 w-7 object-contain" />
-                  </div>
-                  <div class="min-w-0">
-                    <p class="text-sm font-semibold text-gray-900 dark:text-white truncate" :title="m.tractor?.brand">{{ m.tractor?.brand || '—' }}</p>
-                    <p class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ m.tractor?.model }}{{ m.tractor?.model && m.tractor?.no_plate ? ' · ' : '' }}{{ m.tractor?.no_plate || '' }}</p>
-                  </div>
+    <div class="mb-6">
+      <DataTable>
+        <template #head>
+          <tr class="border-b border-gray-100 dark:border-gray-700/50">
+            <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 whitespace-nowrap">Tractor</th>
+            <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 whitespace-nowrap">Issue Type</th>
+            <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 whitespace-nowrap">Description</th>
+            <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 whitespace-nowrap">Status</th>
+            <th scope="col" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 whitespace-nowrap">Date</th>
+            <th scope="col" class="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 whitespace-nowrap">Actions</th>
+          </tr>
+        </template>
+        <template #body>
+          <tr v-for="m in maintenances.data" :key="m.id" class="group hover:bg-gray-50/80 dark:hover:bg-gray-700/30 transition-colors border-b border-gray-100 dark:border-gray-700/50">
+            <td class="px-5 py-3.5 max-w-[220px] whitespace-nowrap">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 overflow-hidden group-hover:ring-2 group-hover:ring-indigo-300 dark:group-hover:ring-indigo-700 transition-all">
+                  <img src="/images/tym-1.png" alt="Tractor" class="h-7 w-7 object-contain" />
                 </div>
-              </td>
-              <td class="px-5 py-3.5">
-                <span :class="[
-                  m.is_damage
-                    ? 'bg-red-50 text-red-700 ring-1 ring-red-200/50 dark:bg-red-900/20 dark:text-red-400 dark:ring-red-800/30'
-                    : m.is_recipient
-                      ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/50 dark:bg-amber-900/20 dark:text-amber-400 dark:ring-amber-800/30'
-                      : 'bg-gray-50 text-gray-600 ring-1 ring-gray-200/50 dark:bg-gray-700/50 dark:text-gray-300 dark:ring-gray-600/30'
-                ]" class="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-medium">
-                  {{ m.issue_type?.name || '—' }}
-                </span>
-              </td>
-              <td class="px-5 py-3.5 max-w-[220px]">
-                <p class="text-sm text-gray-700 dark:text-gray-300 truncate" :title="m.description">{{ m.description || '—' }}</p>
-              </td>
-              <td class="px-5 py-3.5">
-                <span :class="statusBadgeClass(m.status)" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold">
-                  <span :class="statusDotClass(m.status)" class="w-1.5 h-1.5 rounded-full"></span>
-                  {{ statusLabel(m.status) }}
-                </span>
-              </td>
-              <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">{{ formatDate(m.maintenance_date || m.created_at) }}</td>
-              <td class="px-5 py-3.5">
-                <div class="flex items-center justify-end gap-0.5">
-                  <button @click="openDetailModal(m)" class="p-2 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 transition-colors" title="View details">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                  </button>
-                  <Link v-if="!m.is_recipient" :href="`/maintenance/${m.id}/edit`" class="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 transition-colors" title="Edit">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                  </Link>
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-gray-900 dark:text-white truncate" :title="m.tractor?.brand">{{ m.tractor?.brand || '—' }}</p>
+                  <p class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ m.tractor?.model }}{{ m.tractor?.model && m.tractor?.no_plate ? ' · ' : '' }}{{ m.tractor?.no_plate || '' }}</p>
                 </div>
-              </td>
-            </tr>
-            <tr v-if="!maintenances.data?.length">
-              <td colspan="6" class="px-5 py-16 text-center">
-                <div class="flex flex-col items-center gap-3">
-                  <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
-                    <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                  </div>
-                  <p class="text-sm font-medium text-gray-500 dark:text-gray-400">No records found</p>
-                  <p class="text-xs text-gray-400 dark:text-gray-500">Maintenance records and tractor recipients will appear here.</p>
+              </div>
+            </td>
+            <td class="px-5 py-3.5 whitespace-nowrap">
+              <span :class="[
+                m.is_damage
+                  ? 'bg-red-50 text-red-700 ring-1 ring-red-200/50 dark:bg-red-900/20 dark:text-red-400 dark:ring-red-800/30'
+                  : m.is_recipient
+                    ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/50 dark:bg-amber-900/20 dark:text-amber-400 dark:ring-amber-800/30'
+                    : 'bg-gray-50 text-gray-600 ring-1 ring-gray-200/50 dark:bg-gray-700/50 dark:text-gray-300 dark:ring-gray-600/30'
+              ]" class="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-medium">
+                {{ m.issue_type?.name || '—' }}
+              </span>
+            </td>
+            <td class="px-5 py-3.5 max-w-[220px] whitespace-nowrap">
+              <p class="text-sm text-gray-700 dark:text-gray-300 truncate" :title="m.description">{{ m.description || '—' }}</p>
+            </td>
+            <td class="px-5 py-3.5 whitespace-nowrap">
+              <span :class="statusBadgeClass(m.status)" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold">
+                <span :class="statusDotClass(m.status)" class="w-1.5 h-1.5 rounded-full"></span>
+                {{ statusLabel(m.status) }}
+              </span>
+            </td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">{{ formatDate(m.maintenance_date || m.created_at) }}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap">
+              <div class="flex items-center justify-end gap-0.5">
+                <button @click="openDetailModal(m)" class="p-2 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 transition-colors" title="View details">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </button>
+                <Link v-if="!m.is_recipient" :href="`/maintenance/${m.id}/edit`" class="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 transition-colors" title="Edit">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </Link>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Empty state -->
+          <tr v-if="!maintenances.data?.length">
+            <td colspan="6" class="px-5 py-16 text-center">
+              <div class="flex flex-col items-center gap-3">
+                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
+                  <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                 </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">No records found</p>
+                <p class="text-xs text-gray-400 dark:text-gray-500">Maintenance records and tractor recipients will appear here.</p>
+              </div>
+            </td>
+          </tr>
+        </template>
+      </DataTable>
     </div>
 
     <!-- Pagination -->
@@ -459,6 +459,7 @@ import { router } from '@inertiajs/vue3';
 import VueApexCharts from 'vue3-apexcharts';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
+import DataTable from '@/Components/DataTable.vue';
 import { formatDate } from '@/utils/dateFormat';
 
 const apexchart = VueApexCharts;

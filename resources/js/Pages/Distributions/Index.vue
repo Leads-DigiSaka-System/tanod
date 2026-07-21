@@ -29,49 +29,49 @@
       </div>
     </div>
 
-    <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-      <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-          <tr>
-            <th scope="col" class="px-6 py-3">Tractor</th>
-            <th scope="col" class="px-6 py-3">Distributed To</th>
-            <th scope="col" class="px-6 py-3">Distributed By</th>
-            <th scope="col" class="px-6 py-3">Area</th>
-            <th scope="col" class="px-6 py-3">Status</th>
-            <th scope="col" class="px-6 py-3">Date</th>
-            <th scope="col" class="px-6 py-3 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="dist in distributions.data" :key="dist.id" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
-              {{ dist.tractor?.brand }} {{ dist.tractor?.model }} — {{ dist.tractor?.no_plate }}
-            </td>
-            <td class="px-6 py-4">{{ dist.distributed_to_user?.name || '—' }}</td>
-            <td class="px-6 py-4">{{ dist.distributed_by_user?.name || '—' }}</td>
-            <td class="px-6 py-4">{{ dist.area || '—' }}</td>
-            <td class="px-6 py-4"><StatusBadge :status="dist.status" /></td>
-            <td class="px-6 py-4">{{ formatDate(dist.distributed_at || dist.created_at) }}</td>
-            <td class="px-6 py-4">
-              <div class="flex items-center justify-end gap-1">
-                <Link :href="`/distributions/${dist.id}`" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View">
-                  <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                </Link>
-                <button v-if="dist.status === 'distributed'" @click="openEditSlideOver(dist)" class="p-1.5 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:text-gray-400 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 transition-colors" title="Edit">
-                  <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                </button>
-                <Link v-if="dist.status === 'distributed'" :href="`/distributions/${dist.id}/return`" method="post" as="button" class="p-1.5 rounded-lg text-gray-500 hover:text-amber-600 hover:bg-amber-50 dark:text-gray-400 dark:hover:text-amber-400 dark:hover:bg-amber-900/20 transition-colors" title="Return">
-                  <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
-                </Link>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="!distributions.data?.length">
-            <td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No distributions found.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <DataTable>
+      <template #head>
+        <tr>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Tractor</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Distributed To</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Distributed By</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Area</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Status</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Date</th>
+          <th scope="col" class="px-6 py-3 text-right whitespace-nowrap">Actions</th>
+        </tr>
+      </template>
+      <template #body>
+        <tr v-for="dist in distributions.data" :key="dist.id" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+          <td class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
+            {{ dist.tractor?.brand }} {{ dist.tractor?.model }} — {{ dist.tractor?.no_plate }}
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ dist.distributed_to_user?.name || '—' }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ dist.distributed_by_user?.name || '—' }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ dist.area || '—' }}</td>
+          <td class="px-6 py-4 whitespace-nowrap"><StatusBadge :status="dist.status" /></td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ formatDate(dist.distributed_at || dist.created_at) }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="flex items-center justify-end gap-1">
+              <Link :href="`/distributions/${dist.id}`" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+              </Link>
+              <button v-if="dist.status === 'distributed'" @click="openEditSlideOver(dist)" class="p-1.5 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:text-gray-400 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 transition-colors" title="Edit">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+              </button>
+              <Link v-if="dist.status === 'distributed'" :href="`/distributions/${dist.id}/return`" method="post" as="button" class="p-1.5 rounded-lg text-gray-500 hover:text-amber-600 hover:bg-amber-50 dark:text-gray-400 dark:hover:text-amber-400 dark:hover:bg-amber-900/20 transition-colors" title="Return">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
+              </Link>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Empty state -->
+        <tr v-if="!distributions.data?.length">
+          <td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No distributions found.</td>
+        </tr>
+      </template>
+    </DataTable>
 
     <Pagination :links="distributions.links" class="mt-6" />
 
@@ -210,6 +210,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import SlideOver from '@/Components/SlideOver.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
+import DataTable from '@/Components/DataTable.vue';
 import { formatDate } from '@/utils/dateFormat';
 
 const props = defineProps({
