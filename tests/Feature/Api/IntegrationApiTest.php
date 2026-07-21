@@ -123,6 +123,29 @@ class IntegrationApiTest extends TestCase
     }
 
     #[Test]
+    public function every_single_tractor_endpoint_accepts_id_imei_or_exact_tractor_name(): void
+    {
+        $imei = $this->tractor->imei;
+        $name = rawurlencode($this->tractor->name);
+
+        $endpoints = [
+            '/api/integration/v1/tractors/'.$imei,
+            '/api/integration/v1/tractors/'.$name.'/location',
+            '/api/integration/v1/tractors/'.$imei.'/alerts',
+            '/api/integration/v1/tractors/'.$name.'/location-history',
+            '/api/integration/v1/tractors/'.$imei.'/maintenance',
+            '/api/integration/v1/tractors/'.$name.'/mileage',
+            '/api/integration/v1/tractors/'.$imei.'/track-data',
+        ];
+
+        foreach ($endpoints as $endpoint) {
+            $this->withToken($this->integrationToken)
+                ->getJson($endpoint)
+                ->assertOk();
+        }
+    }
+
+    #[Test]
     public function partners_can_poll_a_single_tractor_location(): void
     {
         $this->withToken($this->integrationToken)

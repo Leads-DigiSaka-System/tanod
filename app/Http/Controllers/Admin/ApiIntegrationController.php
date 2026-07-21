@@ -44,7 +44,7 @@ class ApiIntegrationController extends Controller
         return Inertia::render('ApiIntegration/Index', [
             'tokens' => $tokens,
             'newToken' => $request->session()->get('newIntegrationToken'),
-            'baseUrl' => url('/api/integration/v1'),
+            'documentationUrl' => route('api-docs.index'),
         ]);
     }
 

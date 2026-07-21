@@ -13,6 +13,7 @@ use App\Http\Controllers\GroupController;
 use App\Http\Controllers\LiveViewController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PublicApiDocumentationController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TractorController;
@@ -39,6 +40,13 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 */
 Route::get('/share/{token}', [LiveViewController::class, 'showShare'])->name('share.show');
 Route::get('/share/{token}/data', [LiveViewController::class, 'shareData'])->name('share.data');
+
+// Public API documentation (access is granted by an issued integration token)
+Route::get('/api-docs', [PublicApiDocumentationController::class, 'index'])->name('api-docs.index');
+Route::post('/api-docs/authenticate', [PublicApiDocumentationController::class, 'authenticate'])
+    ->middleware('throttle:10,1')
+    ->name('api-docs.authenticate');
+Route::post('/api-docs/logout', [PublicApiDocumentationController::class, 'logout'])->name('api-docs.logout');
 
 /*
 |--------------------------------------------------------------------------

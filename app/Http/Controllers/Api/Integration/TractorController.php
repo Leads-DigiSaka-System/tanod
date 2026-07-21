@@ -49,8 +49,10 @@ class TractorController extends Controller
         return IntegrationTractorResource::collection($tractors);
     }
 
-    public function show(Tractor $tractor): IntegrationTractorResource
+    public function show(string $tractor): IntegrationTractorResource
     {
+        $tractor = $this->resolveTractor($tractor);
+
         $tractor->load([
             'device.latestLocation',
             'assignee',
@@ -63,8 +65,10 @@ class TractorController extends Controller
         return new IntegrationTractorResource($tractor);
     }
 
-    public function location(Tractor $tractor): JsonResponse
+    public function location(string $tractor): JsonResponse
     {
+        $tractor = $this->resolveTractor($tractor);
+
         $tractor->load('device.latestLocation');
         $device = $tractor->device;
         $location = $device?->latestLocation;
@@ -108,8 +112,9 @@ class TractorController extends Controller
         ]);
     }
 
-    public function alerts(IntegrationAlertIndexRequest $request, Tractor $tractor): AnonymousResourceCollection
+    public function alerts(IntegrationAlertIndexRequest $request, string $tractor): AnonymousResourceCollection
     {
+        $tractor = $this->resolveTractor($tractor);
         $validated = $request->safe()->except('tractor_id');
 
         $alerts = Alert::query()
@@ -129,8 +134,9 @@ class TractorController extends Controller
         return IntegrationAlertResource::collection($alerts);
     }
 
-    public function locationHistory(IntegrationLocationHistoryRequest $request, Tractor $tractor): AnonymousResourceCollection
+    public function locationHistory(IntegrationLocationHistoryRequest $request, string $tractor): AnonymousResourceCollection
     {
+        $tractor = $this->resolveTractor($tractor);
         $validated = $request->validated();
         $device = $tractor->device;
 
@@ -146,8 +152,9 @@ class TractorController extends Controller
         return IntegrationLocationResource::collection($locations);
     }
 
-    public function maintenance(IntegrationMaintenanceIndexRequest $request, Tractor $tractor): AnonymousResourceCollection
+    public function maintenance(IntegrationMaintenanceIndexRequest $request, string $tractor): AnonymousResourceCollection
     {
+        $tractor = $this->resolveTractor($tractor);
         $validated = $request->validated();
 
         $maintenance = $tractor->maintenances()
@@ -162,8 +169,9 @@ class TractorController extends Controller
         return IntegrationMaintenanceResource::collection($maintenance);
     }
 
-    public function mileage(IntegrationTrackDataRequest $request, Tractor $tractor): JsonResponse
+    public function mileage(IntegrationTrackDataRequest $request, string $tractor): JsonResponse
     {
+        $tractor = $this->resolveTractor($tractor);
         $validated = $request->safe()->except(['per_page', 'page']);
         $device = $tractor->device;
 
@@ -232,8 +240,9 @@ class TractorController extends Controller
         ]);
     }
 
-    public function trackData(IntegrationTrackDataRequest $request, Tractor $tractor): AnonymousResourceCollection
+    public function trackData(IntegrationTrackDataRequest $request, string $tractor): AnonymousResourceCollection
     {
+        $tractor = $this->resolveTractor($tractor);
         $validated = $request->validated();
         $device = $tractor->device;
 
@@ -261,5 +270,29 @@ class TractorController extends Controller
                 ->where('start_time', '>=', Carbon::parse($range['from'])->startOfDay()))
             ->when(isset($range['to']), fn (Builder $trackQuery): Builder => $trackQuery
                 ->where('start_time', '<=', Carbon::parse($range['to'])->endOfDay()));
+    }
+
+    private function resolveTractor(string $identifier): Tractor
+    {
+        $tractor = Tractor::query()->find($identifier)
+            ?? Tractor::query()->where('imei', $identifier)->first();
+
+        if ($tractor) {
+            return $tractor;
+        }
+
+        $nameMatches = Tractor::query()
+            ->where('name', $identifier)
+            ->orderBy('id')
+            ->limit(2)
+            ->get();
+
+        abort_if(
+            $nameMatches->count() > 1,
+            409,
+            'Multiple tractors use this name. Use the tractor ID or IMEI instead.',
+        );
+
+        return $nameMatches->firstOrFail();
     }
 }
