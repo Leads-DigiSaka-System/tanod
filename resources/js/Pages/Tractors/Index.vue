@@ -84,59 +84,61 @@
         </div>
       </div>
       <!-- Table -->
-      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700 relative">
+      <DataTable>
         <!-- Loading overlay -->
-        <div v-if="pageLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 dark:bg-gray-800/70 backdrop-blur-[1px]">
-          <div class="flex flex-col items-center gap-3">
-            <svg class="animate-spin h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 animate-pulse">Loading...</p>
+        <template #loading>
+          <div v-if="pageLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 dark:bg-gray-800/70 backdrop-blur-[1px]">
+            <div class="flex flex-col items-center gap-3">
+              <svg class="animate-spin h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 animate-pulse">Loading...</p>
+            </div>
           </div>
-        </div>
-        <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-          <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-            <tr>
-              <th scope="col" class="px-6 py-3">ID</th>
-              <th scope="col" class="px-6 py-3">Name</th>
-              <th scope="col" class="px-6 py-3">No. Plate</th>
-              <th scope="col" class="px-6 py-3">Total Distance (km)</th>
-              <th scope="col" class="px-6 py-3">Running Hours</th>
-              <th scope="col" class="px-6 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="tractor in tractors?.data" :key="tractor.id"
-              class="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
-              <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ tractor.id }}</td>
-              <td class="px-6 py-4">{{ tractor.name || '—' }}</td>
-              <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ tractor.no_plate }}</td>
-              <td class="px-6 py-4">{{ tractor.total_distance ?? '—' }}</td>
-              <td class="px-6 py-4">{{ tractor.running_hours ?? '—' }}</td>
-              <td class="px-6 py-4">
-                <div class="flex items-center justify-end gap-1">
-                  <Link :href="`/tractors/${tractor.id}`" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View">
-                    <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                  </Link>
-                  <Link v-if="$page.props.auth.user.permissions.includes('tractors.edit')" :href="`/tractors/${tractor.id}/edit`" class="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 transition-colors" title="Edit">
-                    <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                  </Link>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="!tractors?.data?.length">
-              <td colspan="6" class="px-6 py-12 text-center">
-                <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
-                </svg>
-                <h3 class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No tractors found</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Try adjusting your search or filter criteria.</p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        </template>
+        <template #head>
+          <tr>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">ID</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Name</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">No. Plate</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Total Distance (km)</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Running Hours</th>
+            <th scope="col" class="px-6 py-3 text-right whitespace-nowrap">Actions</th>
+          </tr>
+        </template>
+        <template #body>
+          <tr v-for="tractor in tractors?.data" :key="tractor.id"
+            class="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
+            <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ tractor.id }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ tractor.name || '—' }}</td>
+            <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ tractor.no_plate }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ tractor.total_distance ?? '—' }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ tractor.running_hours ?? '—' }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center justify-end gap-1">
+                <Link :href="`/tractors/${tractor.id}`" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View">
+                  <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                </Link>
+                <Link v-if="$page.props.auth.user.permissions.includes('tractors.edit')" :href="`/tractors/${tractor.id}/edit`" class="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 transition-colors" title="Edit">
+                  <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                </Link>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Empty state -->
+          <tr v-if="!tractors?.data?.length">
+            <td colspan="6" class="px-6 py-12 text-center">
+              <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+              </svg>
+              <h3 class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No tractors found</h3>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Try adjusting your search or filter criteria.</p>
+            </td>
+          </tr>
+        </template>
+      </DataTable>
       <Pagination v-if="tractors?.links" :links="tractors.links" class="mt-6" />
     </template>
 
@@ -157,63 +159,63 @@
         </div>
       </div>
       <!-- Flat FCA Distributions Table -->
-      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700 relative">
+      <DataTable>
         <!-- Loading overlay -->
-        <div v-if="pageLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 dark:bg-gray-800/70 backdrop-blur-[1px]">
-          <div class="flex flex-col items-center gap-3">
-            <svg class="animate-spin h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 animate-pulse">Loading...</p>
+        <template #loading>
+          <div v-if="pageLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 dark:bg-gray-800/70 backdrop-blur-[1px]">
+            <div class="flex flex-col items-center gap-3">
+              <svg class="animate-spin h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 animate-pulse">Loading...</p>
+            </div>
           </div>
-        </div>
-        <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-          <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-            <tr>
-              <th scope="col" class="px-6 py-3">ID</th>
-              <th scope="col" class="px-6 py-3">FCA Name</th>
-              <th scope="col" class="px-6 py-3">Organization</th>
-              <th scope="col" class="px-6 py-3">Tractor No. Plate</th>
-              <th scope="col" class="px-6 py-3">Address</th>
-              <th scope="col" class="px-6 py-3">Total Distance (km)</th>
-              <th scope="col" class="px-6 py-3">Running Hours</th>
-              <th scope="col" class="px-6 py-3 text-right">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-for="fca in fcaDistributions" :key="fca.id">
-              <tr v-for="dist in fca.distributions" :key="dist.id"
-                class="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
-                <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ dist.id }}</td>
-                <td class="px-6 py-4">{{ fca.name }}</td>
-                <td class="px-6 py-4">{{ fca.organization_name || dist.tractor?.no_plate || '—' }}</td>
-                <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ dist.tractor?.no_plate || '—' }}</td>
-                <td class="px-6 py-4">{{ [fca.barangay, fca.city, fca.province].filter(Boolean).join(', ') || '—' }}</td>
-                <td class="px-6 py-4">{{ dist.tractor?.total_distance ?? '—' }}</td>
-                <td class="px-6 py-4">{{ dist.tractor?.running_hours ?? '—' }}</td>
-                <td class="px-6 py-4 text-right">
-                  <div class="flex items-center justify-end gap-1">
-                    <StatusBadge :status="dist.status" />
-                    <Link v-if="dist.status === 'distributed'" :href="`/tractors/distribution/${dist.id}/return`" class="p-1.5 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/20 transition-colors" title="Return Tractor">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
-                    </Link>
-                  </div>
-                </td>
-              </tr>
-            </template>
-            <tr v-if="!fcaDistributions?.length">
-              <td colspan="8" class="px-6 py-12 text-center">
-                <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <h3 class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No distributions found</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Distribute a tractor to an FCA to get started.</p>
+        </template>
+        <template #head>
+          <tr>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">ID</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">FCA Name</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Organization</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Tractor No. Plate</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Address</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Total Distance (km)</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Running Hours</th>
+            <th scope="col" class="px-6 py-3 text-right whitespace-nowrap">Status</th>
+          </tr>
+        </template>
+        <template #body>
+          <template v-for="fca in fcaDistributions" :key="fca.id">
+            <tr v-for="dist in fca.distributions" :key="dist.id"
+              class="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
+              <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ dist.id }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">{{ fca.name }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">{{ fca.organization_name || dist.tractor?.no_plate || '—' }}</td>
+              <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ dist.tractor?.no_plate || '—' }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">{{ [fca.barangay, fca.city, fca.province].filter(Boolean).join(', ') || '—' }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">{{ dist.tractor?.total_distance ?? '—' }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">{{ dist.tractor?.running_hours ?? '—' }}</td>
+              <td class="px-6 py-4 text-right whitespace-nowrap">
+                <div class="flex items-center justify-end gap-1">
+                  <StatusBadge :status="dist.status" />
+                  <Link v-if="dist.status === 'distributed'" :href="`/tractors/distribution/${dist.id}/return`" class="p-1.5 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/20 transition-colors" title="Return Tractor">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
+                  </Link>
+                </div>
               </td>
             </tr>
-          </tbody>
-        </table>
-      </div>
+          </template>
+          <tr v-if="!fcaDistributions?.length">
+            <td colspan="8" class="px-6 py-12 text-center">
+              <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <h3 class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No distributions found</h3>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Distribute a tractor to an FCA to get started.</p>
+            </td>
+          </tr>
+        </template>
+      </DataTable>
     </template>
 
     <!-- ==================== TSR RESPONSIBILITIES TAB ==================== -->
@@ -229,56 +231,56 @@
         </div>
       </div>
       <!-- Flat TSR Responsibilities Table -->
-      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700 relative">
+      <DataTable>
         <!-- Loading overlay -->
-        <div v-if="pageLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 dark:bg-gray-800/70 backdrop-blur-[1px]">
-          <div class="flex flex-col items-center gap-3">
-            <svg class="animate-spin h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 animate-pulse">Loading...</p>
+        <template #loading>
+          <div v-if="pageLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 dark:bg-gray-800/70 backdrop-blur-[1px]">
+            <div class="flex flex-col items-center gap-3">
+              <svg class="animate-spin h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 animate-pulse">Loading...</p>
+            </div>
           </div>
-        </div>
-        <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-          <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-            <tr>
-              <th scope="col" class="px-6 py-3">No</th>
-              <th scope="col" class="px-6 py-3">TPS Name</th>
-              <th scope="col" class="px-6 py-3">Tractor Name</th>
-              <th scope="col" class="px-6 py-3">Date Distributed</th>
-              <th scope="col" class="px-6 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-for="tsr in tsrAssignments" :key="tsr.id">
-              <tr v-for="(tractor, tIndex) in tsr.tractors" :key="tractor.id"
-                class="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
-                <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ tIndex + 1 }}</td>
-                <td class="px-6 py-4">{{ tsr.name }}</td>
-                <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ tractor.no_plate }}</td>
-                <td class="px-6 py-4">{{ tractor.pivot?.created_at ? formatDate(tractor.pivot.created_at) : '—' }}</td>
-                <td class="px-6 py-4 text-right">
-                  <div class="flex items-center justify-end gap-1">
-                    <Link :href="`/tractors/${tractor.id}`" class="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                    </Link>
-                  </div>
-                </td>
-              </tr>
-            </template>
-            <tr v-if="!tsrAssignments?.length">
-              <td colspan="5" class="px-6 py-12 text-center">
-                <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <h3 class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No TSR responsibilities yet</h3>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Assign TSR users to groups to define which tractors they coordinate here. Full fleet TSR access is configured from Users.</p>
+        </template>
+        <template #head>
+          <tr>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">No</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">TPS Name</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Tractor Name</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Date Distributed</th>
+            <th scope="col" class="px-6 py-3 text-right whitespace-nowrap">Actions</th>
+          </tr>
+        </template>
+        <template #body>
+          <template v-for="tsr in tsrAssignments" :key="tsr.id">
+            <tr v-for="(tractor, tIndex) in tsr.tractors" :key="tractor.id"
+              class="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
+              <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ tIndex + 1 }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">{{ tsr.name }}</td>
+              <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ tractor.no_plate }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">{{ tractor.pivot?.created_at ? formatDate(tractor.pivot.created_at) : '—' }}</td>
+              <td class="px-6 py-4 text-right whitespace-nowrap">
+                <div class="flex items-center justify-end gap-1">
+                  <Link :href="`/tractors/${tractor.id}`" class="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                  </Link>
+                </div>
               </td>
             </tr>
-          </tbody>
-        </table>
-      </div>
+          </template>
+          <tr v-if="!tsrAssignments?.length">
+            <td colspan="5" class="px-6 py-12 text-center">
+              <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <h3 class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No TSR responsibilities yet</h3>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Assign TSR users to groups to define which tractors they coordinate here. Full fleet TSR access is configured from Users.</p>
+            </td>
+          </tr>
+        </template>
+      </DataTable>
     </template>
 
     <!-- ==================== SLIDE-OVER DRAWER ==================== -->
@@ -376,6 +378,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import SlideOver from '@/Components/SlideOver.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
+import DataTable from '@/Components/DataTable.vue';
 import { formatDate } from '@/utils/dateFormat';
 
 const props = defineProps({

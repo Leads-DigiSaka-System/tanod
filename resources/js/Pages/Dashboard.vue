@@ -162,12 +162,12 @@
         <!-- Tractor Status -->
         <div class="rounded-2xl bg-gray-100 dark:bg-gray-800/60 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
           <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-6">Tractor Status</h3>
-          <div class="flex items-stretch divide-x divide-gray-200 dark:divide-gray-700">
+          <div class="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-0 sm:divide-x divide-gray-200 dark:divide-gray-700">
             <!-- Activated -->
             <div class="flex-1 flex flex-col items-center px-3">
               <span class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Activated</span>
-              <div class="relative w-full flex justify-center mb-3">
-                <apexchart type="donut" height="140" :options="activatedDonutOptions" :series="activatedDonutSeries" />
+              <div class="relative w-full max-w-[160px] mx-auto flex justify-center mb-3">
+                <apexchart type="donut" height="120" :options="activatedDonutOptions" :series="activatedDonutSeries" />
               </div>
               <div class="flex items-center gap-2 mt-1">
                 <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
@@ -177,8 +177,8 @@
             <!-- Inactive -->
             <div class="flex-1 flex flex-col items-center px-3">
               <span class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Inactive</span>
-              <div class="relative w-full flex justify-center mb-3">
-                <apexchart type="donut" height="140" :options="inactivatedDonutOptions" :series="inactivatedDonutSeries" />
+              <div class="relative w-full max-w-[160px] mx-auto flex justify-center mb-3">
+                <apexchart type="donut" height="120" :options="inactivatedDonutOptions" :series="inactivatedDonutSeries" />
               </div>
               <div class="flex items-center gap-2 mt-1">
                 <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
