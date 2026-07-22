@@ -31,48 +31,48 @@
       </div>
     </div>
 
-    <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-      <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-          <tr>
-            <th scope="col" class="px-6 py-3">Tractor</th>
-            <th scope="col" class="px-6 py-3">Booked By</th>
-            <th scope="col" class="px-6 py-3">Date</th>
-            <th scope="col" class="px-6 py-3">Purpose</th>
-            <th scope="col" class="px-6 py-3">Status</th>
-            <th scope="col" class="px-6 py-3 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="booking in bookings.data" :key="booking.id" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">{{ booking.tractor?.no_plate }}</td>
-            <td class="px-6 py-4">{{ booking.booked_by?.name }}</td>
-            <td class="px-6 py-4">{{ formatDate(booking.booking_date) }}</td>
-            <td class="px-6 py-4 truncate max-w-xs">{{ booking.purpose }}</td>
-            <td class="px-6 py-4"><StatusBadge :status="booking.status" /></td>
-            <td class="px-6 py-4">
-              <div class="flex items-center justify-end gap-1">
-                <Link :href="`/bookings/${booking.id}`" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View">
-                  <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                </Link>
-                <Link v-if="booking.status === 'pending' && canApprove" :href="`/bookings/${booking.id}/approve`" method="post" as="button" class="p-1.5 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-50 dark:text-gray-400 dark:hover:text-green-400 dark:hover:bg-green-900/20 transition-colors" title="Approve">
-                  <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                </Link>
-                <Link v-if="booking.status === 'pending' && canApprove" :href="`/bookings/${booking.id}/reject`" method="post" as="button" class="p-1.5 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors" title="Reject" @click.prevent="rejectBooking(booking)">
-                  <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                </Link>
-                <button @click="confirmDelete(booking)" class="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors" title="Delete">
-                  <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                </button>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="!bookings.data.length">
-            <td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No bookings found.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <DataTable>
+      <template #head>
+        <tr>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Tractor</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Booked By</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Date</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Purpose</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Status</th>
+          <th scope="col" class="px-6 py-3 text-right whitespace-nowrap">Actions</th>
+        </tr>
+      </template>
+      <template #body>
+        <tr v-for="booking in bookings.data" :key="booking.id" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+          <td class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">{{ booking.tractor?.no_plate }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ booking.booked_by?.name }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ formatDate(booking.booking_date) }}</td>
+          <td class="px-6 py-4 whitespace-nowrap max-w-xs truncate">{{ booking.purpose }}</td>
+          <td class="px-6 py-4 whitespace-nowrap"><StatusBadge :status="booking.status" /></td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="flex items-center justify-end gap-1">
+              <Link :href="`/bookings/${booking.id}`" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+              </Link>
+              <Link v-if="booking.status === 'pending' && canApprove" :href="`/bookings/${booking.id}/approve`" method="post" as="button" class="p-1.5 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-50 dark:text-gray-400 dark:hover:text-green-400 dark:hover:bg-green-900/20 transition-colors" title="Approve">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </Link>
+              <Link v-if="booking.status === 'pending' && canApprove" :href="`/bookings/${booking.id}/reject`" method="post" as="button" class="p-1.5 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors" title="Reject" @click.prevent="rejectBooking(booking)">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </Link>
+              <button @click="confirmDelete(booking)" class="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors" title="Delete">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Empty state -->
+        <tr v-if="!bookings.data.length">
+          <td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No bookings found.</td>
+        </tr>
+      </template>
+    </DataTable>
 
     <Pagination :links="bookings.links" class="mt-6" />
 
@@ -127,6 +127,7 @@ import { router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
+import DataTable from '@/Components/DataTable.vue';
 import Modal from '@/Components/Modal.vue';
 import { formatDate } from '@/utils/dateFormat';
 

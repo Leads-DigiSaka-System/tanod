@@ -67,58 +67,58 @@
     </div>
 
     <!-- Table -->
-    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-          <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-            <tr>
-              <th scope="col" class="px-6 py-3">IMEI</th>
-              <th scope="col" class="px-6 py-3">Name</th>
-              <th scope="col" class="px-6 py-3">Tractor</th>
-              <th scope="col" class="px-6 py-3">Status</th>
-              <th scope="col" class="px-6 py-3">Last Heartbeat</th>
-              <th scope="col" class="px-6 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="device in devices.data"
-              :key="device.id"
-              class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
-            >
-              <td class="px-6 py-4 font-mono font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                {{ device.imei }}
-              </td>
-              <td class="px-6 py-4">{{ device.device_name || '—' }}</td>
-              <td class="px-6 py-4">
-                <span v-if="device.tractor" class="font-medium text-gray-900 dark:text-white">{{ device.tractor.no_plate }}</span>
-                <span v-else class="text-gray-400 italic">Unassigned</span>
-              </td>
-              <td class="px-6 py-4">
-                <StatusBadge :status="getStatus(device)" />
-              </td>
-              <td class="px-6 py-4">{{ device.latest_location?.heartbeat_at || 'Never' }}</td>
-              <td class="px-6 py-4">
-                <div class="flex items-center justify-end">
-                  <Link :href="`/devices/${device.id}`" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View">
-                    <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                  </Link>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <DataTable>
+      <template #head>
+        <tr>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">IMEI</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Name</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Tractor</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Status</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Last Heartbeat</th>
+          <th scope="col" class="px-6 py-3 text-right whitespace-nowrap">Actions</th>
+        </tr>
+      </template>
+      <template #body>
+        <tr
+          v-for="device in devices.data"
+          :key="device.id"
+          class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+        >
+          <td class="px-6 py-4 font-mono font-medium text-gray-900 whitespace-nowrap dark:text-white">
+            {{ device.imei }}
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ device.device_name || '—' }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <span v-if="device.tractor" class="font-medium text-gray-900 dark:text-white">{{ device.tractor.no_plate }}</span>
+            <span v-else class="text-gray-400 italic">Unassigned</span>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <StatusBadge :status="getStatus(device)" />
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ device.latest_location?.heartbeat_at || 'Never' }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="flex items-center justify-end">
+              <Link :href="`/devices/${device.id}`" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+              </Link>
+            </div>
+          </td>
+        </tr>
 
-      <!-- Empty State -->
-      <div v-if="!devices.data.length" class="flex flex-col items-center justify-center py-16 px-4">
-        <svg class="w-12 h-12 text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
-        <h3 class="text-sm font-medium text-gray-900 dark:text-white">No devices found</h3>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Try adjusting your search or filter criteria.</p>
-      </div>
-    </div>
+        <!-- Empty state -->
+        <tr v-if="!devices.data.length">
+          <td colspan="6" class="px-6 py-16 text-center">
+            <div class="flex flex-col items-center justify-center">
+              <svg class="w-12 h-12 text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <h3 class="text-sm font-medium text-gray-900 dark:text-white">No devices found</h3>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Try adjusting your search or filter criteria.</p>
+            </div>
+          </td>
+        </tr>
+      </template>
+    </DataTable>
 
     <!-- Pagination -->
     <Pagination :links="devices.links" class="mt-6" />
@@ -131,6 +131,7 @@ import { router, Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
+import DataTable from '@/Components/DataTable.vue';
 
 const props = defineProps({ devices: Object, filters: Object });
 

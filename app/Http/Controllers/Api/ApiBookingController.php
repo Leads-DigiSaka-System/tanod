@@ -68,6 +68,7 @@ class ApiBookingController extends Controller
             'end_time' => 'nullable|date_format:H:i',
             'purpose' => 'required|string|max:500',
             'farm_area_hectares' => 'nullable|numeric|min:0',
+            'cost' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
         ]);
 
@@ -181,6 +182,7 @@ class ApiBookingController extends Controller
             'end_time' => 'nullable|date_format:H:i',
             'purpose' => 'sometimes|required|string|max:500',
             'farm_area_hectares' => 'nullable|numeric|min:0',
+            'cost' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
         ]);
 

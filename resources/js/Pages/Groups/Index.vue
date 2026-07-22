@@ -86,8 +86,8 @@
         <div class="mt-6 flex justify-end space-x-3">
           <button @click="showDelete = false"
             class="text-gray-900 bg-white border border-gray-300 hover:bg-gray-100 focus:ring-4 focus:ring-gray-200 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:border-gray-600 dark:focus:ring-gray-700">Cancel</button>
-          <Link :href="`/groups/${deleteTarget?.id}`" method="delete" as="button"
-            class="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-red-600 dark:hover:bg-red-700 focus:outline-none dark:focus:ring-red-800">Delete</Link>
+          <button @click="performDelete"
+            class="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-red-600 dark:hover:bg-red-700 focus:outline-none dark:focus:ring-red-800">Delete</button>
         </div>
       </div>
     </Modal>
@@ -427,6 +427,15 @@ const debouncedFilter = () => { clearTimeout(timer); timer = setTimeout(() => {
 const showDelete = ref(false);
 const deleteTarget = ref(null);
 const confirmDelete = (group) => { deleteTarget.value = group; showDelete.value = true; };
+const performDelete = () => {
+  router.delete(`/groups/${deleteTarget.value.id}`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      showDelete.value = false;
+      deleteTarget.value = null;
+    },
+  });
+};
 
 // --- Drawer ---
 const drawerOpen = ref(false);
