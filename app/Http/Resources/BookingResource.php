@@ -27,6 +27,7 @@ class BookingResource extends JsonResource
             'end_time' => $this->end_time,
             'purpose' => $this->purpose,
             'farm_area_hectares' => $this->farm_area_hectares,
+            'cost' => $this->cost,
             'status' => $this->status,
             'notes' => $this->notes,
             'created_at' => $this->created_at,

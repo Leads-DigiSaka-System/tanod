@@ -22,6 +22,7 @@ class Booking extends Model
         'end_time',
         'purpose',
         'farm_area_hectares',
+        'cost',
         'notes',
         'rejection_reason',
         'kilometer',
@@ -36,6 +37,7 @@ class Booking extends Model
             'end_date' => 'date',
             'kilometer' => 'float',
             'farm_area_hectares' => 'float',
+            'cost' => 'float',
         ];
     }
 
