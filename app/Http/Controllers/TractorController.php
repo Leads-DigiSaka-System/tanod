@@ -198,6 +198,155 @@ class TractorController extends Controller
             ->with('success', 'Tractor updated successfully.');
     }
 
+    /**
+     * Show the impact of deleting a tractor across all related tables.
+     */
+    public function deleteCheck(Tractor $tractor)
+    {
+        $tractor->loadCount([
+            'bookings',
+            'tickets',
+            'distributions',
+            'maintenances',
+            'alerts',
+            'farmAssets',
+            'images',
+        ]);
+
+        $groupCount = $tractor->groups()->count();
+
+        // FarmerFeedback via tractor_id
+        $farmerFeedbackCount = \App\Models\FarmerFeedback::where('tractor_id', $tractor->id)->count();
+
+        // FcaTractorDetail via tractor_id
+        $fcaTractorDetailCount = \App\Models\FcaTractorDetail::where('tractor_id', $tractor->id)->count();
+
+        // TractorRecipient via tractor_id
+        $tractorRecipientCount = \App\Models\TractorRecipient::where('tractor_id', $tractor->id)->count();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'bookings_count' => $tractor->bookings_count,
+                'tickets_count' => $tractor->tickets_count,
+                'distributions_count' => $tractor->distributions_count,
+                'maintenances_count' => $tractor->maintenances_count,
+                'alerts_count' => $tractor->alerts_count,
+                'farm_assets_count' => $tractor->farm_assets_count,
+                'images_count' => $tractor->images_count,
+                'groups_count' => $groupCount,
+                'farmer_feedbacks_count' => $farmerFeedbackCount,
+                'fca_tractor_details_count' => $fcaTractorDetailCount,
+                'tractor_recipients_count' => $tractorRecipientCount,
+                'total_affected' => $tractor->bookings_count
+                    + $tractor->tickets_count
+                    + $tractor->distributions_count
+                    + $tractor->maintenances_count
+                    + $tractor->alerts_count
+                    + $tractor->farm_assets_count
+                    + $tractor->images_count
+                    + $groupCount
+                    + $farmerFeedbackCount
+                    + $fcaTractorDetailCount
+                    + $tractorRecipientCount,
+            ],
+        ]);
+    }
+
+    /**
+     * Batch delete-check: accepts multiple tractor IDs and returns impact for each.
+     */
+    public function batchDeleteCheck(Request $request)
+    {
+        $data = $request->validate([
+            'tractor_ids' => 'required|array|min:1',
+            'tractor_ids.*' => 'required|exists:tractors,id',
+        ]);
+
+        $tractors = Tractor::whereIn('id', $data['tractor_ids'])
+            ->withCount([
+                'bookings',
+                'tickets',
+                'distributions',
+                'maintenances',
+                'alerts',
+                'farmAssets',
+                'images',
+            ])
+            ->get(['id', 'no_plate', 'name', 'brand', 'model', 'imei']);
+
+        $results = $tractors->map(function ($tractor) {
+            $groupCount = $tractor->groups()->count();
+            $farmerFeedbackCount = \App\Models\FarmerFeedback::where('tractor_id', $tractor->id)->count();
+            $fcaTractorDetailCount = \App\Models\FcaTractorDetail::where('tractor_id', $tractor->id)->count();
+            $tractorRecipientCount = \App\Models\TractorRecipient::where('tractor_id', $tractor->id)->count();
+
+            $total = $tractor->bookings_count
+                + $tractor->tickets_count
+                + $tractor->distributions_count
+                + $tractor->maintenances_count
+                + $tractor->alerts_count
+                + $tractor->farm_assets_count
+                + $tractor->images_count
+                + $groupCount
+                + $farmerFeedbackCount
+                + $fcaTractorDetailCount
+                + $tractorRecipientCount;
+
+            return [
+                'id' => $tractor->id,
+                'no_plate' => $tractor->no_plate,
+                'name' => $tractor->name,
+                'brand' => $tractor->brand,
+                'model' => $tractor->model,
+                'imei' => $tractor->imei,
+                'bookings_count' => $tractor->bookings_count,
+                'tickets_count' => $tractor->tickets_count,
+                'distributions_count' => $tractor->distributions_count,
+                'maintenances_count' => $tractor->maintenances_count,
+                'alerts_count' => $tractor->alerts_count,
+                'farm_assets_count' => $tractor->farm_assets_count,
+                'images_count' => $tractor->images_count,
+                'groups_count' => $groupCount,
+                'farmer_feedbacks_count' => $farmerFeedbackCount,
+                'fca_tractor_details_count' => $fcaTractorDetailCount,
+                'tractor_recipients_count' => $tractorRecipientCount,
+                'total_affected' => $total,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $results,
+        ]);
+    }
+
+    /**
+     * Batch delete: accepts multiple tractor IDs and deletes them all.
+     */
+    public function batchDestroy(Request $request)
+    {
+        $data = $request->validate([
+            'tractor_ids' => 'required|array|min:1',
+            'tractor_ids.*' => 'required|exists:tractors,id',
+        ]);
+
+        $tractors = Tractor::whereIn('id', $data['tractor_ids'])->get();
+
+        foreach ($tractors as $tractor) {
+            $tractor->images->each(function ($img) {
+                Storage::disk('public')->delete($img->path);
+            });
+            $tractor->images()->delete();
+            $tractor->delete();
+        }
+
+        $count = count($data['tractor_ids']);
+
+        return redirect()->route('tractors.index')
+            ->with('success', $count.' '.str('tractor')->plural($count).' deleted successfully.');
+    }
+
     public function destroy(Tractor $tractor)
     {
         $tractor->images->each(function ($img) {
