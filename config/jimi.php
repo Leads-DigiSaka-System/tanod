@@ -32,6 +32,10 @@ return [
     // (fallback only — JIMI API 'status' field takes priority when available)
     'online_threshold_minutes' => env('JIMI_ONLINE_THRESHOLD_MINUTES', 8),
 
+    // A non-zero speed is considered current movement only when the latest GPS
+    // fix is this recent. Heartbeats can continue while the last speed is stale.
+    'movement_freshness_minutes' => env('JIMI_MOVEMENT_FRESHNESS_MINUTES', 5),
+
     // Coordinate system for location data:
     //   GOOGLE — WGS-84 coordinates (standard GPS, default)
     //   GCJ02  — Chinese offset coords (try if devices show ~300m shift;

@@ -17,6 +17,8 @@ use Illuminate\Support\Str;
 
 class ApiDeviceController extends Controller
 {
+    private const MOVING_SPEED_THRESHOLD = 3.0;
+
     public function index(Request $request)
     {
         $devices = Device::with(['latestLocation', 'tractor:id,device_id,no_plate'])
@@ -113,6 +115,14 @@ class ApiDeviceController extends Controller
 
         $liveMap = $deviceService->fetchLiveLocations();
 
+        if ($liveMap === []) {
+            return response()->json([
+                'success' => false,
+                'locations' => [],
+                'message' => 'Live locations are temporarily unavailable.',
+            ]);
+        }
+
         $locations = [];
         foreach ($devices as $device) {
             $live = $liveMap[$device->imei] ?? null;
@@ -131,18 +141,25 @@ class ApiDeviceController extends Controller
 
     /**
      * Real-time single-device location for the "Follow" feature.
-     * Direct JIMI API call — no cache, no DB persistence.
+     * Uses the shared 10-second JIMI cache and does not persist to the DB.
      */
     public function followDevice(Request $request, Device $device, JimiDeviceService $deviceService)
     {
         $device = $this->findAccessibleDevice($request->user(), $device->id);
 
-        $locations = $deviceService->fetchLocationsRealtime();
-        $live = $locations[$device->imei] ?? null;
+        $live = $deviceService->fetchDeviceLocationRealtime($device->imei);
+
+        if ($live === null) {
+            return response()->json([
+                'success' => false,
+                'location' => null,
+                'message' => 'Live location is temporarily unavailable.',
+            ]);
+        }
 
         return response()->json([
             'success' => true,
-            'location' => $live ? $this->formatLiveLocation($device, $live) : null,
+            'location' => $this->formatLiveLocation($device, $live),
         ]);
     }
 
@@ -151,17 +168,80 @@ class ApiDeviceController extends Controller
      */
     private function formatLiveLocation(Device $device, array $live): array
     {
+        $heartbeatAt = $this->parseJimiTimestamp($live['hbTime'] ?? null);
+        $gpsAt = $this->parseJimiTimestamp($live['gpsTime'] ?? null);
+        $minutesAgo = $heartbeatAt
+            ? max((int) floor($heartbeatAt->diffInMinutes(now()->utc())), 0)
+            : 999;
+        $gpsMinutesAgo = $gpsAt
+            ? max((int) floor($gpsAt->diffInMinutes(now()->utc())), 0)
+            : null;
+        $speed = (float) ($live['speed'] ?? 0);
+        $accStatus = (bool) ($live['accStatus'] ?? false);
+        $jimiStatus = array_key_exists('status', $live) ? (int) $live['status'] : null;
+
         return [
             'device_id' => $device->id,
             'imei' => $device->imei,
             'lat' => (float) ($live['lat'] ?? 0),
             'lng' => (float) ($live['lng'] ?? 0),
-            'speed' => (float) ($live['speed'] ?? 0),
+            'speed' => $speed,
             'direction' => (float) ($live['direction'] ?? 0),
-            'status' => (int) ($live['status'] ?? 0),
-            'acc_status' => (int) ($live['accStatus'] ?? 0),
+            'status' => $jimiStatus ?? 0,
+            'live_status' => $this->resolveLiveStatus(
+                $jimiStatus,
+                $minutesAgo,
+                $speed,
+                $accStatus,
+                $gpsMinutesAgo ?? $minutesAgo,
+            ),
+            'acc_status' => (int) $accStatus,
             'heartbeat_at' => $live['hbTime'] ?? null,
+            'heartbeat_at_iso' => $heartbeatAt?->toIso8601String(),
+            'minutes_ago' => $minutesAgo,
+            'gps_time' => $gpsAt?->toIso8601String(),
+            'gps_minutes_ago' => $gpsMinutesAgo,
         ];
+    }
+
+    private function parseJimiTimestamp(?string $timestamp): ?Carbon
+    {
+        if (blank($timestamp)) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($timestamp, 'UTC')->utc();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function resolveLiveStatus(
+        ?int $jimiStatus,
+        int $minutesAgo,
+        float $speed,
+        bool $accStatus,
+        int $gpsMinutesAgo,
+    ): string {
+        $isOnline = match ($jimiStatus) {
+            1 => true,
+            0 => false,
+            default => $minutesAgo <= max((int) config('jimi.online_threshold_minutes', 8), 1),
+        };
+
+        if (! $isOnline) {
+            return 'offline';
+        }
+
+        if (! $accStatus) {
+            return 'parked';
+        }
+
+        $hasFreshMovement = $speed >= self::MOVING_SPEED_THRESHOLD
+            && $gpsMinutesAgo <= max((int) config('jimi.movement_freshness_minutes', 5), 1);
+
+        return $hasFreshMovement ? 'moving' : 'idling';
     }
 
     /**

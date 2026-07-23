@@ -17,7 +17,7 @@ use Inertia\Inertia;
 
 class LiveViewController extends Controller
 {
-    /** Speed in km/h below which an online device is considered idle (filters GPS drift). */
+    /** Speed in km/h below which an online device is considered parked (filters GPS drift). */
     private const MOVING_SPEED_THRESHOLD = 3.0;
 
     public function index(Request $request)
@@ -96,13 +96,18 @@ class LiveViewController extends Controller
 
     /**
      * Real-time single-device location for the "Follow" feature.
-     * Direct JIMI API call — no cache, no DB persistence.
+        * Uses the shared 10-second JIMI cache and does not persist to the DB.
      */
     public function followDevice(Request $request, Device $device, JimiDeviceService $jimiService)
     {
         $device = $this->findAccessibleDevice($request, $device->id);
-        $locations = $jimiService->fetchLocationsRealtime();
-        $item = $locations[$device->imei] ?? null;
+        $item = $jimiService->fetchDeviceLocationRealtime($device->imei);
+
+        if ($item === null) {
+            return response()->json([
+                'message' => 'Live location is temporarily unavailable.',
+            ], 503);
+        }
 
         $device->load(['tractor.groups', 'tractor.assignee']);
 
@@ -133,6 +138,12 @@ class LiveViewController extends Controller
     public function allLocations(JimiDeviceService $jimiService)
     {
         $locations = $jimiService->fetchLiveLocations();
+
+        if ($locations === []) {
+            return response()->json([
+                'message' => 'Live locations are temporarily unavailable.',
+            ], 503);
+        }
 
         $devices = $this->accessibleDevicesQuery(request())
             ->select(['id', 'imei', 'device_name'])
@@ -234,13 +245,22 @@ class LiveViewController extends Controller
         $loc = $device->latestLocation;
         $heartbeatAt = $loc?->heartbeat_at?->copy()?->utc();
         $minutesAgo = $heartbeatAt
-            ? $heartbeatAt->diffInMinutes(now()->utc())
+            ? (int) floor($heartbeatAt->diffInMinutes(now()->utc()))
             : 999;
+        $gpsAt = $this->parseHeartbeat(data_get($loc?->raw_data, 'gpsTime'));
+        $gpsMinutesAgo = $gpsAt
+            ? max((int) floor($gpsAt->diffInMinutes(now()->utc())), 0)
+            : null;
 
-        $status = 'offline';
-        if ($minutesAgo <= $this->onlineThresholdMinutes() && $loc) {
-            $status = ((float) ($loc->speed ?? 0)) >= self::MOVING_SPEED_THRESHOLD ? 'moving' : 'idle';
-        }
+        $status = $loc
+            ? $this->resolveDeviceStatus(
+                (int) $loc->status,
+                $minutesAgo,
+                (float) ($loc->speed ?? 0),
+                (bool) $loc->acc_status,
+                $gpsMinutesAgo ?? $minutesAgo,
+            )
+            : 'offline';
 
         $base = [
             'id' => $device->id,
@@ -254,6 +274,8 @@ class LiveViewController extends Controller
             'direction' => $loc->direction ?? 0,
             'acc_status' => $loc->acc_status ?? false,
             'heartbeat_at' => $heartbeatAt?->toIso8601String(),
+            'gps_time' => $gpsAt?->toIso8601String(),
+            'gps_minutes_ago' => $gpsMinutesAgo,
         ];
 
         if ($full) {
@@ -298,6 +320,8 @@ class LiveViewController extends Controller
         $direction = 0;
         $accStatus = false;
         $heartbeatAt = null;
+        $gpsTime = null;
+        $gpsMinutesAgo = null;
         $posType = null;
         $gpsNum = null;
         $mileage = null;
@@ -306,8 +330,13 @@ class LiveViewController extends Controller
             $parsedHeartbeatAt = $this->parseHeartbeat($apiData['hbTime'] ?? null);
             $heartbeatAt = $parsedHeartbeatAt?->toIso8601String();
             $minutesAgo = $heartbeatAt
-                ? $parsedHeartbeatAt->diffInMinutes(now()->utc())
+                ? (int) floor($parsedHeartbeatAt->diffInMinutes(now()->utc()))
                 : 999;
+            $parsedGpsAt = $this->parseHeartbeat($apiData['gpsTime'] ?? null);
+            $gpsTime = $parsedGpsAt?->toIso8601String();
+            $gpsMinutesAgo = $parsedGpsAt
+                ? max((int) floor($parsedGpsAt->diffInMinutes(now()->utc())), 0)
+                : null;
 
             $lat = $apiData['lat'] ?? null;
             $lng = $apiData['lng'] ?? null;
@@ -323,13 +352,13 @@ class LiveViewController extends Controller
             // is missing from the API response, which can happen with older devices.
             $jimiStatus = array_key_exists('status', $apiData) ? (int) $apiData['status'] : null;
 
-            if ($jimiStatus === 1) {
-                $status = $speed >= self::MOVING_SPEED_THRESHOLD ? 'moving' : 'idle';
-            } elseif ($jimiStatus === 0) {
-                $status = 'offline';
-            } elseif ($minutesAgo <= $this->onlineThresholdMinutes()) {
-                $status = $speed >= self::MOVING_SPEED_THRESHOLD ? 'moving' : 'idle';
-            }
+            $status = $this->resolveDeviceStatus(
+                $jimiStatus,
+                $minutesAgo,
+                $speed,
+                $accStatus,
+                $gpsMinutesAgo ?? $minutesAgo,
+            );
         }
 
         $base = [
@@ -344,6 +373,8 @@ class LiveViewController extends Controller
             'direction' => $direction,
             'acc_status' => $accStatus,
             'heartbeat_at' => $heartbeatAt,
+            'gps_time' => $gpsTime,
+            'gps_minutes_ago' => $gpsMinutesAgo,
         ];
 
         if ($full) {
@@ -379,12 +410,48 @@ class LiveViewController extends Controller
             return null;
         }
 
-        return Carbon::parse($heartbeatAt, 'UTC')->utc();
+        try {
+            return Carbon::parse($heartbeatAt, 'UTC')->utc();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function onlineThresholdMinutes(): int
     {
         return max((int) config('jimi.online_threshold_minutes', 10), 1);
+    }
+
+    private function movementFreshnessMinutes(): int
+    {
+        return max((int) config('jimi.movement_freshness_minutes', 5), 1);
+    }
+
+    private function resolveDeviceStatus(
+        ?int $jimiStatus,
+        int $minutesAgo,
+        float $speed,
+        bool $accStatus,
+        int $gpsMinutesAgo,
+    ): string {
+        $isOnline = match ($jimiStatus) {
+            1 => true,
+            0 => false,
+            default => $minutesAgo <= $this->onlineThresholdMinutes(),
+        };
+
+        if (! $isOnline) {
+            return 'offline';
+        }
+
+        if (! $accStatus) {
+            return 'parked';
+        }
+
+        $hasFreshMovement = $speed >= self::MOVING_SPEED_THRESHOLD
+            && $gpsMinutesAgo <= $this->movementFreshnessMinutes();
+
+        return $hasFreshMovement ? 'moving' : 'idling';
     }
 
     private function accessibleDevicesQuery(Request $request): Builder

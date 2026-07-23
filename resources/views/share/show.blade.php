@@ -132,7 +132,8 @@
         const GOOGLE_MAP_DEMO_ID = 'DEMO_MAP_ID';
         const TRACTOR_MARKER_IMAGES = {
             moving: @json(asset('images/green_tractor.png')),
-            idle: @json(asset('images/yellow_tractor.png')),
+            idling: @json(asset('images/yellow_tractor.png')),
+            parked: @json(asset('images/yellow_tractor.png')),
             offline: @json(asset('images/red_tractor.png')),
         };
 
@@ -175,7 +176,7 @@
             map = new google.maps.Map(document.getElementById('map'), {
                 center: { lat, lng },
                 zoom: 16,
-                mapTypeId: 'roadmap',
+                mapTypeId: 'satellite',
                 mapTypeControl: true,
                 streetViewControl: false,
                 fullscreenControl: true,
@@ -213,7 +214,8 @@
             image.style.width = '38px';
             image.style.height = '38px';
             image.style.objectFit = 'contain';
-            image.style.filter = 'drop-shadow(0 8px 14px rgba(15, 23, 42, 0.32))';
+            const statusFilter = status === 'parked' ? 'hue-rotate(155deg) saturate(0.9)' : '';
+            image.style.filter = `${statusFilter} drop-shadow(0 8px 14px rgba(15, 23, 42, 0.32))`.trim();
 
             wrapper.appendChild(image);
 
@@ -237,7 +239,8 @@
             const badge = document.getElementById('statusBadge');
             const statusColors = {
                 moving: { bg: 'bg-green-100', text: 'text-green-800', dot: 'bg-green-500', label: 'Moving' },
-                idle: { bg: 'bg-yellow-100', text: 'text-yellow-800', dot: 'bg-yellow-500', label: 'Idle' },
+                idling: { bg: 'bg-yellow-100', text: 'text-yellow-800', dot: 'bg-yellow-500', label: 'Idling' },
+                parked: { bg: 'bg-sky-100', text: 'text-sky-800', dot: 'bg-sky-500', label: 'Parked' },
                 offline: { bg: 'bg-red-100', text: 'text-red-800', dot: 'bg-red-500', label: 'Offline' },
             };
             const sc = statusColors[device.status] || statusColors.offline;
@@ -246,13 +249,13 @@
 
             // Device icon
             const icon = document.getElementById('deviceIcon');
-            const iconColors = { moving: 'bg-green-100', idle: 'bg-yellow-100', offline: 'bg-red-100' };
-            const iconTextColors = { moving: 'text-green-600', idle: 'text-yellow-600', offline: 'text-red-600' };
+            const iconColors = { moving: 'bg-green-100', idling: 'bg-yellow-100', parked: 'bg-sky-100', offline: 'bg-red-100' };
+            const iconTextColors = { moving: 'text-green-600', idling: 'text-yellow-600', parked: 'text-sky-600', offline: 'text-red-600' };
             icon.className = `w-12 h-12 ${iconColors[device.status] || 'bg-gray-100'} rounded-xl flex items-center justify-center flex-shrink-0`;
             icon.querySelector('svg').className = `w-6 h-6 ${iconTextColors[device.status] || 'text-gray-500'}`;
 
             // Stats
-            document.getElementById('speedValue').textContent = device.speed ?? '—';
+            document.getElementById('speedValue').textContent = device.status === 'moving' ? (device.speed ?? '—') : '—';
             document.getElementById('directionValue').textContent = device.direction ?? '—';
 
             if (device.heartbeat_at) {
