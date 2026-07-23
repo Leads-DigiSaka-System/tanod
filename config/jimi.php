@@ -36,6 +36,13 @@ return [
     // fix is this recent. Heartbeats can continue while the last speed is stale.
     'movement_freshness_minutes' => env('JIMI_MOVEMENT_FRESHNESS_MINUTES', 5),
 
+    // Track history is selected by Philippine calendar date, then converted
+    // to UTC for JIMI. Long gaps and impossible jumps start a new map segment.
+    'display_timezone' => env('JIMI_DISPLAY_TIMEZONE', 'Asia/Manila'),
+    'track_gap_minutes' => env('JIMI_TRACK_GAP_MINUTES', 10),
+    'track_max_plausible_speed_kph' => env('JIMI_TRACK_MAX_PLAUSIBLE_SPEED_KPH', 120),
+    'track_stop_minutes' => env('JIMI_TRACK_STOP_MINUTES', 5),
+
     // Coordinate system for location data:
     //   GOOGLE — WGS-84 coordinates (standard GPS, default)
     //   GCJ02  — Chinese offset coords (try if devices show ~300m shift;

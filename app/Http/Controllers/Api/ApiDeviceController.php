@@ -258,7 +258,7 @@ class ApiDeviceController extends Controller
             'device_id' => 'required|exists:devices,id',
             'period' => 'required|in:today,yesterday,3days,week,month,custom',
             'from' => 'nullable|date|required_if:period,custom',
-            'to' => 'nullable|date|required_if:period,custom',
+            'to' => 'nullable|date|required_if:period,custom|after_or_equal:from',
         ]);
 
         $device = $this->findAccessibleDevice($request->user(), (int) $request->device_id);
@@ -271,21 +271,36 @@ class ApiDeviceController extends Controller
         );
 
         // ── 1. Fetch from JIMI API (cached 5 min) ──
-        $cacheKey = "mobile_track_data_v2_{$imei}_{$beginTime}_{$endTime}";
+        $cacheKey = "mobile_track_data_v3_{$imei}_{$beginTime}_{$endTime}";
 
-        $jimiPoints = Cache::remember($cacheKey, 300, function () use ($trackingService, $imei, $beginTime, $endTime) {
+        $cacheSeconds = $request->period === 'today' ? 60 : 300;
+        $jimiResult = Cache::get($cacheKey);
+
+        if ($jimiResult === null) {
             $chunks = $this->getDateChunks($beginTime, $endTime, 2);
             $allPoints = [];
+            $warnings = [];
 
             foreach ($chunks as [$chunkStart, $chunkEnd]) {
-                $points = $trackingService->fetchTrackData($imei, $chunkStart, $chunkEnd);
-                if (is_array($points)) {
+                try {
+                    $points = $trackingService->fetchTrackData($imei, $chunkStart, $chunkEnd);
                     $allPoints = array_merge($allPoints, $points);
+                } catch (\Throwable $exception) {
+                    report($exception);
+                    $warnings[] = [
+                        'from' => $chunkStart,
+                        'to' => $chunkEnd,
+                        'message' => $exception->getMessage(),
+                    ];
                 }
             }
 
-            return $allPoints;
-        });
+            $jimiResult = ['points' => $allPoints, 'warnings' => $warnings];
+
+            if ($warnings === []) {
+                Cache::put($cacheKey, $jimiResult, $cacheSeconds);
+            }
+        }
 
         // ── 2. Also fetch from local device_locations (not cached) ──
         $localLocations = DeviceLocation::where('device_id', $device->id)
@@ -296,15 +311,21 @@ class ApiDeviceController extends Controller
             ->get(['lat', 'lng', 'speed', 'direction', 'heartbeat_at']);
 
         // ── 3. Merge both sources, deduplicate by coordinate + time ──
-        $points = $this->mergeTrackPoints($jimiPoints, $localLocations);
+        $track = $this->mergeTrackPoints($jimiResult['points'], $localLocations);
 
         return response()->json([
-            'success' => true,
+            'success' => $track['points'] !== [] || $jimiResult['warnings'] === [],
+            'partial' => $track['points'] !== [] && $jimiResult['warnings'] !== [],
+            'warnings' => $jimiResult['warnings'],
             'device_id' => $device->id,
             'period' => $request->period,
             'begin_time' => $beginTime,
             'end_time' => $endTime,
-            'points' => $points,
+            'timezone' => config('jimi.display_timezone', 'Asia/Manila'),
+            'begin_time_local' => Carbon::parse($beginTime, 'UTC')->setTimezone(config('jimi.display_timezone', 'Asia/Manila'))->toIso8601String(),
+            'end_time_local' => Carbon::parse($endTime, 'UTC')->setTimezone(config('jimi.display_timezone', 'Asia/Manila'))->toIso8601String(),
+            'points' => $track['points'],
+            'track' => $track,
         ]);
     }
 
@@ -316,20 +337,31 @@ class ApiDeviceController extends Controller
     {
         $seen = [];
         $merged = [];
+        $invalidPointCount = 0;
+        $duplicatePointCount = 0;
 
         // ── Process JIMI API points first ──
         foreach ($jimiRaw as $p) {
-            $lat = (float) ($p['lat'] ?? 0);
-            $lng = (float) ($p['lng'] ?? 0);
+            $lat = filter_var($p['lat'] ?? null, FILTER_VALIDATE_FLOAT);
+            $lng = filter_var($p['lng'] ?? null, FILTER_VALIDATE_FLOAT);
 
-            if ($lat == 0 && $lng == 0) {
+            if ($lat === false || $lng === false || ! $this->isValidTrackCoordinate($lat, $lng)) {
+                $invalidPointCount++;
+
                 continue;
             }
 
-            $gpsTime = $p['gpsTime'] ?? $p['positionTime'] ?? null;
+            $gpsTime = $this->parseJimiTimestamp($p['gpsTime'] ?? $p['positionTime'] ?? null)?->toIso8601String();
+            if ($gpsTime === null) {
+                $invalidPointCount++;
+
+                continue;
+            }
             $key = $this->pointDedupKey($lat, $lng, $gpsTime);
 
             if (isset($seen[$key])) {
+                $duplicatePointCount++;
+
                 continue;
             }
 
@@ -350,6 +382,8 @@ class ApiDeviceController extends Controller
             $lng = (float) $loc->lng;
 
             if ($lat == 0 && $lng == 0) {
+                $invalidPointCount++;
+
                 continue;
             }
 
@@ -357,6 +391,8 @@ class ApiDeviceController extends Controller
             $key = $this->pointDedupKey($lat, $lng, $gpsTime);
 
             if (isset($seen[$key])) {
+                $duplicatePointCount++;
+
                 continue;
             }
 
@@ -371,12 +407,141 @@ class ApiDeviceController extends Controller
             ];
         }
 
-        // ── Sort chronologically ──
-        usort($merged, function ($a, $b) {
-            return ($a['gps_time'] ?? '') <=> ($b['gps_time'] ?? '');
-        });
+        usort($merged, fn (array $left, array $right): int => Carbon::parse($left['gps_time'])->getTimestamp() <=> Carbon::parse($right['gps_time'])->getTimestamp());
 
-        return $merged;
+        return $this->segmentMobileTrackPoints(
+            $merged,
+            count($jimiRaw) + $localLocations->count(),
+            $invalidPointCount,
+            $duplicatePointCount,
+        );
+    }
+
+    private function segmentMobileTrackPoints(
+        array $points,
+        int $rawPointCount,
+        int $invalidPointCount,
+        int $duplicatePointCount,
+    ): array {
+        $accepted = [];
+        $previous = null;
+        $segment = 0;
+        $outlierPointCount = 0;
+        $gaps = [];
+        $distance = 0.0;
+        $movingDuration = 0;
+        $idleDuration = 0;
+        $idleRunDuration = 0;
+        $stopCount = 0;
+        $gapSeconds = max((int) config('jimi.track_gap_minutes', 10), 1) * 60;
+        $maxPlausibleSpeed = max((float) config('jimi.track_max_plausible_speed_kph', 120), 1);
+        $stopSeconds = max((int) config('jimi.track_stop_minutes', 5), 1) * 60;
+
+        foreach ($points as $point) {
+            if (! $this->isValidTrackCoordinate($point['lat'], $point['lng'])) {
+                $invalidPointCount++;
+
+                continue;
+            }
+
+            $timestamp = Carbon::parse($point['gps_time'])->getTimestamp();
+
+            if ($previous !== null) {
+                $elapsedSeconds = $timestamp - $previous['_timestamp'];
+                $segmentDistance = $this->haversineDistance(
+                    $previous['lat'],
+                    $previous['lng'],
+                    $point['lat'],
+                    $point['lng'],
+                );
+                $impliedSpeed = $elapsedSeconds > 0 ? $segmentDistance / ($elapsedSeconds / 3600) : INF;
+
+                if ($elapsedSeconds > $gapSeconds) {
+                    if ($idleRunDuration >= $stopSeconds) {
+                        $stopCount++;
+                    }
+                    $idleRunDuration = 0;
+                    $segment++;
+                    $gaps[] = [
+                        'reason' => 'time_gap',
+                        'from_time' => $previous['gps_time'],
+                        'to_time' => $point['gps_time'],
+                        'duration' => $elapsedSeconds,
+                        'marker_lat' => $previous['lat'],
+                        'marker_lng' => $previous['lng'],
+                    ];
+                } elseif ($elapsedSeconds <= 0 || $impliedSpeed > $maxPlausibleSpeed) {
+                    $outlierPointCount++;
+                    $gaps[] = [
+                        'reason' => 'implausible_jump',
+                        'from_time' => $previous['gps_time'],
+                        'to_time' => $point['gps_time'],
+                        'duration' => max($elapsedSeconds, 0),
+                        'marker_lat' => $previous['lat'],
+                        'marker_lng' => $previous['lng'],
+                    ];
+
+                    continue;
+                } else {
+                    $distance += $segmentDistance;
+                    if (max($previous['speed'], $point['speed']) >= self::MOVING_SPEED_THRESHOLD) {
+                        if ($idleRunDuration >= $stopSeconds) {
+                            $stopCount++;
+                        }
+                        $idleRunDuration = 0;
+                        $movingDuration += $elapsedSeconds;
+                    } else {
+                        $idleDuration += $elapsedSeconds;
+                        $idleRunDuration += $elapsedSeconds;
+                    }
+                }
+            }
+
+            $point['segment'] = $segment;
+            $accepted[] = $point;
+            $previous = [...$point, '_timestamp' => $timestamp];
+        }
+
+        if ($idleRunDuration >= $stopSeconds) {
+            $stopCount++;
+        }
+
+        return [
+            'points' => $accepted,
+            'raw_point_count' => $rawPointCount,
+            'total_points' => count($accepted),
+            'invalid_point_count' => $invalidPointCount,
+            'duplicate_point_count' => $duplicatePointCount,
+            'outlier_point_count' => $outlierPointCount,
+            'segment_count' => $accepted === [] ? 0 : $segment + 1,
+            'gap_count' => count($gaps),
+            'gaps' => $gaps,
+            'distance_km' => round($distance, 2),
+            'moving_duration' => $movingDuration,
+            'idle_duration' => $idleDuration,
+            'stop_count' => $stopCount,
+        ];
+    }
+
+    private function isValidTrackCoordinate(float $lat, float $lng): bool
+    {
+        return is_finite($lat)
+            && is_finite($lng)
+            && $lat >= -90
+            && $lat <= 90
+            && $lng >= -180
+            && $lng <= 180
+            && ! ($lat === 0.0 && $lng === 0.0);
+    }
+
+    private function haversineDistance(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $earthRadius = 6371;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+
+        return $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 
     /**
@@ -442,7 +607,7 @@ class ApiDeviceController extends Controller
 
     private function calculateDateRange(string $period, ?string $from, ?string $to): array
     {
-        $tz = config('app.timezone', 'Asia/Manila');
+        $tz = config('jimi.display_timezone', 'Asia/Manila');
 
         [$begin, $end] = match ($period) {
             'today' => [Carbon::now($tz)->startOfDay(), Carbon::now($tz)],

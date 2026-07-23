@@ -45,7 +45,7 @@ class LiveViewController extends Controller
             'device_id' => 'required|exists:devices,id',
             'period' => 'required|in:today,yesterday,3days,week,month,custom',
             'from' => 'nullable|date|required_if:period,custom',
-            'to' => 'nullable|date|required_if:period,custom',
+            'to' => 'nullable|date|required_if:period,custom|after_or_equal:from',
         ]);
 
         $device = $this->findAccessibleDevice($request, (int) $request->device_id);
@@ -58,29 +58,47 @@ class LiveViewController extends Controller
             $request->to
         );
 
-        // Cache key based on imei + date range
-        $cacheKey = "track_data_{$imei}_{$beginTime}_{$endTime}";
+        // Cache completed history longer than a live "Today" range.
+        $cacheKey = "track_data_v2_{$imei}_{$beginTime}_{$endTime}";
+        $cacheSeconds = $request->period === 'today' ? 60 : 300;
 
-        $trackPoints = Cache::remember($cacheKey, 300, function () use ($trackingService, $imei, $beginTime, $endTime) {
+        $trackResult = Cache::get($cacheKey);
+
+        if ($trackResult === null) {
             // Split into 2-day chunks for JIMI API reliability
             $chunks = $this->getDateChunks($beginTime, $endTime, 2);
             $allPoints = [];
+            $warnings = [];
 
             foreach ($chunks as [$chunkStart, $chunkEnd]) {
-                $points = $trackingService->fetchTrackData($imei, $chunkStart, $chunkEnd);
-                if (is_array($points)) {
+                try {
+                    $points = $trackingService->fetchTrackData($imei, $chunkStart, $chunkEnd);
                     $allPoints = array_merge($allPoints, $points);
+                } catch (\Throwable $exception) {
+                    report($exception);
+                    $warnings[] = [
+                        'from' => $chunkStart,
+                        'to' => $chunkEnd,
+                        'message' => $exception->getMessage(),
+                    ];
                 }
             }
 
-            return $allPoints;
-        });
+            $trackResult = ['points' => $allPoints, 'warnings' => $warnings];
+
+            if ($warnings === []) {
+                Cache::put($cacheKey, $trackResult, $cacheSeconds);
+            }
+        }
 
         // Process and return formatted track data
-        $formatted = $this->formatTrackPoints($trackPoints);
+        $formatted = $this->formatTrackPoints($trackResult['points']);
+        $warnings = $trackResult['warnings'];
 
         return response()->json([
-            'success' => true,
+            'success' => $formatted['totalPoints'] > 0 || $warnings === [],
+            'partial' => $warnings !== [] && $formatted['totalPoints'] > 0,
+            'warnings' => $warnings,
             'device' => [
                 'id' => $device->id,
                 'imei' => $device->imei,
@@ -90,13 +108,14 @@ class LiveViewController extends Controller
             'period' => $request->period,
             'begin_time' => $beginTime,
             'end_time' => $endTime,
+            'timezone' => config('jimi.display_timezone', 'Asia/Manila'),
             'track' => $formatted,
         ]);
     }
 
     /**
      * Real-time single-device location for the "Follow" feature.
-        * Uses the shared 10-second JIMI cache and does not persist to the DB.
+     * Uses the shared 10-second JIMI cache and does not persist to the DB.
      */
     public function followDevice(Request $request, Device $device, JimiDeviceService $jimiService)
     {
@@ -488,7 +507,7 @@ class LiveViewController extends Controller
      */
     private function calculateDateRange(string $period, ?string $from, ?string $to): array
     {
-        $tz = config('app.timezone', 'Asia/Manila');
+        $tz = config('jimi.display_timezone', 'Asia/Manila');
 
         switch ($period) {
             case 'today':
@@ -556,60 +575,152 @@ class LiveViewController extends Controller
     private function formatTrackPoints(array $points): array
     {
         if (empty($points)) {
-            return [
-                'points' => [],
-                'totalPoints' => 0,
-                'distance' => 0,
-                'maxSpeed' => 0,
-                'avgSpeed' => 0,
-                'duration' => 0,
-                'startTime' => null,
-                'endTime' => null,
+            return $this->emptyTrackSummary();
+        }
+
+        $rawPointCount = count($points);
+        $normalized = [];
+        $invalidPointCount = 0;
+
+        foreach ($points as $point) {
+            $lat = filter_var($point['lat'] ?? null, FILTER_VALIDATE_FLOAT);
+            $lng = filter_var($point['lng'] ?? null, FILTER_VALIDATE_FLOAT);
+            $time = $this->parseTrackTimestamp($point['gpsTime'] ?? $point['positionTime'] ?? null);
+
+            if ($lat === false || $lng === false || ! $this->isValidTrackCoordinate($lat, $lng) || $time === null) {
+                $invalidPointCount++;
+
+                continue;
+            }
+
+            $speed = max((float) ($point['speed'] ?? $point['gpsSpeed'] ?? 0), 0);
+            $direction = fmod((float) ($point['course'] ?? $point['direction'] ?? 0), 360);
+
+            $normalized[] = [
+                'lat' => $lat,
+                'lng' => $lng,
+                'speed' => $speed,
+                'direction' => $direction < 0 ? $direction + 360 : $direction,
+                'gpsTime' => $time->toIso8601String(),
+                '_timestamp' => $time->getTimestamp(),
             ];
         }
 
-        // Sort by GPS time
-        usort($points, function ($a, $b) {
-            return ($a['gpsTime'] ?? '') <=> ($b['gpsTime'] ?? '');
-        });
+        usort($normalized, fn (array $left, array $right): int => $left['_timestamp'] <=> $right['_timestamp']);
 
         $formatted = [];
         $speeds = [];
         $maxSpeed = 0;
         $totalDist = 0;
+        $duplicatePointCount = 0;
+        $outlierPointCount = 0;
+        $segment = 0;
+        $gaps = [];
+        $seen = [];
+        $previous = null;
+        $movingDuration = 0;
+        $idleDuration = 0;
+        $idleRunDuration = 0;
+        $stopCount = 0;
+        $gapSeconds = max((int) config('jimi.track_gap_minutes', 10), 1) * 60;
+        $maxPlausibleSpeed = max((float) config('jimi.track_max_plausible_speed_kph', 120), 1);
+        $stopSeconds = max((int) config('jimi.track_stop_minutes', 5), 1) * 60;
 
-        foreach ($points as $i => $p) {
-            $lat = (float) ($p['lat'] ?? 0);
-            $lng = (float) ($p['lng'] ?? 0);
-            $speed = (float) ($p['speed'] ?? $p['gpsSpeed'] ?? 0);
-            $dir = (float) ($p['course'] ?? $p['direction'] ?? 0);
-            $time = $p['gpsTime'] ?? $p['positionTime'] ?? null;
+        foreach ($normalized as $point) {
+            $dedupKey = $point['gpsTime'].'|'.round($point['lat'], 6).'|'.round($point['lng'], 6);
 
-            if ($lat == 0 && $lng == 0) {
+            if (isset($seen[$dedupKey])) {
+                $duplicatePointCount++;
+
                 continue;
             }
 
-            $formatted[] = [
-                'lat' => $lat,
-                'lng' => $lng,
-                'speed' => $speed,
-                'direction' => $dir,
-                'gpsTime' => $time,
-            ];
+            $seen[$dedupKey] = true;
 
-            $speeds[] = $speed;
-            if ($speed > $maxSpeed) {
-                $maxSpeed = $speed;
-            }
+            if ($previous !== null) {
+                $elapsedSeconds = $point['_timestamp'] - $previous['_timestamp'];
+                $distance = $this->haversineDistance(
+                    $previous['lat'],
+                    $previous['lng'],
+                    $point['lat'],
+                    $point['lng'],
+                );
+                $impliedSpeed = $elapsedSeconds > 0 ? $distance / ($elapsedSeconds / 3600) : INF;
+                $gapReason = null;
 
-            // Calculate distance from previous point using Haversine
-            if ($i > 0) {
-                $prevLat = (float) ($points[$i - 1]['lat'] ?? 0);
-                $prevLng = (float) ($points[$i - 1]['lng'] ?? 0);
-                if ($prevLat != 0 && $prevLng != 0) {
-                    $totalDist += $this->haversineDistance($prevLat, $prevLng, $lat, $lng);
+                if ($elapsedSeconds > $gapSeconds) {
+                    $gapReason = 'time_gap';
+                } elseif ($elapsedSeconds <= 0 || $impliedSpeed > $maxPlausibleSpeed) {
+                    $outlierPointCount++;
+                    $gaps[] = [
+                        'reason' => 'implausible_jump',
+                        'fromTime' => $previous['gpsTime'],
+                        'toTime' => $point['gpsTime'],
+                        'toLat' => $point['lat'],
+                        'toLng' => $point['lng'],
+                        'markerLat' => $previous['lat'],
+                        'markerLng' => $previous['lng'],
+                        'duration' => max($elapsedSeconds, 0),
+                        'distance' => round($distance, 2),
+                    ];
+
+                    continue;
+                }
+
+                if ($gapReason !== null) {
+                    if ($idleRunDuration >= $stopSeconds) {
+                        $stopCount++;
+                    }
+                    $idleRunDuration = 0;
+                    $segment++;
+                    $gaps[] = [
+                        'reason' => $gapReason,
+                        'fromTime' => $previous['gpsTime'],
+                        'toTime' => $point['gpsTime'],
+                        'toLat' => $point['lat'],
+                        'toLng' => $point['lng'],
+                        'markerLat' => $previous['lat'],
+                        'markerLng' => $previous['lng'],
+                        'duration' => max($elapsedSeconds, 0),
+                        'distance' => round($distance, 2),
+                    ];
+                } else {
+                    $totalDist += $distance;
+
+                    if (max($previous['speed'], $point['speed']) >= self::MOVING_SPEED_THRESHOLD) {
+                        if ($idleRunDuration >= $stopSeconds) {
+                            $stopCount++;
+                        }
+                        $idleRunDuration = 0;
+                        $movingDuration += $elapsedSeconds;
+                    } else {
+                        $idleDuration += $elapsedSeconds;
+                        $idleRunDuration += $elapsedSeconds;
+                    }
                 }
             }
+
+            $point['segment'] = $segment;
+            unset($point['_timestamp']);
+            $formatted[] = $point;
+            $speeds[] = $point['speed'];
+            if ($point['speed'] > $maxSpeed) {
+                $maxSpeed = $point['speed'];
+            }
+
+            $previous = [...$point, '_timestamp' => Carbon::parse($point['gpsTime'])->getTimestamp()];
+        }
+
+        if ($idleRunDuration >= $stopSeconds) {
+            $stopCount++;
+        }
+
+        if ($formatted === []) {
+            return [
+                ...$this->emptyTrackSummary(),
+                'rawPointCount' => $rawPointCount,
+                'invalidPointCount' => $invalidPointCount,
+            ];
         }
 
         $avgSpeed = count($speeds) > 0 ? array_sum($speeds) / count($speeds) : 0;
@@ -630,7 +741,65 @@ class LiveViewController extends Controller
             'duration' => $duration,                  // seconds
             'startTime' => $startTime,
             'endTime' => $endTime,
+            'rawPointCount' => $rawPointCount,
+            'invalidPointCount' => $invalidPointCount,
+            'duplicatePointCount' => $duplicatePointCount,
+            'outlierPointCount' => $outlierPointCount,
+            'gapCount' => count($gaps),
+            'segmentCount' => $segment + 1,
+            'gaps' => $gaps,
+            'movingDuration' => $movingDuration,
+            'idleDuration' => $idleDuration,
+            'stopCount' => $stopCount,
         ];
+    }
+
+    private function emptyTrackSummary(): array
+    {
+        return [
+            'points' => [],
+            'totalPoints' => 0,
+            'distance' => 0,
+            'maxSpeed' => 0,
+            'avgSpeed' => 0,
+            'duration' => 0,
+            'startTime' => null,
+            'endTime' => null,
+            'rawPointCount' => 0,
+            'invalidPointCount' => 0,
+            'duplicatePointCount' => 0,
+            'outlierPointCount' => 0,
+            'gapCount' => 0,
+            'segmentCount' => 0,
+            'gaps' => [],
+            'movingDuration' => 0,
+            'idleDuration' => 0,
+            'stopCount' => 0,
+        ];
+    }
+
+    private function parseTrackTimestamp(mixed $timestamp): ?Carbon
+    {
+        if (blank($timestamp)) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse((string) $timestamp, 'UTC')->utc();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function isValidTrackCoordinate(float $lat, float $lng): bool
+    {
+        return is_finite($lat)
+            && is_finite($lng)
+            && $lat >= -90
+            && $lat <= 90
+            && $lng >= -180
+            && $lng <= 180
+            && ! ($lat === 0.0 && $lng === 0.0);
     }
 
     /**

@@ -144,15 +144,29 @@ class JimiTrackingService
      */
     public function fetchTrackData(string $imei, string $beginTime, string $endTime): array
     {
-        $response = $this->auth->call('jimi.device.track.list', [
-            'imei' => $imei,
-            'begin_time' => $beginTime,
-            'end_time' => $endTime,
-            'map_type' => config('jimi.map_type', 'WGS84'),
-        ]);
+        try {
+            $response = $this->auth->call('jimi.device.track.list', [
+                'imei' => $imei,
+                'begin_time' => $beginTime,
+                'end_time' => $endTime,
+                'map_type' => config('jimi.map_type', 'WGS84'),
+            ]);
+        } catch (\Throwable $exception) {
+            throw new \RuntimeException('JIMI track request failed.', previous: $exception);
+        }
 
-        if (((int) ($response['code'] ?? -1)) !== 0) {
-            return [];
+        $code = (int) ($response['code'] ?? -1);
+        if ($code !== 0) {
+            Log::warning("Jimi track data failed for {$imei}", [
+                'code' => $code,
+                'message' => $response['message'] ?? null,
+            ]);
+
+            throw new \RuntimeException(
+                $code === 1006
+                    ? 'JIMI daily track quota has been reached.'
+                    : 'JIMI track data is temporarily unavailable.'
+            );
         }
 
         return $response['result'] ?? [];
