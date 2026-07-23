@@ -229,6 +229,18 @@
 
           <!-- Track Info Panel -->
           <div v-if="trackData && trackData.totalPoints > 0" class="flex-1 overflow-y-auto">
+            <div v-if="trackWarnings.length" class="border-b border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300" role="status">
+              <p class="font-semibold">Partial track data</p>
+              <p class="mt-0.5">{{ trackWarnings.length }} JIMI time range{{ trackWarnings.length === 1 ? '' : 's' }} could not be loaded.</p>
+              <p class="mt-1 text-[11px] opacity-80">The available route is shown, but distance and activity totals may be incomplete.</p>
+            </div>
+
+            <div class="flex flex-wrap gap-x-3 gap-y-1 border-b border-gray-200 bg-white px-3 py-2 text-[11px] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400" aria-label="Track marker legend">
+              <span class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[9px] font-bold text-white">S</span> Start</span>
+              <span class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">E</span> End</span>
+              <span class="inline-flex items-center gap-1" title="Hover, focus, or tap an orange marker on the map for details."><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">!</span> GPS data warning</span>
+            </div>
+
             <!-- Summary Stats -->
             <div class="grid grid-cols-2 gap-px bg-gray-200 dark:bg-gray-700">
               <div class="bg-white dark:bg-gray-800 p-3 text-center">
@@ -236,7 +248,7 @@
                 <p class="text-lg font-bold text-indigo-600 dark:text-indigo-400">{{ trackData.distance }} <span class="text-xs font-normal text-gray-400">km</span></p>
               </div>
               <div class="bg-white dark:bg-gray-800 p-3 text-center">
-                <p class="text-xs text-gray-500 dark:text-gray-400">Duration</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Elapsed Window</p>
                 <p class="text-lg font-bold text-indigo-600 dark:text-indigo-400">{{ formatDuration(trackData.duration) }}</p>
               </div>
               <div class="bg-white dark:bg-gray-800 p-3 text-center">
@@ -247,6 +259,22 @@
                 <p class="text-xs text-gray-500 dark:text-gray-400">Avg Speed</p>
                 <p class="text-lg font-bold text-green-600 dark:text-green-400">{{ trackData.avgSpeed }} <span class="text-xs font-normal text-gray-400">km/h</span></p>
               </div>
+              <div class="bg-white dark:bg-gray-800 p-3 text-center">
+                <p class="text-xs text-gray-500 dark:text-gray-400">Moving</p>
+                <p class="text-base font-bold text-green-600 dark:text-green-400">{{ formatDuration(trackData.movingDuration) }}</p>
+              </div>
+              <div class="bg-white dark:bg-gray-800 p-3 text-center">
+                <p class="text-xs text-gray-500 dark:text-gray-400">Idle</p>
+                <p class="text-base font-bold text-amber-600 dark:text-amber-400">{{ formatDuration(trackData.idleDuration) }}</p>
+              </div>
+              <div class="bg-white dark:bg-gray-800 p-3 text-center">
+                <p class="text-xs text-gray-500 dark:text-gray-400">Stops</p>
+                <p class="text-base font-bold text-gray-800 dark:text-gray-200">{{ trackData.stopCount }}</p>
+              </div>
+              <div class="bg-white dark:bg-gray-800 p-3 text-center">
+                <p class="text-xs text-gray-500 dark:text-gray-400" title="Reporting gaps are periods with no GPS points. Spikes are impossible jumps removed from the route.">Gaps / Spikes</p>
+                <p class="text-base font-bold" :class="trackData.gapCount ? 'text-amber-600 dark:text-amber-400' : 'text-gray-800 dark:text-gray-200'">{{ trackData.gapCount }}</p>
+              </div>
             </div>
 
             <!-- GPS Points count & time -->
@@ -256,21 +284,30 @@
                 <span class="font-medium text-gray-900 dark:text-white">{{ trackData.totalPoints.toLocaleString() }}</span>
               </div>
               <div v-if="trackData.startTime" class="flex justify-between text-sm">
-                <span class="text-gray-500 dark:text-gray-400">Start</span>
+                <span class="text-gray-500 dark:text-gray-400">Start (PH)</span>
                 <span class="font-medium text-gray-900 dark:text-white text-xs">{{ formatDateTime(trackData.startTime) }}</span>
               </div>
               <div v-if="trackData.endTime" class="flex justify-between text-sm">
-                <span class="text-gray-500 dark:text-gray-400">End</span>
+                <span class="text-gray-500 dark:text-gray-400">End (PH)</span>
                 <span class="font-medium text-gray-900 dark:text-white text-xs">{{ formatDateTime(trackData.endTime) }}</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-500 dark:text-gray-400" title="A new segment starts after a reporting gap so the map does not draw a false straight line.">Segments</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ trackData.segmentCount }}</span>
+              </div>
+              <div v-if="trackData.invalidPointCount || trackData.duplicatePointCount || trackData.outlierPointCount" class="flex justify-between gap-3 text-sm">
+                <span class="text-gray-500 dark:text-gray-400" title="Invalid coordinates, exact duplicates, and impossible GPS jumps are excluded from route totals.">Cleaned points</span>
+                <span class="text-right text-xs font-medium text-gray-900 dark:text-white">{{ trackData.invalidPointCount }} invalid, {{ trackData.duplicatePointCount }} duplicate, {{ trackData.outlierPointCount }} spike</span>
               </div>
             </div>
 
             <!-- Playback Controls -->
-            <div class="p-3 space-y-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="p-3 space-y-3 border-b border-gray-200 dark:border-gray-700" tabindex="0" @keydown="handlePlaybackKeydown">
               <div class="flex items-center justify-between">
                 <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Playback</span>
                 <div class="flex items-center gap-1">
                   <button v-for="s in [1, 2, 4, 8, 16]" :key="s" @click="playbackSpeed = s"
+                    :aria-pressed="playbackSpeed === s" :aria-label="`Playback speed ${s}x`"
                     :class="['px-2 py-0.5 text-[10px] font-bold rounded transition-colors',
                       playbackSpeed === s ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300']">
                     {{ s }}x
@@ -280,6 +317,7 @@
 
               <div class="flex items-center gap-2">
                 <button @click="togglePlayback"
+                  :aria-label="isPlaying ? 'Pause track playback' : 'Play track history'"
                   class="w-10 h-10 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center transition-colors shadow-sm shrink-0">
                   <svg v-if="!isPlaying" class="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
@@ -291,6 +329,7 @@
 
                 <div class="flex-1">
                   <input type="range" v-model.number="playbackIndex" :min="0" :max="Math.max(0, (trackData?.points?.length || 1) - 1)"
+                    aria-label="Track playback position" :aria-valuetext="currentPlaybackTime"
                     class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-indigo-600" />
                   <div class="flex justify-between mt-1">
                     <span class="text-[10px] text-gray-500 dark:text-gray-400 font-mono">{{ currentPlaybackTime }}</span>
@@ -328,8 +367,8 @@
               <svg class="mx-auto w-12 h-12 mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.834-2.694-.834-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
-              <p class="text-sm font-medium">No track data found</p>
-              <p class="text-xs mt-1">Try a different period</p>
+              <p class="text-sm font-medium">{{ trackError || 'No track data found' }}</p>
+              <p class="text-xs mt-1">{{ trackError ? 'Try again or choose a shorter period.' : 'Try a different period.' }}</p>
             </div>
           </div>
         </div>
@@ -665,6 +704,8 @@ const trackFrom = ref('');
 const trackTo = ref('');
 const trackLoading = ref(false);
 const trackData = ref(null);
+const trackError = ref('');
+const trackWarnings = ref([]);
 
 // Playback
 const isPlaying = ref(false);
@@ -688,8 +729,11 @@ let infoWindows = {};
 let followInterval = null;
 let refreshInterval = null;
 let countdownInterval = null;
-let trackPolyline = null;
-let trackProgressPolyline = null;
+let trackPolylines = [];
+let trackProgressPolylines = [];
+let trackSegmentPaths = [];
+let trackSegmentRanges = [];
+let trackProgressLengths = [];
 let trackMarkers = [];
 let playbackMarker = null;
 let playbackMarkerImage = null;
@@ -1107,7 +1151,7 @@ function getClusterLabel(count) {
   return count > 999 ? '999+' : String(count);
 }
 
-function createTrackBadgeMarkerContent(label, fillColor) {
+function createTrackBadgeMarkerContent(label, fillColor, tooltip = '') {
   const shell = createMarkerShell({
     size: 30,
     background: fillColor,
@@ -1118,6 +1162,61 @@ function createTrackBadgeMarkerContent(label, fillColor) {
   shell.style.fontWeight = '700';
   shell.style.fontSize = '11px';
   shell.textContent = label;
+
+  if (tooltip) {
+    shell.style.position = 'relative';
+    shell.style.cursor = 'help';
+    shell.tabIndex = 0;
+    shell.setAttribute('role', 'button');
+    shell.setAttribute('aria-label', tooltip);
+    shell.title = tooltip;
+
+    const tooltipBubble = document.createElement('div');
+    tooltipBubble.textContent = tooltip;
+    tooltipBubble.setAttribute('role', 'tooltip');
+    tooltipBubble.style.position = 'absolute';
+    tooltipBubble.style.left = '50%';
+    tooltipBubble.style.bottom = 'calc(100% + 10px)';
+    tooltipBubble.style.transform = 'translateX(-50%)';
+    tooltipBubble.style.width = 'min(260px, 70vw)';
+    tooltipBubble.style.padding = '8px 10px';
+    tooltipBubble.style.borderRadius = '8px';
+    tooltipBubble.style.background = 'rgba(17, 24, 39, 0.96)';
+    tooltipBubble.style.color = '#ffffff';
+    tooltipBubble.style.fontSize = '11px';
+    tooltipBubble.style.fontWeight = '500';
+    tooltipBubble.style.lineHeight = '1.35';
+    tooltipBubble.style.textAlign = 'left';
+    tooltipBubble.style.whiteSpace = 'normal';
+    tooltipBubble.style.pointerEvents = 'none';
+    tooltipBubble.style.opacity = '0';
+    tooltipBubble.style.visibility = 'hidden';
+    tooltipBubble.style.transition = 'opacity 120ms ease';
+    tooltipBubble.style.zIndex = '1000';
+    shell.appendChild(tooltipBubble);
+
+    const showTooltip = () => {
+      tooltipBubble.style.opacity = '1';
+      tooltipBubble.style.visibility = 'visible';
+    };
+    const hideTooltip = () => {
+      tooltipBubble.style.opacity = '0';
+      tooltipBubble.style.visibility = 'hidden';
+    };
+    shell.addEventListener('mouseenter', showTooltip);
+    shell.addEventListener('mouseleave', hideTooltip);
+    shell.addEventListener('focus', showTooltip);
+    shell.addEventListener('blur', hideTooltip);
+    shell.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') hideTooltip();
+    });
+    shell.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const isVisible = tooltipBubble.style.visibility === 'visible';
+      if (isVisible) hideTooltip();
+      else showTooltip();
+    });
+  }
 
   return shell;
 }
@@ -1535,6 +1634,8 @@ async function searchTracks() {
   if (!trackDeviceId.value) return;
   trackLoading.value = true;
   clearTracks();
+  trackError.value = '';
+  trackWarnings.value = [];
 
   try {
     const params = { device_id: trackDeviceId.value, period: trackPeriod.value };
@@ -1545,13 +1646,20 @@ async function searchTracks() {
 
     const { data } = await axios.get('/live-view/track-data', { params });
 
-    if (data.success && data.track) {
+    trackWarnings.value = data.warnings || [];
+
+    if (data.track) {
       trackData.value = data.track;
       playbackIndex.value = 0;
       if (data.track.points?.length > 0) drawTrack(data.track.points);
     }
+
+    if (!data.success) {
+      trackError.value = data.warnings?.[0]?.message || 'Track data is temporarily unavailable.';
+    }
   } catch (e) {
     console.error('Failed to load tracks:', e);
+    trackError.value = e.response?.data?.message || 'Unable to load track history.';
     trackData.value = { points: [], totalPoints: 0, distance: 0, maxSpeed: 0, avgSpeed: 0, duration: 0, startTime: null, endTime: null };
   }
   trackLoading.value = false;
@@ -1559,22 +1667,30 @@ async function searchTracks() {
 
 function drawTrack(points) {
   if (!map || !points.length || !AdvancedMarkerElementClass) return;
+  const segments = groupTrackPointsBySegment(points);
   const path = points.map(p => new google.maps.LatLng(p.lat, p.lng));
-
-  // Full track polyline (faded)
-  trackPolyline = new google.maps.Polyline({
-    path, geodesic: true, strokeColor: '#6366f1', strokeOpacity: 0.25, strokeWeight: 4, map,
+  let pointOffset = 0;
+  trackSegmentPaths = segments.map(segmentPoints => segmentPoints.map(p => new google.maps.LatLng(p.lat, p.lng)));
+  trackSegmentRanges = segments.map((segmentPoints) => {
+    const range = { start: pointOffset, end: pointOffset + segmentPoints.length - 1 };
+    pointOffset += segmentPoints.length;
+    return range;
   });
+  trackProgressLengths = segments.map(() => -1);
 
-  // Progress polyline (solid)
-  trackProgressPolyline = new google.maps.Polyline({
-    path, geodesic: true, strokeColor: '#4f46e5', strokeOpacity: 0.9, strokeWeight: 4, map,
-  });
+  trackPolylines = trackSegmentPaths.map(segmentPath => new google.maps.Polyline({
+    path: segmentPath,
+    geodesic: true, strokeColor: '#6366f1', strokeOpacity: 0.45, strokeWeight: 4, map,
+  }));
+  trackProgressPolylines = segments.map(() => new google.maps.Polyline({
+    path: [], geodesic: true, strokeColor: '#4f46e5', strokeOpacity: 0.95, strokeWeight: 4, map,
+  }));
+  updateTrackProgress();
 
   // Start marker
   trackMarkers.push(createAdvancedMarker({
     position: path[0],
-    content: createTrackBadgeMarkerContent('S', '#22c55e'),
+    content: createTrackBadgeMarkerContent('S', '#22c55e', 'Track start'),
     zIndex: 100,
   }));
 
@@ -1582,10 +1698,21 @@ function drawTrack(points) {
   if (path.length > 1) {
     trackMarkers.push(createAdvancedMarker({
       position: path[path.length - 1],
-      content: createTrackBadgeMarkerContent('E', '#ef4444'),
+      content: createTrackBadgeMarkerContent('E', '#ef4444', 'Track end'),
       zIndex: 100,
     }));
   }
+
+  (trackData.value?.gaps || []).forEach((gap) => {
+    if (!Number.isFinite(Number(gap.markerLat)) || !Number.isFinite(Number(gap.markerLng))) return;
+    const tooltip = trackGapTooltip(gap);
+    trackMarkers.push(createAdvancedMarker({
+      position: { lat: Number(gap.markerLat), lng: Number(gap.markerLng) },
+      content: createTrackBadgeMarkerContent('!', '#f59e0b', tooltip),
+      title: tooltip,
+      zIndex: 110,
+    }));
+  });
 
   // Playback marker
   const playbackContent = createStatusTractorMarkerContent('moving', {
@@ -1611,14 +1738,55 @@ function fitTrackBounds() {
 
 function clearTracks() {
   stopPlayback();
-  if (trackPolyline) { trackPolyline.setMap(null); trackPolyline = null; }
-  if (trackProgressPolyline) { trackProgressPolyline.setMap(null); trackProgressPolyline = null; }
+  trackPolylines.forEach(polyline => polyline.setMap(null));
+  trackProgressPolylines.forEach(polyline => polyline.setMap(null));
+  trackPolylines = [];
+  trackProgressPolylines = [];
+  trackSegmentPaths = [];
+  trackSegmentRanges = [];
+  trackProgressLengths = [];
   if (playbackMarker) { playbackMarker.map = null; playbackMarker = null; }
   playbackMarkerImage = null;
   trackMarkers.forEach(m => { m.map = null; });
   trackMarkers = [];
   trackData.value = null;
   playbackIndex.value = 0;
+}
+
+function groupTrackPointsBySegment(points) {
+  const groups = new Map();
+  points.forEach((point) => {
+    const segment = point.segment ?? 0;
+    if (!groups.has(segment)) groups.set(segment, []);
+    groups.get(segment).push(point);
+  });
+  return Array.from(groups.values());
+}
+
+function trackGapTooltip(gap) {
+  const duration = formatDuration(Number(gap.duration) || 0);
+  const resumedAt = formatDateTime(gap.toTime);
+  if (gap.reason === 'time_gap') {
+    return `Reporting gap: no GPS points were received for ${duration}. The route resumes at ${resumedAt} and is shown as a new segment.`;
+  }
+
+  const distance = Number(gap.distance) || 0;
+  return `GPS spike removed: this point implied an impossible ${distance.toFixed(1)} km jump in ${duration}, so it was excluded from the route and totals.`;
+}
+
+function updateTrackProgress() {
+  if (!map || !trackData.value?.points?.length) return;
+
+  trackProgressPolylines.forEach((polyline, index) => {
+    const range = trackSegmentRanges[index];
+    if (!range) return;
+    const desiredLength = playbackIndex.value < range.start
+      ? 0
+      : Math.min(playbackIndex.value - range.start + 1, trackSegmentPaths[index].length);
+    if (trackProgressLengths[index] === desiredLength) return;
+    trackProgressLengths[index] = desiredLength;
+    polyline.setPath(trackSegmentPaths[index].slice(0, desiredLength));
+  });
 }
 
 function quickTrack() {
@@ -1634,6 +1802,20 @@ function quickTrack() {
 function togglePlayback() {
   if (isPlaying.value) stopPlayback();
   else startPlayback();
+}
+
+function handlePlaybackKeydown(event) {
+  if (!trackData.value?.points?.length) return;
+  if (event.key === ' ') {
+    event.preventDefault();
+    togglePlayback();
+  } else if (event.key === 'ArrowRight') {
+    event.preventDefault();
+    playbackIndex.value = Math.min(playbackIndex.value + 1, trackData.value.points.length - 1);
+  } else if (event.key === 'ArrowLeft') {
+    event.preventDefault();
+    playbackIndex.value = Math.max(playbackIndex.value - 1, 0);
+  }
 }
 
 function startPlayback() {
@@ -1675,15 +1857,23 @@ watch(playbackIndex, (idx, oldIdx) => {
   if (!point) return;
   const pos = new google.maps.LatLng(point.lat, point.lng);
 
-  // Keep tractor icon upright — no rotation applied
   if (playbackMarker) {
     playbackMarker.position = pos;
   }
 
-  if (trackProgressPolyline) {
-    const progressPath = trackData.value.points.slice(0, idx + 1).map(p => new google.maps.LatLng(p.lat, p.lng));
-    trackProgressPolyline.setPath(progressPath);
+  const adjacentPoint = trackData.value.points[idx - 1]?.segment === point.segment
+    ? trackData.value.points[idx - 1]
+    : trackData.value.points[idx + 1]?.segment === point.segment
+      ? trackData.value.points[idx + 1]
+      : null;
+  if (playbackMarkerImage && adjacentPoint) {
+    const bearing = idx > 0 && adjacentPoint === trackData.value.points[idx - 1]
+      ? calcBearing(adjacentPoint.lat, adjacentPoint.lng, point.lat, point.lng)
+      : calcBearing(point.lat, point.lng, adjacentPoint.lat, adjacentPoint.lng);
+    playbackMarkerImage.style.transform = `rotate(${bearing}deg)`;
   }
+
+  updateTrackProgress();
   if (isPlaying.value && map) {
     const bounds = map.getBounds();
     if (bounds && !bounds.contains(pos)) map.panTo(pos);
