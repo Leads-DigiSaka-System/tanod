@@ -489,7 +489,7 @@
               <div class="space-y-2">
                 <div class="flex justify-between text-sm">
                   <span class="text-gray-500 dark:text-gray-400">Name</span>
-                  <span class="text-gray-900 dark:text-white font-medium">{{ selectedDevice.tractor.id_no || '-' }}</span>
+                  <span class="text-gray-900 dark:text-white font-medium">{{ selectedDevice.tractor.name || '-' }}</span>
                 </div>
                 <div class="flex justify-between text-sm">
                   <span class="text-gray-500 dark:text-gray-400">Model</span>
