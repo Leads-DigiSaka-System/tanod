@@ -7,6 +7,7 @@ use App\Models\DeviceLocation;
 use App\Models\Tractor;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Handles device listing and location queries from Jimi API,
@@ -123,10 +124,18 @@ class JimiDeviceService
      */
     public function fetchLocationsRealtime(): array
     {
-        $response = $this->auth->call('jimi.user.device.location.list', [
-            'target' => config('jimi.user_id'),
-            'map_type' => config('jimi.map_type', 'WGS84'),
-        ]);
+        try {
+            $response = $this->auth->call('jimi.user.device.location.list', [
+                'target' => config('jimi.user_id'),
+                'map_type' => config('jimi.map_type', 'WGS84'),
+            ]);
+        } catch (Throwable $exception) {
+            Log::warning('Jimi realtime location list unavailable', [
+                'error' => $exception->getMessage(),
+            ]);
+
+            return [];
+        }
 
         if (((int) ($response['code'] ?? -1)) !== 0) {
             Log::warning('Jimi realtime location list failed', ['response' => $response]);
@@ -202,21 +211,21 @@ class JimiDeviceService
     }
 
     /**
-     * Get a single device's current location directly from API.
-     * Uses: jimi.device.location.get (API 3.2)
+     * Fetch one device from JIMI's supported short-lived cached location list.
+     */
+    public function fetchDeviceLocationRealtime(string $imei): ?array
+    {
+        $locations = $this->fetchLiveLocations();
+
+        return $locations[$imei] ?? null;
+    }
+
+    /**
+     * Get a single device's current location and persist it.
      */
     public function getDeviceLocation(string $imei): ?array
     {
-        $response = $this->auth->call('jimi.device.location.get', [
-            'imei' => $imei,
-            'map_type' => config('jimi.map_type', 'WGS84'),
-        ]);
-
-        if (((int) ($response['code'] ?? -1)) !== 0) {
-            return null;
-        }
-
-        $result = $response['result'] ?? null;
+        $result = $this->fetchDeviceLocationRealtime($imei);
 
         if ($result) {
             $device = Device::where('imei', $imei)->first();

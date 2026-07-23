@@ -74,15 +74,23 @@
                   ? 'bg-green-600 text-white shadow-sm shadow-green-500/25'
                   : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-green-50 dark:hover:bg-green-950/30 ring-1 ring-gray-200/70 dark:ring-gray-700/50']">
               <span class="w-1.5 h-1.5 rounded-full" :class="activeState === 'moving' ? 'bg-green-200' : 'bg-green-500'"></span>
-              {{ onlineCount }} online
+              {{ movingCount }} moving
             </button>
-            <button @click="activeState = 'idle'"
+            <button @click="activeState = 'idling'"
               :class="['px-2.5 py-1 text-[11px] rounded-full font-semibold transition-all duration-200 flex items-center gap-1',
-                activeState === 'idle'
+                activeState === 'idling'
                   ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/25'
                   : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 ring-1 ring-gray-200/70 dark:ring-gray-700/50']">
-              <span class="w-1.5 h-1.5 rounded-full" :class="activeState === 'idle' ? 'bg-amber-200' : 'bg-amber-500'"></span>
-              {{ idleCount }} idle
+              <span class="w-1.5 h-1.5 rounded-full" :class="activeState === 'idling' ? 'bg-amber-200' : 'bg-amber-500'"></span>
+              {{ idlingCount }} idling
+            </button>
+            <button @click="activeState = 'parked'"
+              :class="['px-2.5 py-1 text-[11px] rounded-full font-semibold transition-all duration-200 flex items-center gap-1',
+                activeState === 'parked'
+                  ? 'bg-sky-600 text-white shadow-sm shadow-sky-500/25'
+                  : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-sky-50 dark:hover:bg-sky-950/30 ring-1 ring-gray-200/70 dark:ring-gray-700/50']">
+              <span class="w-1.5 h-1.5 rounded-full" :class="activeState === 'parked' ? 'bg-sky-200' : 'bg-sky-500'"></span>
+              {{ parkedCount }} parked
             </button>
             <button @click="activeState = 'offline'"
               :class="['px-2.5 py-1 text-[11px] rounded-full font-semibold transition-all duration-200 flex items-center gap-1',
@@ -121,11 +129,8 @@
                     ? 'border-indigo-300 dark:border-indigo-600 bg-indigo-50/80 dark:bg-indigo-950/30 shadow-sm'
                     : 'border-gray-100 dark:border-gray-700/50 bg-white dark:bg-gray-800 hover:border-gray-200 dark:hover:border-gray-600 hover:shadow-sm']">
                 <div class="flex items-center gap-2.5">
-                  <div :class="['w-9 h-9 rounded-xl flex items-center justify-center shrink-0',
-                    device.status === 'moving' ? 'bg-green-100 dark:bg-green-900/40' :
-                    device.status === 'idle' ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-red-100 dark:bg-red-900/40']">
-                    <svg class="w-4 h-4" :class="device.status === 'moving' ? 'text-green-600 dark:text-green-400' :
-                      device.status === 'idle' ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'" fill="currentColor" viewBox="0 0 20 20">
+                  <div :class="['w-9 h-9 rounded-xl flex items-center justify-center shrink-0', statusIconBackgroundClass(device.status)]">
+                    <svg class="w-4 h-4" :class="statusIconTextClass(device.status)" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
                       <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1v-1h3.05a2.5 2.5 0 014.9 0H19a1 1 0 001-1v-5a1 1 0 00-.293-.707l-3-3A1 1 0 0016 4H3z" />
                     </svg>
@@ -135,16 +140,18 @@
                       <span class="text-[13px] font-semibold text-gray-900 dark:text-white truncate">
                         {{ device.tractor?.no_plate || device.device_name || device.imei }}
                       </span>
-                      <span :class="['inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0',
-                        device.status === 'moving' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' :
-                        device.status === 'idle' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300']">
-                        {{ device.status === 'moving' ? 'Moving' : device.status === 'idle' ? 'Idle' : 'Offline' }}
+                      <span :class="['inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0', statusBadgeClass(device.status)]">
+                        {{ statusLabel(device.status) }}
                       </span>
                     </div>
                     <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 font-mono tracking-tight">{{ device.imei }}</p>
-                    <div v-if="device.speed > 0" class="text-[11px] text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1 font-medium">
+                    <div v-if="device.status === 'moving'" class="text-[11px] text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1 font-medium">
                       <svg class="w-3 h-3 text-indigo-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" /></svg>
                       {{ device.speed }} km/h
+                    </div>
+                    <div v-else-if="device.status === 'idling'" class="text-[11px] text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1 font-medium">
+                      <svg class="w-3 h-3 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      Last fix {{ formatTimeAgo(device.gps_minutes_ago) }}
                     </div>
                   </div>
                 </div>
@@ -351,7 +358,7 @@
         <!-- Refresh interval control -->
         <div class="absolute bottom-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10 flex items-center">
           <button @click="manualRefresh"
-            :disabled="devicesLoading"
+            :disabled="devicesLoading || isFollowing"
             class="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-l-lg transition-colors disabled:opacity-50"
             title="Refresh now">
             <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400" :class="{ 'animate-spin': devicesLoading }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -406,7 +413,7 @@
                 </h3>
                 <p class="text-[11px] text-gray-400 dark:text-gray-500 font-mono tracking-tight">{{ selectedDevice.imei }}</p>
               </div>
-              <button @click="showDetailSidebar = false" class="text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 rounded-xl p-1.5 inline-flex items-center transition-colors">
+              <button @click="closeDeviceDetails" class="text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 rounded-xl p-1.5 inline-flex items-center transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -416,17 +423,17 @@
             <!-- Status Bar -->
             <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
               <div class="flex items-center justify-between">
-                <span :class="['inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
-                  selectedDevice.status === 'moving' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
-                  selectedDevice.status === 'idle' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300']">
-                  <span :class="['w-2 h-2 rounded-full',
-                    selectedDevice.status === 'moving' ? 'bg-green-500' :
-                    selectedDevice.status === 'idle' ? 'bg-yellow-500' : 'bg-red-500']"></span>
-                  {{ selectedDevice.status === 'moving' ? 'Moving' : selectedDevice.status === 'idle' ? 'Idling' : 'Offline' }}
+                <span :class="['inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium', statusBadgeClass(selectedDevice.status)]">
+                  <span :class="['w-2 h-2 rounded-full', statusDotClass(selectedDevice.status)]"></span>
+                  {{ statusLabel(selectedDevice.status) }}
                   (ACC: {{ selectedDevice.acc_status ? 'ON' : 'OFF' }})
                 </span>
                 <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                  {{ selectedDevice.status === 'moving' ? (selectedDevice.speed + ' km/h') : formatTimeAgo(selectedDevice.minutes_ago) }}
+                  {{ selectedDevice.status === 'moving'
+                    ? (selectedDevice.speed + ' km/h')
+                    : selectedDevice.status === 'idling'
+                      ? formatTimeAgo(selectedDevice.gps_minutes_ago)
+                      : formatTimeAgo(selectedDevice.minutes_ago) }}
                 </span>
               </div>
             </div>
@@ -461,6 +468,10 @@
                 <div class="flex justify-between text-sm">
                   <span class="text-gray-500 dark:text-gray-400">Last Online</span>
                   <span class="text-gray-900 dark:text-white font-medium">{{ formatDateTime(selectedDevice.heartbeat_at) }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-500 dark:text-gray-400">Last Fix</span>
+                  <span class="text-gray-900 dark:text-white font-medium">{{ formatDateTime(selectedDevice.gps_time) }}</span>
                 </div>
                 <div class="flex justify-between text-sm">
                   <span class="text-gray-500 dark:text-gray-400">Mileage</span>
@@ -502,20 +513,22 @@
             <!-- Actions -->
             <div class="px-4 py-3 space-y-2">
               <div class="flex gap-2">
-                <button @click="liveFollow" :class="['flex-1 font-medium rounded-lg text-sm px-3 py-2.5 flex items-center justify-center gap-1.5 transition-colors focus:ring-4',
+                <button @click="liveFollow" :disabled="followRequestPending && !isFollowing" :class="['flex-1 font-medium rounded-lg text-sm px-3 py-2.5 flex items-center justify-center gap-1.5 transition-colors focus:ring-4 disabled:opacity-60 disabled:cursor-wait',
                   isFollowing
                     ? 'text-white bg-indigo-700 hover:bg-indigo-800 focus:ring-indigo-300 dark:bg-indigo-600 dark:hover:bg-indigo-700 dark:focus:ring-indigo-800'
                     : 'text-gray-900 bg-white border border-gray-300 hover:bg-gray-100 focus:ring-gray-200 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:focus:ring-gray-700']">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z" />
                   </svg>
-                  {{ isFollowing ? 'Following...' : 'Live' }}
+                  {{ isFollowing ? (followRequestPending ? 'Updating...' : 'Following') : (followRequestPending ? 'Connecting...' : 'Follow Live') }}
                 </button>
                 <Link :href="`/devices/${selectedDevice.id}`"
                   class="flex-1 text-gray-900 bg-white border border-gray-300 hover:bg-gray-100 focus:ring-4 focus:ring-gray-200 font-medium rounded-lg text-sm px-3 py-2.5 text-center dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:focus:ring-gray-700 transition-colors">
                   Details
                 </Link>
               </div>
+
+              <p v-if="followError" class="text-xs text-red-600 dark:text-red-400" role="status">{{ followError }}</p>
 
               <!-- Share Button -->
               <button @click="openShareModal"
@@ -638,10 +651,12 @@ const selectedDevice = ref(null);
 const showDetailSidebar = ref(false);
 const deviceAddress = ref('');
 const isFollowing = ref(false);
-const refreshCountdown = ref(20);
-const refreshIntervalSec = ref(20);
+const followRequestPending = ref(false);
+const followError = ref('');
+const refreshCountdown = ref(10);
+const refreshIntervalSec = ref(10);
 const gpsCorrection = ref(false);
-const currentMapType = ref('roadmap');
+const currentMapType = ref('satellite');
 
 // Tracks
 const trackDeviceId = ref('');
@@ -769,14 +784,16 @@ function correctCoords(lat, lng) {
 }
 
 // ═══════════════ COMPUTED ═══════════════
-const onlineCount = computed(() => deviceList.value.filter(d => d.status === 'moving' || d.status === 'idle').length);
-const idleCount = computed(() => deviceList.value.filter(d => d.status === 'idle').length);
+const movingCount = computed(() => deviceList.value.filter(d => d.status === 'moving').length);
+const idlingCount = computed(() => deviceList.value.filter(d => d.status === 'idling').length);
+const parkedCount = computed(() => deviceList.value.filter(d => d.status === 'parked').length);
 const offlineCount = computed(() => deviceList.value.filter(d => d.status === 'offline').length);
 
 const filteredDevices = computed(() => {
   let list = deviceList.value;
-  if (activeState.value === 'moving') list = list.filter(d => d.status === 'moving' || d.status === 'idle');
-  else if (activeState.value === 'idle') list = list.filter(d => d.status === 'idle');
+  if (activeState.value === 'moving') list = list.filter(d => d.status === 'moving');
+  else if (activeState.value === 'idling') list = list.filter(d => d.status === 'idling');
+  else if (activeState.value === 'parked') list = list.filter(d => d.status === 'parked');
   else if (activeState.value === 'offline') list = list.filter(d => d.status === 'offline');
   if (selectedGroup.value) list = list.filter(d => d.tractor?.group_id == selectedGroup.value);
   if (deviceSearch.value) {
@@ -946,7 +963,7 @@ async function initMap() {
     map = new google.maps.Map(mapContainer.value, {
       center: { lat: 14.17092, lng: 121.291831 },
       zoom: 6,
-      mapTypeId: 'roadmap',
+      mapTypeId: currentMapType.value,
       mapTypeControl: false,
       streetViewControl: true,
       fullscreenControl: false,
@@ -972,7 +989,8 @@ async function initMap() {
 const TRACTOR_PATH = 'M12 2C11.2 2 10.5 2.5 10.2 3.2L9.5 5H7C5.9 5 5 5.9 5 7V9.5C3.6 9.5 2.5 10.6 2.5 12C2.5 13.4 3.6 14.5 5 14.5V16C5 17.1 5.9 18 7 18H7.2C7.6 19.2 8.7 20 10 20C11.3 20 12.4 19.2 12.8 18H15.2C15.6 19.2 16.7 20 18 20C19.3 20 20.4 19.2 20.8 18H21C22.1 18 23 17.1 23 16V12C23 10.9 22.1 10 21 10H19L17.4 6.2C17 5.5 16.3 5 15.5 5H14.5L13.8 3.2C13.5 2.5 12.8 2 12 2ZM10 16C9.2 16 8.5 16.7 8.5 17.5C8.5 18.3 9.2 19 10 19C10.8 19 11.5 18.3 11.5 17.5C11.5 16.7 10.8 16 10 16ZM18 16C17.2 16 16.5 16.7 16.5 17.5C16.5 18.3 17.2 19 18 19C18.8 19 19.5 18.3 19.5 17.5C19.5 16.7 18.8 16 18 16ZM7 7H15.5L17 10H7V7ZM7 12H21V16H20.8C20.4 14.8 19.3 14 18 14C16.7 14 15.6 14.8 15.2 16H12.8C12.4 14.8 11.3 14 10 14C8.7 14 7.6 14.8 7.2 16H7V12Z';
 const TRACTOR_MARKER_IMAGES = {
   moving: '/images/green_tractor.png',
-  idle: '/images/yellow_tractor.png',
+  idling: '/images/yellow_tractor.png',
+  parked: '/images/yellow_tractor.png',
   offline: '/images/red_tractor.png',
 };
 
@@ -1003,7 +1021,8 @@ function createStatusTractorMarkerContent(status, { iconSize = 38, rotation = 0 
   image.style.objectFit = 'contain';
   image.style.transform = `rotate(${rotation}deg)`;
   image.style.transformOrigin = 'center';
-  image.style.filter = 'drop-shadow(0 8px 14px rgba(15, 23, 42, 0.32))';
+  const statusFilter = status === 'parked' ? 'hue-rotate(155deg) saturate(0.9)' : '';
+  image.style.filter = `${statusFilter} drop-shadow(0 8px 14px rgba(15, 23, 42, 0.32))`.trim();
   container.appendChild(image);
 
   return { element: container, image };
@@ -1053,7 +1072,7 @@ function createSvgPath(pathData, fill, rotation = 0, { size = 24, stroke = '#fff
 }
 
 function createTractorMarkerContent(status, rotation = 0, { fillColor, iconSize = 32 } = {}) {
-  const colors = { moving: '#16a34a', idle: '#ca8a04', offline: '#dc2626' };
+  const colors = { moving: '#16a34a', idling: '#ca8a04', parked: '#0284c7', offline: '#dc2626' };
   const color = fillColor || colors[status] || colors.offline;
   const container = createVehicleMarkerContainer(iconSize);
   const { svg } = createSvgPath(TRACTOR_PATH, color, rotation, {
@@ -1214,7 +1233,7 @@ function createMarkers() {
 
       previousPositions[device.imei] = { lat: corrected.lat, lng: corrected.lng };
 
-      const { element } = createStatusTractorMarkerContent(device.status);
+      const { element } = createStatusTractorMarkerContent(device.status, { rotation: heading });
       const marker = createAdvancedMarker({
         position: corrected,
         title: device.tractor?.no_plate || device.device_name || device.imei,
@@ -1329,10 +1348,21 @@ function selectDevice(device) {
   void loadSelectedDevice(device.id);
 }
 
-function liveFollow() {
-  if (isFollowing.value) { stopFollow(); return; }
+function closeDeviceDetails() {
+  stopFollow({ resumePolling: isFollowing.value });
+  showDetailSidebar.value = false;
+}
+
+async function liveFollow() {
+  if (isFollowing.value) {
+    stopFollow();
+    followError.value = '';
+    return;
+  }
+
   stopFollow({ resumePolling: false });
   if (!selectedDevice.value) return;
+  followError.value = '';
   isFollowing.value = true;
   followSessionId += 1;
   const currentFollowSessionId = followSessionId;
@@ -1348,18 +1378,29 @@ function liveFollow() {
     map.panTo(corrected);
   }
 
-  // Stop the 20s all-device polling while following a single device
+  // Stop all-device polling while following a single device.
   stopRefreshLoop();
 
-  // Fetch fresh location immediately, then every 10 seconds
-  fetchFollowedDevice(deviceId, currentFollowSessionId);
+  const started = await fetchFollowedDevice(deviceId, currentFollowSessionId);
+
+  if (!started) {
+    if (currentFollowSessionId === followSessionId && isFollowing.value) {
+      stopFollow();
+      followError.value = 'Unable to start live follow. Please try again.';
+    }
+    return;
+  }
+
   followInterval = setInterval(() => {
-    fetchFollowedDevice(deviceId, currentFollowSessionId);
+    if (!followRequestPending.value) {
+      void fetchFollowedDevice(deviceId, currentFollowSessionId);
+    }
   }, 10000);
 }
 
 async function fetchFollowedDevice(deviceId, currentFollowSessionId) {
   const requestId = ++latestFollowRequestId;
+  followRequestPending.value = true;
 
   try {
     const { data } = await axios.get(`/live-view/follow/${deviceId}`);
@@ -1369,10 +1410,11 @@ async function fetchFollowedDevice(deviceId, currentFollowSessionId) {
       !isFollowing.value ||
       selectedDevice.value?.id !== deviceId
     ) {
-      return;
+      return false;
     }
 
     if (data.device) {
+      followError.value = '';
       const mergedDevice = upsertDevice(data.device);
       selectedDevice.value = mergeDevicePayload(selectedDevice.value, mergedDevice);
 
@@ -1384,8 +1426,21 @@ async function fetchFollowedDevice(deviceId, currentFollowSessionId) {
 
         createMarkers();
       }
+
+      return true;
     }
-  } catch (e) { console.error('Follow refresh failed:', e); }
+  } catch (e) {
+    if (currentFollowSessionId === followSessionId && isFollowing.value) {
+      followError.value = 'Live update delayed. Retrying...';
+    }
+    console.error('Follow refresh failed:', e);
+  } finally {
+    if (requestId === latestFollowRequestId) {
+      followRequestPending.value = false;
+    }
+  }
+
+  return false;
 }
 
 function stopRefreshLoop() {
@@ -1408,10 +1463,19 @@ function startRefreshLoop({ immediate = false } = {}) {
 
 function changeRefreshInterval() {
   refreshCountdown.value = refreshIntervalSec.value;
+
+  if (isFollowing.value) {
+    return;
+  }
+
   startRefreshLoop({ immediate: true });
 }
 
 function manualRefresh() {
+  if (isFollowing.value) {
+    return;
+  }
+
   refreshCountdown.value = refreshIntervalSec.value;
   void refreshData();
   // Reset the refresh timer so the next auto-refresh is a full interval away
@@ -1463,7 +1527,7 @@ async function refreshData() {
   }
 
   if (requestId === latestRefreshRequestId && !isFollowing.value) {
-    refreshCountdown.value = 20;
+    refreshCountdown.value = refreshIntervalSec.value;
   }
 }
 
@@ -1667,6 +1731,46 @@ function setMapType(typeId) {
 }
 
 // ═══════════════ HELPERS ═══════════════
+function statusLabel(status) {
+  return { moving: 'Moving', idling: 'Idling', parked: 'Parked', offline: 'Offline' }[status] || 'Offline';
+}
+
+function statusIconBackgroundClass(status) {
+  return {
+    moving: 'bg-green-100 dark:bg-green-900/40',
+    idling: 'bg-amber-100 dark:bg-amber-900/40',
+    parked: 'bg-sky-100 dark:bg-sky-900/40',
+    offline: 'bg-red-100 dark:bg-red-900/40',
+  }[status] || 'bg-red-100 dark:bg-red-900/40';
+}
+
+function statusIconTextClass(status) {
+  return {
+    moving: 'text-green-600 dark:text-green-400',
+    idling: 'text-amber-600 dark:text-amber-400',
+    parked: 'text-sky-600 dark:text-sky-400',
+    offline: 'text-red-600 dark:text-red-400',
+  }[status] || 'text-red-600 dark:text-red-400';
+}
+
+function statusBadgeClass(status) {
+  return {
+    moving: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+    idling: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+    parked: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
+    offline: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  }[status] || 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
+}
+
+function statusDotClass(status) {
+  return {
+    moving: 'bg-green-500',
+    idling: 'bg-amber-500',
+    parked: 'bg-sky-500',
+    offline: 'bg-red-500',
+  }[status] || 'bg-red-500';
+}
+
 function formatTimeAgo(minutes) {
   if (minutes == null || minutes >= 999) return 'N/A';
   if (minutes < 1) return 'Just now';
