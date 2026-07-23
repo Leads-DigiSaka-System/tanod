@@ -1228,12 +1228,11 @@ function createMarkers() {
       const device = cluster.devices[0];
       const lat = parseFloat(device.lat);
       const lng = parseFloat(device.lng);
-      const heading = parseFloat(device.direction) || 0;
       const corrected = correctCoords(lat, lng);
 
       previousPositions[device.imei] = { lat: corrected.lat, lng: corrected.lng };
 
-      const { element } = createStatusTractorMarkerContent(device.status, { rotation: heading });
+      const { element } = createStatusTractorMarkerContent(device.status, { rotation: 0 });
       const marker = createAdvancedMarker({
         position: corrected,
         title: device.tractor?.no_plate || device.device_name || device.imei,
