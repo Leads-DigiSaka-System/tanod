@@ -1861,18 +1861,6 @@ watch(playbackIndex, (idx, oldIdx) => {
     playbackMarker.position = pos;
   }
 
-  const adjacentPoint = trackData.value.points[idx - 1]?.segment === point.segment
-    ? trackData.value.points[idx - 1]
-    : trackData.value.points[idx + 1]?.segment === point.segment
-      ? trackData.value.points[idx + 1]
-      : null;
-  if (playbackMarkerImage && adjacentPoint) {
-    const bearing = idx > 0 && adjacentPoint === trackData.value.points[idx - 1]
-      ? calcBearing(adjacentPoint.lat, adjacentPoint.lng, point.lat, point.lng)
-      : calcBearing(point.lat, point.lng, adjacentPoint.lat, adjacentPoint.lng);
-    playbackMarkerImage.style.transform = `rotate(${bearing}deg)`;
-  }
-
   updateTrackProgress();
   if (isPlaying.value && map) {
     const bounds = map.getBounds();

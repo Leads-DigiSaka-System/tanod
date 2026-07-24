@@ -115,6 +115,24 @@ class DistributionController extends Controller
         return back()->with('success', 'Tractor marked as returned.');
     }
 
+    public function batchReturn(Request $request)
+    {
+        $ids = $request->input('distribution_ids', []);
+
+        if (empty($ids)) {
+            return back()->with('error', 'No distributions selected.');
+        }
+
+        $count = TractorDistribution::whereIn('id', $ids)
+            ->where('status', 'distributed')
+            ->update([
+                'status' => 'returned',
+                'return_date' => now(),
+            ]);
+
+        return back()->with('success', "{$count} distribution(s) marked as returned.");
+    }
+
     public function destroy(TractorDistribution $distribution)
     {
         $distribution->delete();

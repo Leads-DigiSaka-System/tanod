@@ -96,6 +96,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('distributions', [DistributionController::class, 'index'])->name('distributions.index');
     Route::get('distributions/create', [DistributionController::class, 'create'])->name('distributions.create');
     Route::post('distributions', [DistributionController::class, 'store'])->name('distributions.store');
+    Route::post('distributions/batch-return', [DistributionController::class, 'batchReturn'])->name('distributions.batch-return');
     Route::get('distributions/{distribution}', [DistributionController::class, 'show'])->name('distributions.show');
     Route::get('distributions/{distribution}/edit', [DistributionController::class, 'edit'])->name('distributions.edit');
     Route::put('distributions/{distribution}', [DistributionController::class, 'update'])->name('distributions.update');
