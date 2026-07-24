@@ -10,11 +10,19 @@
     </div>
 
     <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6 dark:bg-gray-800 dark:border-gray-700">
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Search</label>
           <input v-model="search" type="text" placeholder="Search tractor, user, area..." @input="debouncedFilter"
             class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500" />
+        </div>
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Province / Area</label>
+          <select v-model="provinceFilter" @change="applyFilter"
+            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500">
+            <option value="">All Provinces</option>
+            <option v-for="prov in provinces" :key="prov" :value="prov">{{ prov }}</option>
+          </select>
         </div>
         <div>
           <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Status</label>
@@ -321,6 +329,7 @@ import axios from 'axios';
 const props = defineProps({
   distributions: Object,
   filters: Object,
+  provinces: Array,
   tractors: Array,
   fcaUsers: Array,
   tpsUsers: Array,
@@ -330,6 +339,7 @@ const props = defineProps({
 // --- Filters ---
 const search = ref(props.filters?.search || '');
 const statusFilter = ref(props.filters?.status || '');
+const provinceFilter = ref(props.filters?.province || '');
 
 // --- Online status (heartbeat within 10 minutes) ---
 const getOnlineStatus = (tractor) => {
@@ -344,6 +354,7 @@ const applyFilter = () => {
   router.get('/distributions', {
     search: search.value || undefined,
     status: statusFilter.value || undefined,
+    province: provinceFilter.value || undefined,
   }, { preserveState: true, replace: true });
 };
 

@@ -48,13 +48,13 @@ class UserController extends Controller
             'fcaUsers' => $fcaUsers,
             'filters' => $request->only(['search', 'role', 'active', 'fca_search', 'fca_active', 'tab']),
             'roles' => Role::all(['id', 'name']),
-            'regularRoles' => Role::whereIn('name', ['super-admin', 'sub-admin', 'tps'])->get(['id', 'name']),
+            'regularRoles' => Role::whereIn('name', ['super-admin', 'sub-admin', 'tps', 'philmech'])->get(['id', 'name']),
             'fcaList' => User::role('fca')->select('id', 'name')->orderBy('name')->get(),
             'rolePermissions' => Role::query()
                 ->with('permissions:id,name')
                 ->withCount('users')
                 ->where('guard_name', 'web')
-                ->orderByRaw("CASE name WHEN 'super-admin' THEN 1 WHEN 'sub-admin' THEN 2 WHEN 'tps' THEN 3 WHEN 'fca' THEN 4 WHEN 'farmer' THEN 5 ELSE 6 END")
+                ->orderByRaw("CASE name WHEN 'super-admin' THEN 1 WHEN 'sub-admin' THEN 2 WHEN 'tps' THEN 3 WHEN 'philmech' THEN 4 WHEN 'fca' THEN 5 WHEN 'farmer' THEN 6 ELSE 7 END")
                 ->get(['id', 'name', 'guard_name'])
                 ->map(fn (Role $role): array => [
                     'id' => $role->id,

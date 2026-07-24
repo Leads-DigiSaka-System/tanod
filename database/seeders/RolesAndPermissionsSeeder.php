@@ -151,6 +151,26 @@ class RolesAndPermissionsSeeder extends Seeder
             'feedback.view', 'feedback.create',
         ]);
 
+        // PhilMech — government oversight agency, view-heavy monitoring access
+        $philmech = Role::firstOrCreate(['name' => 'philmech']);
+        $philmech->givePermissionTo([
+            'dashboard.view', 'live_view.view',
+            'tractors.view',
+            'devices.view',
+            'groups.view',
+            'bookings.view',
+            'maintenance.view',
+            'distributions.view',
+            'geofences.view',
+            'alerts.view',
+            'reports.view', 'reports.export',
+            'notifications.view',
+            'tickets.view',
+            'feedback.view',
+            'farm_assets.view',
+            'activity_logs.view',
+        ]);
+
         /*
         |----------------------------------------------------------------------
         | Default Super Admin User

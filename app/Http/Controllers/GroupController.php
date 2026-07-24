@@ -134,7 +134,7 @@ class GroupController extends Controller
     public function update(Request $request, TractorGroup $group)
     {
         $data = $request->validate([
-            'name' => "required|string|max:255|unique:tractor_groups,name,{$group->id}",
+            'name' => "required|string|max:255|unique:tractor_groups,name,{$group->id},id,deleted_at,NULL",
             'description' => 'nullable|string|max:1000',
             'area' => 'nullable|string|max:255',
             'is_active' => 'boolean',
