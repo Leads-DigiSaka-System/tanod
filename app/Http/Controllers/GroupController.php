@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreGroupRequest;
 use App\Models\Tractor;
+use App\Models\TractorDistribution;
 use App\Models\TractorGroup;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -11,6 +12,26 @@ use Inertia\Inertia;
 
 class GroupController extends Controller
 {
+    const PH_REGIONS = [
+        'NCR',
+        'CAR',
+        'Region I',
+        'Region II',
+        'Region III',
+        'Region IV-A',
+        'Region IV-B',
+        'Region V',
+        'Region VI',
+        'Region VII',
+        'Region VIII',
+        'Region IX',
+        'Region X',
+        'Region XI',
+        'Region XII',
+        'Region XIII',
+        'BARMM',
+    ];
+
     public function index(Request $request)
     {
         $groups = TractorGroup::withCount([
@@ -21,6 +42,7 @@ class GroupController extends Controller
             ->with(['tpsUsers:id,name,email', 'tractors.device.latestLocation'])
             ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%")
                 ->orWhere('area', 'like', "%{$s}%"))
+            ->when($request->region, fn ($q, $r) => $q->where('region', $r))
             ->latest()
             ->paginate(15)
             ->withQueryString();
@@ -36,7 +58,15 @@ class GroupController extends Controller
             return $group;
         });
 
-        $tractors = Tractor::with('device.latestLocation')
+        // Get distinct regions from existing groups for tabs
+        $regions = TractorGroup::whereNotNull('region')
+            ->where('region', '!=', '')
+            ->select('region')
+            ->distinct()
+            ->orderBy('region')
+            ->pluck('region');
+
+        $tractors = Tractor::with(['device.latestLocation', 'distributions' => fn ($q) => $q->latest()->limit(1)])
             ->select('id', 'no_plate', 'brand', 'model', 'imei', 'device_id')
             ->whereHas('device', fn ($q) => $q->notStale())
             ->get()
@@ -47,7 +77,16 @@ class GroupController extends Controller
                 'model' => $t->model,
                 'imei' => $t->imei,
                 'is_online' => $t->device?->latestLocation?->status === 1,
+                'area' => $t->distributions->first()?->area ?? null,
             ]);
+
+        // Distinct distribution areas for tractor filter
+        $distAreas = TractorDistribution::whereNotNull('area')
+            ->where('area', '!=', '')
+            ->select('area')
+            ->distinct()
+            ->orderBy('area')
+            ->pluck('area');
 
         $tpsUsers = User::role('tps')->select('id', 'name', 'email')->get();
 
@@ -55,13 +94,15 @@ class GroupController extends Controller
             'groups' => $groups,
             'tractors' => $tractors,
             'tpsUsers' => $this->assignableTpsUsers(),
-            'filters' => $request->only(['search']),
+            'distAreas' => $distAreas,
+            'regions' => self::PH_REGIONS,
+            'filters' => $request->only(['search', 'region']),
         ]);
     }
 
     public function create()
     {
-        $tractors = Tractor::with('device.latestLocation')
+        $tractors = Tractor::with(['device.latestLocation', 'distributions' => fn ($q) => $q->latest()->limit(1)])
             ->select('id', 'no_plate', 'brand', 'model', 'imei', 'device_id')
             ->whereHas('device', fn ($q) => $q->notStale())
             ->get()
@@ -72,11 +113,20 @@ class GroupController extends Controller
                 'model' => $t->model,
                 'imei' => $t->imei,
                 'is_online' => $t->device?->latestLocation?->status === 1,
+                'area' => $t->distributions->first()?->area ?? null,
             ]);
+
+        $distAreas = TractorDistribution::whereNotNull('area')
+            ->where('area', '!=', '')
+            ->select('area')
+            ->distinct()
+            ->orderBy('area')
+            ->pluck('area');
 
         return Inertia::render('Groups/Create', [
             'tractors' => $tractors,
             'tpsUsers' => $this->assignableTpsUsers(),
+            'distAreas' => $distAreas,
         ]);
     }
 
@@ -111,7 +161,7 @@ class GroupController extends Controller
     {
         $group->load(['tractors', 'tpsUsers']);
 
-        $tractors = Tractor::with('device.latestLocation')
+        $tractors = Tractor::with(['device.latestLocation', 'distributions' => fn ($q) => $q->latest()->limit(1)])
             ->select('id', 'no_plate', 'brand', 'model', 'imei', 'device_id')
             ->whereHas('device', fn ($q) => $q->notStale())
             ->get()
@@ -122,12 +172,21 @@ class GroupController extends Controller
                 'model' => $t->model,
                 'imei' => $t->imei,
                 'is_online' => $t->device?->latestLocation?->status === 1,
+                'area' => $t->distributions->first()?->area ?? null,
             ]);
+
+        $distAreas = TractorDistribution::whereNotNull('area')
+            ->where('area', '!=', '')
+            ->select('area')
+            ->distinct()
+            ->orderBy('area')
+            ->pluck('area');
 
         return Inertia::render('Groups/Edit', [
             'group' => $group,
             'tractors' => $tractors,
             'tpsUsers' => $this->assignableTpsUsers(),
+            'distAreas' => $distAreas,
         ]);
     }
 
@@ -137,6 +196,7 @@ class GroupController extends Controller
             'name' => "required|string|max:255|unique:tractor_groups,name,{$group->id},id,deleted_at,NULL",
             'description' => 'nullable|string|max:1000',
             'area' => 'nullable|string|max:255',
+            'region' => 'nullable|string|max:255',
             'is_active' => 'boolean',
             'tractor_ids' => 'nullable|array',
             'tractor_ids.*' => 'exists:tractors,id',

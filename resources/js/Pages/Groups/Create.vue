@@ -62,7 +62,19 @@
         <div class="p-4">
           <input v-model="tractorSearch" type="text" placeholder="Search by plate, brand, model, or IMEI..."
             class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 mb-3" />
-  
+
+          <div class="flex items-center gap-3 mb-3">
+            <select v-model="tractorAreaFilter"
+              class="rounded-lg border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+              <option value="">All Areas</option>
+              <option v-for="a in distAreas" :key="a" :value="a">{{ a }}</option>
+            </select>
+            <button v-if="tractorAreaFilter" type="button" @click="tractorAreaFilter = ''"
+              class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 shrink-0">
+              Clear
+            </button>
+          </div>
+
             <div class="flex items-center justify-between mb-2">
             <span class="text-xs text-gray-500 dark:text-gray-400">
               {{ filteredTractors.length }} tractor{{ filteredTractors.length !== 1 ? 's' : '' }} shown
@@ -200,9 +212,10 @@ import { ref, computed } from 'vue';
 import { useForm, Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
-const props = defineProps({ tractors: Array, tpsUsers: Array });
+const props = defineProps({ tractors: Array, tpsUsers: Array, distAreas: Array });
 
 const tractorSearch = ref('');
+const tractorAreaFilter = ref('');
 const tpsSearch = ref('');
 const allTpsCount = computed(() => props.tpsUsers?.length || 0);
 
@@ -213,6 +226,9 @@ const form = useForm({
 
 const filteredTractors = computed(() => {
   let list = props.tractors;
+  if (tractorAreaFilter.value) {
+    list = list.filter(t => t.area === tractorAreaFilter.value);
+  }
   if (tractorSearch.value) {
     const q = tractorSearch.value.toLowerCase();
     list = list.filter(t =>

@@ -18,6 +18,26 @@
       </button>
     </div>
 
+    <!-- Region tabs -->
+    <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
+      <nav class="-mb-px flex gap-4 overflow-x-auto">
+        <button @click="switchRegion('')"
+          class="whitespace-nowrap pb-3 px-1 border-b-2 text-sm font-medium transition-colors"
+          :class="!activeRegion
+            ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'">
+          All Regions
+        </button>
+        <button v-for="region in regions" :key="region" @click="switchRegion(region)"
+          class="whitespace-nowrap pb-3 px-1 border-b-2 text-sm font-medium transition-colors"
+          :class="activeRegion === region
+            ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'">
+          {{ region }}
+        </button>
+      </nav>
+    </div>
+
     <!-- Search filter -->
     <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-6 dark:bg-gray-800 dark:border-gray-700">
       <input v-model="search" type="text" placeholder="Search group name or area..." @input="debouncedFilter"
@@ -234,6 +254,15 @@
                           class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
                         <p v-if="form.errors.area" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.area }}</p>
                       </div>
+                      <div>
+                        <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Region</label>
+                        <select v-model="form.region"
+                          class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                          <option value="">Select Region</option>
+                          <option v-for="r in regions" :key="r" :value="r">{{ r }}</option>
+                        </select>
+                        <p v-if="form.errors.region" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.region }}</p>
+                      </div>
                     </div>
                     <div>
                       <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
@@ -264,6 +293,17 @@
                   </div>
                   <input v-model="tractorSearch" type="text" placeholder="Search by plate, brand, model, or IMEI..."
                     class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 mb-3" />
+                  <div class="flex items-center gap-3 mb-3">
+                    <select v-model="tractorAreaFilter"
+                      class="rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                      <option value="">All Areas</option>
+                      <option v-for="a in distAreas" :key="a" :value="a">{{ a }}</option>
+                    </select>
+                    <button v-if="tractorAreaFilter" type="button" @click="tractorAreaFilter = ''"
+                      class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 shrink-0">
+                      Clear
+                    </button>
+                  </div>
                   <div class="flex items-center justify-between mb-2">
                     <span class="text-xs text-gray-500 dark:text-gray-400">
                       {{ filteredTractors.length }} tractor{{ filteredTractors.length !== 1 ? 's' : '' }} shown
@@ -413,14 +453,29 @@ const props = defineProps({
   groups: Object,
   tractors: Array,
   tpsUsers: Array,
+  regions: Array,
+  distAreas: Array,
   filters: Object,
 });
+
+// --- Region tabs ---
+const activeRegion = ref(props.filters?.region || '');
+const switchRegion = (region) => {
+  activeRegion.value = region;
+  router.get('/groups', {
+    search: search.value || undefined,
+    region: region || undefined,
+  }, { preserveState: true, replace: true });
+};
 
 // --- Search ---
 const search = ref(props.filters?.search || '');
 let timer;
 const debouncedFilter = () => { clearTimeout(timer); timer = setTimeout(() => {
-  router.get('/groups', { search: search.value || undefined }, { preserveState: true, replace: true });
+  router.get('/groups', {
+    search: search.value || undefined,
+    region: activeRegion.value || undefined,
+  }, { preserveState: true, replace: true });
 }, 300); };
 
 // --- Delete ---
@@ -442,12 +497,13 @@ const drawerOpen = ref(false);
 const drawerMode = ref('create'); // 'create' | 'edit' | 'show'
 const selectedGroup = ref(null);
 const tractorSearch = ref('');
+const tractorAreaFilter = ref('');
 const tpsSearch = ref('');
 const allTpsCount = computed(() => props.tpsUsers?.length || 0);
 const hasAllTpsAssigned = (assignedUsers = []) => allTpsCount.value > 0 && assignedUsers.length === allTpsCount.value;
 
 const form = useForm({
-  name: '', area: '', description: '', is_active: true,
+  name: '', area: '', region: '', description: '', is_active: true,
   tractor_ids: [], tps_user_ids: [], assign_all_tps: false,
 });
 
@@ -465,6 +521,9 @@ const drawerSubtitle = computed(() => {
 
 const filteredTractors = computed(() => {
   let list = props.tractors || [];
+  if (tractorAreaFilter.value) {
+    list = list.filter(t => t.area === tractorAreaFilter.value);
+  }
   if (tractorSearch.value) {
     const q = tractorSearch.value.toLowerCase();
     list = list.filter(t =>
@@ -513,6 +572,7 @@ const resetForm = () => {
   form.reset();
   form.clearErrors();
   tractorSearch.value = '';
+  tractorAreaFilter.value = '';
   tpsSearch.value = '';
 };
 
@@ -529,6 +589,7 @@ const openEditDrawer = (group) => {
   drawerMode.value = 'edit';
   form.name = group.name;
   form.area = group.area || '';
+  form.region = group.region || '';
   form.description = group.description || '';
   form.is_active = group.is_active;
   form.tractor_ids = group.tractors?.map(t => t.id) || [];
