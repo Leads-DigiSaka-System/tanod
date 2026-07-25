@@ -19,7 +19,7 @@ class UserController extends Controller
         $tab = $request->get('tab', 'regular');
 
         $regularUsers = User::with('roles')
-            ->role(['super-admin', 'sub-admin', 'tps'])
+            ->role(['super-admin', 'sub-admin', 'tps', 'philmech'])
             ->when($request->search && $tab === 'regular', fn ($q, $s) => $q->where(function ($q) use ($s) {
                 $q->where('name', 'like', "%{$s}%")
                     ->orWhere('email', 'like', "%{$s}%")

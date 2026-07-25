@@ -20,7 +20,7 @@ class RolePermissionManagementTest extends TestCase
         parent::setUp();
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        foreach (['super-admin', 'sub-admin', 'tps', 'fca', 'farmer'] as $role) {
+        foreach (['super-admin', 'sub-admin', 'tps', 'philmech', 'fca', 'farmer'] as $role) {
             Role::findOrCreate($role);
         }
         Permission::findOrCreate('users.view');
@@ -41,10 +41,25 @@ class RolePermissionManagementTest extends TestCase
             ->component('Users/Index')
             ->where('filters.tab', 'permissions')
             ->where('canManageRolePermissions', true)
-            ->has('rolePermissions', 5)
+            ->has('rolePermissions', 6)
             ->where('rolePermissions.0.name', 'super-admin')
             ->where('rolePermissions.0.is_protected', true)
+            ->where('rolePermissions.3.name', 'philmech')
+            ->where('regularRoles', fn ($roles) => $roles->contains('name', 'philmech'))
             ->has('permissionGroups', 21));
+    }
+
+    #[Test]
+    public function create_user_page_includes_the_philmech_role(): void
+    {
+        $superAdmin = $this->createUserWithRole('super-admin');
+
+        $response = $this->actingAs($superAdmin)->get('/users/create');
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Users/Create')
+            ->where('roles', fn ($roles) => $roles->contains('name', 'philmech')));
     }
 
     #[Test]
