@@ -13,6 +13,7 @@ class TractorGroup extends Model
         'name',
         'description',
         'area',
+        'region',
         'is_active',
         'created_by',
     ];

@@ -17,14 +17,23 @@ class DistributionController extends Controller
     {
         $distributions = TractorDistribution::with(['tractor', 'distributedToUser.fcaProfile', 'distributedByUser', 'tpsUser'])
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
+            ->when($request->province, fn ($q, $p) => $q->where('area', 'like', "%{$p}%"))
             ->when($request->search, fn ($q, $s) => $q->whereHas('tractor', fn ($q) => $q->where('no_plate', 'like', "%{$s}%")))
             ->latest()
             ->paginate(15)
             ->withQueryString();
 
+        $provinces = TractorDistribution::whereNotNull('area')
+            ->where('area', '!=', '')
+            ->select('area')
+            ->distinct()
+            ->orderBy('area')
+            ->pluck('area');
+
         return Inertia::render('Distributions/Index', [
             'distributions' => $distributions,
-            'filters' => $request->only(['search', 'status']),
+            'filters' => $request->only(['search', 'status', 'province']),
+            'provinces' => $provinces,
             'tractors' => Tractor::with('device.latestLocation')->orderBy('no_plate')->get(['id', 'no_plate', 'brand', 'model', 'device_id']),
             'fcaUsers' => User::role('fca')->where('is_active', true)->get(['id', 'name', 'email']),
             'tpsUsers' => User::role('tps')->where('is_active', true)->get(['id', 'name', 'email']),
@@ -113,6 +122,24 @@ class DistributionController extends Controller
         ]);
 
         return back()->with('success', 'Tractor marked as returned.');
+    }
+
+    public function batchReturn(Request $request)
+    {
+        $ids = $request->input('distribution_ids', []);
+
+        if (empty($ids)) {
+            return back()->with('error', 'No distributions selected.');
+        }
+
+        $count = TractorDistribution::whereIn('id', $ids)
+            ->where('status', 'distributed')
+            ->update([
+                'status' => 'returned',
+                'return_date' => now(),
+            ]);
+
+        return back()->with('success', "{$count} distribution(s) marked as returned.");
     }
 
     public function destroy(TractorDistribution $distribution)

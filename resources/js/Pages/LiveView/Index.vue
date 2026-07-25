@@ -528,7 +528,7 @@
               <div class="space-y-2">
                 <div class="flex justify-between text-sm">
                   <span class="text-gray-500 dark:text-gray-400">Name</span>
-                  <span class="text-gray-900 dark:text-white font-medium">{{ selectedDevice.tractor.id_no || '-' }}</span>
+                  <span class="text-gray-900 dark:text-white font-medium">{{ selectedDevice.tractor.name || '-' }}</span>
                 </div>
                 <div class="flex justify-between text-sm">
                   <span class="text-gray-500 dark:text-gray-400">Model</span>
@@ -1325,12 +1325,11 @@ function createMarkers() {
       const device = cluster.devices[0];
       const lat = parseFloat(device.lat);
       const lng = parseFloat(device.lng);
-      const heading = parseFloat(device.direction) || 0;
       const corrected = correctCoords(lat, lng);
 
       previousPositions[device.imei] = { lat: corrected.lat, lng: corrected.lng };
 
-      const { element } = createStatusTractorMarkerContent(device.status, { rotation: heading });
+      const { element } = createStatusTractorMarkerContent(device.status, { rotation: 0 });
       const marker = createAdvancedMarker({
         position: corrected,
         title: device.tractor?.no_plate || device.device_name || device.imei,
@@ -1858,18 +1857,6 @@ watch(playbackIndex, (idx, oldIdx) => {
 
   if (playbackMarker) {
     playbackMarker.position = pos;
-  }
-
-  const adjacentPoint = trackData.value.points[idx - 1]?.segment === point.segment
-    ? trackData.value.points[idx - 1]
-    : trackData.value.points[idx + 1]?.segment === point.segment
-      ? trackData.value.points[idx + 1]
-      : null;
-  if (playbackMarkerImage && adjacentPoint) {
-    const bearing = idx > 0 && adjacentPoint === trackData.value.points[idx - 1]
-      ? calcBearing(adjacentPoint.lat, adjacentPoint.lng, point.lat, point.lng)
-      : calcBearing(point.lat, point.lng, adjacentPoint.lat, adjacentPoint.lng);
-    playbackMarkerImage.style.transform = `rotate(${bearing}deg)`;
   }
 
   updateTrackProgress();
