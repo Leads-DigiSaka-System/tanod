@@ -24,8 +24,9 @@ class RolePermissionManagementTest extends TestCase
             Role::findOrCreate($role);
         }
         Permission::findOrCreate('users.view');
+        Permission::findOrCreate('users.edit');
         Permission::findOrCreate('tractors.view');
-        Role::findByName('super-admin')->givePermissionTo(['users.view', 'tractors.view']);
+        Role::findByName('super-admin')->givePermissionTo(['users.view', 'users.edit', 'tractors.view']);
         Role::findByName('sub-admin')->givePermissionTo('users.view');
     }
 
@@ -60,6 +61,29 @@ class RolePermissionManagementTest extends TestCase
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Users/Create')
             ->where('roles', fn ($roles) => $roles->contains('name', 'philmech')));
+    }
+
+    #[Test]
+    public function updating_a_user_from_the_drawer_returns_to_the_users_page(): void
+    {
+        $superAdmin = $this->createUserWithRole('super-admin');
+        $user = $this->createUserWithRole('tps');
+
+        $response = $this->actingAs($superAdmin)->put(route('users.update', $user), [
+            'name' => 'Updated User',
+            'email' => $user->email,
+            'phone' => '09171234567',
+            'gender' => 'other',
+            'password' => '',
+            'password_confirmation' => '',
+            'role' => 'philmech',
+            'tps_assign_all_tractors' => false,
+        ]);
+
+        $response->assertRedirect(route('users.index'));
+        $response->assertSessionHas('success');
+        $this->assertSame('Updated User', $user->fresh()->name);
+        $this->assertTrue($user->fresh()->hasRole('philmech'));
     }
 
     #[Test]

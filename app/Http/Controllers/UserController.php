@@ -167,7 +167,7 @@ class UserController extends Controller
             $this->clearTpsGroupAssignments($user);
         }
 
-        return redirect()->route('users.show', $user)
+        return redirect()->route('users.index')
             ->with('success', 'User updated successfully.');
     }
 

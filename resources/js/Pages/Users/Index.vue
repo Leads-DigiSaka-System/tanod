@@ -108,12 +108,12 @@
               <td class="px-6 py-4"><StatusBadge :status="user.is_active ? 'online' : 'offline'" :label="user.is_active ? 'Active' : 'Inactive'" /></td>
               <td class="px-6 py-4">
                 <div class="flex items-center justify-end gap-1">
-                  <Link :href="`/users/${user.id}`" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View">
+                  <button type="button" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View" @click="openViewDrawer(user)">
                     <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                  </Link>
-                  <Link :href="`/users/${user.id}/edit`" class="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 transition-colors" title="Edit">
+                  </button>
+                  <button type="button" class="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 transition-colors" title="Edit" @click="openEditDrawer(user)">
                     <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                  </Link>
+                  </button>
                   <Link :href="`/users/${user.id}/toggle-active`" method="post" as="button"
                     class="p-1.5 rounded-lg transition-colors"
                     :class="user.is_active ? 'text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20' : 'text-gray-500 hover:text-green-600 hover:bg-green-50 dark:text-gray-400 dark:hover:text-green-400 dark:hover:bg-green-900/20'"
@@ -179,12 +179,12 @@
                 {{ fca.farmers?.length || 0 }} farmer{{ (fca.farmers?.length || 0) !== 1 ? 's' : '' }}
               </span>
               <div class="flex items-center gap-1">
-                <Link :href="`/users/${fca.id}`" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View" @click.stop>
+                <button type="button" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View" @click.stop="openViewDrawer(fca)">
                   <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                </Link>
-                <Link :href="`/users/${fca.id}/edit`" class="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 transition-colors" title="Edit" @click.stop>
+                </button>
+                <button type="button" class="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 transition-colors" title="Edit" @click.stop="openEditDrawer(fca)">
                   <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                </Link>
+                </button>
                 <button @click.stop="openDrawerForFarmer(fca.id)" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="Add Farmer">
                   <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
                 </button>
@@ -223,12 +223,12 @@
                       <td class="px-6 py-3"><StatusBadge :status="farmer.is_active ? 'online' : 'offline'" :label="farmer.is_active ? 'Active' : 'Inactive'" /></td>
                       <td class="px-6 py-3">
                         <div class="flex items-center justify-end gap-1">
-                          <Link :href="`/users/${farmer.id}`" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View">
+                          <button type="button" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View" @click="openViewDrawer(farmer)">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                          </Link>
-                          <Link :href="`/users/${farmer.id}/edit`" class="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 transition-colors" title="Edit">
+                          </button>
+                          <button type="button" class="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 transition-colors" title="Edit" @click="openEditDrawer(farmer)">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                          </Link>
+                          </button>
                           <Link :href="`/users/${farmer.id}/toggle-active`" method="post" as="button"
                             class="p-1.5 rounded-lg transition-colors"
                             :class="farmer.is_active ? 'text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20' : 'text-gray-500 hover:text-green-600 hover:bg-green-50 dark:text-gray-400 dark:hover:text-green-400 dark:hover:bg-green-900/20'"
@@ -269,7 +269,7 @@
 
     <!-- ==================== ROLES & PERMISSIONS TAB ==================== -->
     <template v-if="activeTab === 'permissions'">
-      <div class="mb-6 overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-700 to-emerald-500 p-6 text-white shadow-lg">
+      <div class="mb-6 overflow-hidden rounded-2xl bg-linear-to-r from-emerald-700 to-emerald-500 p-6 text-white shadow-lg">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100">Access control</p>
@@ -374,161 +374,17 @@
       </div>
     </template>
 
-    <!-- Slide-over drawer backdrop -->
-    <Transition
-      enter-active-class="transition-opacity duration-300 ease-out"
-      enter-from-class="opacity-0"
-      enter-to-class="opacity-100"
-      leave-active-class="transition-opacity duration-200 ease-in"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0">
-      <div v-if="drawerOpen" class="fixed inset-0 z-40 bg-gray-900/50" @click="closeDrawer"></div>
-    </Transition>
-
-    <!-- Slide-over drawer panel -->
-    <Transition
-      enter-active-class="transition-transform duration-300 ease-out"
-      enter-from-class="translate-x-full"
-      enter-to-class="translate-x-0"
-      leave-active-class="transition-transform duration-200 ease-in"
-      leave-from-class="translate-x-0"
-      leave-to-class="translate-x-full">
-      <div v-if="drawerOpen" class="fixed inset-y-0 right-0 z-50 w-full max-w-lg">
-        <div class="flex h-full flex-col bg-white shadow-2xl dark:bg-gray-800">
-          <!-- Drawer header -->
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700" style="background-color: #007f3d;">
-            <div>
-              <h2 class="text-lg font-semibold text-white">{{ drawerTitle }}</h2>
-              <p class="text-sm text-green-100">{{ drawerSubtitle }}</p>
-            </div>
-            <button @click="closeDrawer" class="rounded-lg p-1.5 text-green-100 hover:text-white hover:bg-white/20 transition-colors">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-          </div>
-
-          <!-- Drawer body (scrollable) -->
-          <form @submit.prevent="submitForm" class="flex-1 overflow-y-auto">
-            <div class="p-6 space-y-5">
-              <!-- Full Name -->
-              <div>
-                <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Full Name <span class="text-red-500">*</span></label>
-                <input v-model="form.name" type="text" placeholder="John Doe"
-                  class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
-                <p v-if="form.errors.name" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.name }}</p>
-              </div>
-
-              <!-- Email + Phone row -->
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Email <span class="text-red-500">*</span></label>
-                  <input v-model="form.email" type="email" placeholder="john@example.com"
-                    class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
-                  <p v-if="form.errors.email" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.email }}</p>
-                </div>
-                <div>
-                  <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Phone <span class="text-red-500">*</span></label>
-                  <input v-model="form.phone" type="text" placeholder="09xxxxxxxxx"
-                    class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
-                  <p v-if="form.errors.phone" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.phone }}</p>
-                </div>
-              </div>
-
-              <!-- Password row -->
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Password <span class="text-red-500">*</span></label>
-                  <input v-model="form.password" type="password" placeholder="Min 8 characters"
-                    class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
-                  <p v-if="form.errors.password" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.password }}</p>
-                </div>
-                <div>
-                  <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Confirm Password <span class="text-red-500">*</span></label>
-                  <input v-model="form.password_confirmation" type="password" placeholder="Re-enter password"
-                    class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
-                </div>
-              </div>
-
-              <!-- Role + Gender row (regular tab) / FCA + Gender row (farmer mode) -->
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div v-if="drawerMode === 'farmer'">
-                  <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">FCA</label>
-                  <select v-model="form.fca_id"
-                    class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                    <option value="">Select FCA</option>
-                    <option v-for="f in fcaList" :key="f.id" :value="f.id">{{ f.name }}</option>
-                  </select>
-                  <p v-if="form.errors.fca_id" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.fca_id }}</p>
-                </div>
-                <div v-else>
-                  <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Role <span class="text-red-500">*</span></label>
-                  <select v-model="form.role"
-                    class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                    <option value="">Select Role</option>
-                    <option v-for="r in drawerRoles" :key="r.id" :value="r.name">{{ formatRoleName(r) }}</option>
-                  </select>
-                  <p v-if="form.errors.role" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.role }}</p>
-                </div>
-                <div>
-                  <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Gender</label>
-                  <select v-model="form.gender"
-                    class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                    <option value="">Select</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                  </select>
-                  <p v-if="form.errors.gender" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.gender }}</p>
-                </div>
-              </div>
-
-              <!-- TSR Access Mode -->
-              <div v-if="drawerMode === 'regular' && form.role === 'tsr'" class="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
-                <label class="flex items-start gap-3">
-                  <input v-model="form.tsr_assign_all_tractors" type="checkbox"
-                    class="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-700" />
-                  <div>
-                    <p class="text-sm font-medium text-gray-900 dark:text-white">Assign this TSR to all tractors</p>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">When enabled, this TSR user can see the full tractor fleet in the mobile app. Leave it off to manage tractor visibility through Group responsibilities.</p>
-                  </div>
-                </label>
-                <p v-if="form.errors.tsr_assign_all_tractors" class="mt-2 text-sm text-red-600 dark:text-red-400">{{ form.errors.tsr_assign_all_tractors }}</p>
-              </div>
-
-              <!-- Profile Photo -->
-              <div>
-                <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Profile Photo</label>
-                <div class="flex items-center gap-4">
-                  <div class="shrink-0 flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
-                    <img v-if="photoPreview" :src="photoPreview" class="w-12 h-12 object-cover rounded-full" />
-                    <svg v-else class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                    </svg>
-                  </div>
-                  <label class="cursor-pointer rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    Choose photo
-                    <input type="file" accept="image/*" class="sr-only" @change="handlePhoto" />
-                  </label>
-                </div>
-                <p v-if="form.errors.profile_photo" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.profile_photo }}</p>
-              </div>
-            </div>
-
-            <!-- Drawer footer (sticky) -->
-            <div class="sticky bottom-0 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 px-6 py-4 flex justify-end gap-3">
-              <button type="button" @click="closeDrawer"
-                class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">Cancel</button>
-              <button type="submit" :disabled="form.processing"
-                class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                style="background-color: #007f3d;"
-                @mouseenter="!form.processing && ($event.target.style.backgroundColor='#006631')"
-                @mouseleave="!form.processing && ($event.target.style.backgroundColor='#007f3d')">
-                <svg v-if="form.processing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                {{ form.processing ? 'Creating...' : drawerSubmitLabel }}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </Transition>
+    <UserSlideOver
+      :show="drawerOpen"
+      :action="drawerAction"
+      :create-mode="drawerMode"
+      :user="selectedUser"
+      :roles="roles"
+      :regular-roles="regularRoles"
+      :fca-list="fcaList"
+      :default-fca-id="defaultFcaId"
+      @close="closeDrawer"
+      @edit="openEditDrawer" />
   </AppLayout>
 </template>
 
@@ -538,6 +394,7 @@ import { router, useForm, Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
+import UserSlideOver from '@/Pages/Users/Partials/UserSlideOver.vue';
 import { formatRoleName } from '@/utils/roleFormat';
 
 const props = defineProps({
@@ -652,85 +509,54 @@ const applyFcaFilter = () => {
 // --- FCA Accordion ---
 const expandedFcas = ref([]);
 const toggleFca = (id) => {
-  const idx = expandedFcas.value.indexOf(id);
-  if (idx === -1) {
+  const index = expandedFcas.value.indexOf(id);
+  if (index === -1) {
     expandedFcas.value.push(id);
   } else {
-    expandedFcas.value.splice(idx, 1);
+    expandedFcas.value.splice(index, 1);
   }
 };
 
 // --- Drawer ---
 const drawerOpen = ref(false);
-const drawerMode = ref('regular'); // 'regular' | 'fca' | 'farmer'
-const photoPreview = ref(null);
-
-const form = useForm({
-  name: '', email: '', password: '', password_confirmation: '',
-  phone: '', gender: '', role: '', tsr_assign_all_tractors: false, profile_photo: null, fca_id: '',
-});
-
-const drawerTitle = computed(() => {
-  if (drawerMode.value === 'farmer') return 'Add Farmer Member';
-  if (drawerMode.value === 'fca') return 'Add New FCA';
-  return 'Add New User';
-});
-
-const drawerSubtitle = computed(() => {
-  if (drawerMode.value === 'farmer') return 'Create a farmer account under an FCA.';
-  if (drawerMode.value === 'fca') return 'Create a new FCA account.';
-  return 'Fill in the details to create a user account.';
-});
-
-const drawerSubmitLabel = computed(() => {
-  if (drawerMode.value === 'farmer') return 'Create Farmer';
-  if (drawerMode.value === 'fca') return 'Create FCA';
-  return 'Create User';
-});
-
-const drawerRoles = computed(() => {
-  if (activeTab.value === 'regular') return props.regularRoles;
-  return props.roles.filter(r => r.name === 'fca');
-});
+const drawerAction = ref('create');
+const drawerMode = ref('regular');
+const selectedUser = ref(null);
+const defaultFcaId = ref('');
 
 const openDrawer = () => {
+  drawerAction.value = 'create';
+  selectedUser.value = null;
+  defaultFcaId.value = '';
   if (activeTab.value === 'fca') {
     drawerMode.value = 'fca';
-    form.role = 'fca';
   } else {
     drawerMode.value = 'regular';
-    form.role = '';
   }
-  form.fca_id = '';
   drawerOpen.value = true;
 };
 
 const openDrawerForFarmer = (fcaId) => {
+  drawerAction.value = 'create';
   drawerMode.value = 'farmer';
-  form.role = 'farmer';
-  form.fca_id = fcaId;
+  selectedUser.value = null;
+  defaultFcaId.value = fcaId;
+  drawerOpen.value = true;
+};
+
+const openViewDrawer = (user) => {
+  drawerAction.value = 'view';
+  selectedUser.value = user;
+  drawerOpen.value = true;
+};
+
+const openEditDrawer = (user) => {
+  drawerAction.value = 'edit';
+  selectedUser.value = user;
   drawerOpen.value = true;
 };
 
 const closeDrawer = () => {
   drawerOpen.value = false;
-  form.reset();
-  form.clearErrors();
-  photoPreview.value = null;
-};
-
-const handlePhoto = (e) => {
-  const file = e.target.files[0];
-  if (file) {
-    form.profile_photo = file;
-    photoPreview.value = URL.createObjectURL(file);
-  }
-};
-
-const submitForm = () => {
-  form.post('/users', {
-    forceFormData: true,
-    onSuccess: () => closeDrawer(),
-  });
 };
 </script>
