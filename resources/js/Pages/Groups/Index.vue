@@ -18,8 +18,18 @@
       </button>
     </div>
 
-    <!-- Region tabs -->
-    <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
+    <!-- Mobile region filter -->
+    <div class="mb-4 sm:hidden">
+      <label for="mobile-region-filter" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Region</label>
+      <select id="mobile-region-filter" v-model="activeRegion" @change="switchRegion(activeRegion)"
+        class="block w-full rounded-lg border-gray-300 bg-white text-sm shadow-sm focus:border-emerald-500 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+        <option value="">All Regions</option>
+        <option v-for="region in regions" :key="region" :value="region">{{ region }}</option>
+      </select>
+    </div>
+
+    <!-- Desktop region tabs -->
+    <div class="mb-6 hidden border-b border-gray-200 dark:border-gray-700 sm:block">
       <nav class="-mb-px flex gap-4 overflow-x-auto">
         <button @click="switchRegion('')"
           class="whitespace-nowrap pb-3 px-1 border-b-2 text-sm font-medium transition-colors"
@@ -52,6 +62,9 @@
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ group.name }}</h3>
           <StatusBadge :status="group.is_active ? 'online' : 'offline'" :label="group.is_active ? 'Active' : 'Inactive'" />
         </div>
+        <p v-if="group.region" class="mb-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+          {{ group.region }}
+        </p>
         <p v-if="group.area" class="text-sm text-gray-500 dark:text-gray-400 mb-2">
           <span class="font-medium text-gray-700 dark:text-gray-300">Area:</span> {{ group.area }}
         </p>
@@ -151,6 +164,10 @@
               <div>
                 <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Details</h3>
                 <dl class="space-y-3">
+                  <div>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Region</dt>
+                    <dd class="mt-0.5 text-sm text-gray-900 dark:text-white">{{ selectedGroup?.region || 'Unassigned' }}</dd>
+                  </div>
                   <div>
                     <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Area</dt>
                     <dd class="mt-0.5 text-sm text-gray-900 dark:text-white">{{ selectedGroup?.area || '—' }}</dd>

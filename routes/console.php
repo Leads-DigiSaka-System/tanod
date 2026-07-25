@@ -47,3 +47,6 @@ Schedule::call(function () {
 
 // Process expired account deletion requests daily at 3 AM
 Schedule::command('accounts:process-deletions')->dailyAt('03:00');
+
+// Retain only the most recent month of alerts
+Schedule::command('alerts:purge')->dailyAt('03:30')->withoutOverlapping();

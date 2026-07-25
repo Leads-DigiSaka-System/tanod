@@ -8,11 +8,12 @@ use App\Models\TractorDistribution;
 use App\Models\TractorGroup;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class GroupController extends Controller
 {
-    const PH_REGIONS = [
+    public const PH_REGIONS = [
         'NCR',
         'CAR',
         'Region I',
@@ -40,10 +41,14 @@ class GroupController extends Controller
             'tpsUsers as tps_count',
         ])
             ->with(['tpsUsers:id,name,email', 'tractors.device.latestLocation'])
-            ->when($request->search, fn ($q, $s) => $q->where('name', 'like', "%{$s}%")
-                ->orWhere('area', 'like', "%{$s}%"))
+            ->when($request->search, fn ($q, $s) => $q->where(function ($query) use ($s): void {
+                $query->where('name', 'like', "%{$s}%")
+                    ->orWhere('area', 'like', "%{$s}%")
+                    ->orWhere('region', 'like', "%{$s}%");
+            }))
             ->when($request->region, fn ($q, $r) => $q->where('region', $r))
-            ->latest()
+            ->orderBy('region')
+            ->orderBy('name')
             ->paginate(15)
             ->withQueryString();
 
@@ -57,14 +62,6 @@ class GroupController extends Controller
 
             return $group;
         });
-
-        // Get distinct regions from existing groups for tabs
-        $regions = TractorGroup::whereNotNull('region')
-            ->where('region', '!=', '')
-            ->select('region')
-            ->distinct()
-            ->orderBy('region')
-            ->pluck('region');
 
         $tractors = Tractor::with(['device.latestLocation', 'distributions' => fn ($q) => $q->latest()->limit(1)])
             ->select('id', 'no_plate', 'brand', 'model', 'imei', 'device_id')
@@ -196,7 +193,7 @@ class GroupController extends Controller
             'name' => "required|string|max:255|unique:tractor_groups,name,{$group->id},id,deleted_at,NULL",
             'description' => 'nullable|string|max:1000',
             'area' => 'nullable|string|max:255',
-            'region' => 'nullable|string|max:255',
+            'region' => ['nullable', 'string', Rule::in(self::PH_REGIONS)],
             'is_active' => 'boolean',
             'tractor_ids' => 'nullable|array',
             'tractor_ids.*' => 'exists:tractors,id',
