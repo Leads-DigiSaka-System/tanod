@@ -1045,7 +1045,6 @@ function createVehicleMarkerContainer(size = 32) {
   container.style.display = 'flex';
   container.style.alignItems = 'center';
   container.style.justifyContent = 'center';
-  container.style.transform = 'translate(-50%, -100%)';
   container.style.userSelect = 'none';
 
   return container;
@@ -1089,7 +1088,6 @@ function createMarkerShell({
   shell.style.background = background;
   shell.style.border = border;
   shell.style.boxShadow = shadow;
-  shell.style.transform = 'translate(-50%, -100%)';
   shell.style.userSelect = 'none';
 
   return shell;
