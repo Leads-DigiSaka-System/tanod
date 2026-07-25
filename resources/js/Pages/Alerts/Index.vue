@@ -29,7 +29,7 @@
             <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
           </div>
           <div>
-            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ totalAlerts }}</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatCount(totalAlerts) }}</p>
             <p class="text-xs text-gray-500 dark:text-gray-400">Total Alerts</p>
           </div>
         </div>
@@ -40,7 +40,7 @@
             <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
           </div>
           <div>
-            <p class="text-2xl font-bold text-red-600 dark:text-red-400">{{ totalUnacknowledged }}</p>
+            <p class="text-2xl font-bold text-red-600 dark:text-red-400">{{ formatCount(totalUnacknowledged) }}</p>
             <p class="text-xs text-gray-500 dark:text-gray-400">Unacknowledged</p>
           </div>
         </div>
@@ -51,7 +51,7 @@
             <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           </div>
           <div>
-            <p class="text-2xl font-bold text-green-600 dark:text-green-400">{{ totalAlerts - totalUnacknowledged }}</p>
+            <p class="text-2xl font-bold text-green-600 dark:text-green-400">{{ formatCount(totalAlerts - totalUnacknowledged) }}</p>
             <p class="text-xs text-gray-500 dark:text-gray-400">Acknowledged</p>
           </div>
         </div>
@@ -62,7 +62,7 @@
             <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
           </div>
           <div>
-            <p class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{{ typeCount }}</p>
+            <p class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{{ formatCount(typeCount) }}</p>
             <p class="text-xs text-gray-500 dark:text-gray-400">Alert Types</p>
           </div>
         </div>
@@ -89,12 +89,12 @@
           </div>
           {{ tab.label }}
           <span v-if="getTabCount(tab.key) > 0" :class="[
-            'inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-bold rounded-full',
+            'inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] font-bold rounded-full',
             activeTab === tab.key
               ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300'
               : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
           ]">
-            {{ getTabCount(tab.key) }}
+            {{ formatCount(getTabCount(tab.key)) }}
           </span>
           <span v-if="getTabUnack(tab.key) > 0" class="w-2 h-2 rounded-full bg-red-500"></span>
         </button>
@@ -119,7 +119,7 @@
         <div v-for="alert in alerts.data" :key="alert.id"
           :class="['flex gap-4 px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30', !alert.is_acknowledged ? 'bg-red-50/30 dark:bg-red-900/5' : '']">
           <!-- Type Icon -->
-          <div class="flex-shrink-0 mt-0.5">
+          <div class="shrink-0 mt-0.5">
             <div :class="['w-10 h-10 rounded-full flex items-center justify-center', alertTypeStyle(alert.type).bg]">
               <component :is="alertTypeStyle(alert.type).icon" :class="['w-5 h-5', alertTypeStyle(alert.type).text]" />
             </div>
@@ -165,7 +165,7 @@
               </div>
 
               <!-- Actions -->
-              <div class="flex items-center gap-1 flex-shrink-0">
+              <div class="flex items-center gap-1 shrink-0">
                 <Link v-if="!alert.is_acknowledged" :href="`/alerts/${alert.id}/acknowledge`" method="post" as="button"
                   class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg dark:text-green-400 dark:bg-green-900/20 dark:hover:bg-green-900/40 transition-colors" title="Acknowledge">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
@@ -207,6 +207,7 @@ import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import { formatDate } from '@/utils/dateFormat';
+import { formatCount } from '@/utils/numberFormat';
 
 const props = defineProps({ alerts: Object, filters: Object, typeCounts: Object });
 
