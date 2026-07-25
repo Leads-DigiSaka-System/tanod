@@ -31,7 +31,7 @@
           <span class="text-4xl font-bold text-indigo-600 dark:text-indigo-300">{{ user.name?.charAt(0) }}</span>
         </div>
         <h2 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">{{ user.name }}</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 capitalize">{{ user.roles?.[0]?.name || '—' }}</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400">{{ formatRoleName(user.roles?.[0]) || '—' }}</p>
         <StatusBadge :status="user.is_active ? 'online' : 'offline'" :label="user.is_active ? 'Active' : 'Inactive'" class="mt-2" />
       </div>
 
@@ -98,6 +98,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
 import { formatDate } from '@/utils/dateFormat';
+import { formatRoleName } from '@/utils/roleFormat';
 
 defineProps({ user: Object });
 </script>

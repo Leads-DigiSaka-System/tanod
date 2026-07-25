@@ -57,7 +57,7 @@
           <select v-model="form.role"
             class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500">
             <option value="">Select Role</option>
-            <option v-for="r in roles" :key="r.id" :value="r.name">{{ r.name }}</option>
+            <option v-for="r in roles" :key="r.id" :value="r.name">{{ formatRoleName(r) }}</option>
           </select>
           <p v-if="form.errors.role" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.role }}</p>
         </div>
@@ -94,6 +94,7 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { formatRoleName } from '@/utils/roleFormat';
 
 const props = defineProps({ user: Object, roles: Array });
 

@@ -64,7 +64,7 @@
           <select v-model="selectedRole" @change="applyFilter"
             class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
             <option value="">All Roles</option>
-            <option v-for="r in regularRoles" :key="r.id" :value="r.name">{{ r.name }}</option>
+            <option v-for="r in regularRoles" :key="r.id" :value="r.name">{{ formatRoleName(r) }}</option>
           </select>
           <select v-model="activeFilter" @change="applyFilter"
             class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -95,7 +95,7 @@
               <td class="px-6 py-4">{{ user.phone || '—' }}</td>
               <td class="px-6 py-4">
                 <div class="flex flex-col gap-1">
-                  <span class="capitalize">{{ user.roles?.[0]?.name || '—' }}</span>
+                  <span>{{ formatRoleName(user.roles?.[0]) || '—' }}</span>
                   <span v-if="user.roles?.[0]?.name === 'tsr'"
                     class="inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium"
                     :class="user.tsr_assign_all_tractors
@@ -302,7 +302,7 @@
                 ? 'border-emerald-300 bg-emerald-50 shadow-sm dark:border-emerald-700 dark:bg-emerald-900/25'
                 : 'border-transparent hover:border-gray-200 hover:bg-gray-50 dark:hover:border-gray-700 dark:hover:bg-gray-700/50'">
               <div class="flex items-center justify-between gap-2">
-                <span class="text-sm font-semibold capitalize text-gray-900 dark:text-white">{{ role.name.replaceAll('-', ' ') }}</span>
+                <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ formatRoleName(role) }}</span>
                 <svg v-if="role.is_protected" class="h-4 w-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
               </div>
               <div class="mt-1 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
@@ -317,7 +317,7 @@
           <div class="mb-4 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div class="flex items-center gap-2">
-                <h3 class="text-lg font-bold capitalize text-gray-900 dark:text-white">{{ selectedPermissionRole.name.replaceAll('-', ' ') }}</h3>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ formatRoleName(selectedPermissionRole) }}</h3>
                 <span v-if="selectedPermissionRole.is_protected" class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Protected</span>
               </div>
               <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ grantedPermissionCount }} of {{ totalPermissionCount }} permissions granted</p>
@@ -464,7 +464,7 @@
                   <select v-model="form.role"
                     class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                     <option value="">Select Role</option>
-                    <option v-for="r in drawerRoles" :key="r.id" :value="r.name">{{ r.name }}</option>
+                    <option v-for="r in drawerRoles" :key="r.id" :value="r.name">{{ formatRoleName(r) }}</option>
                   </select>
                   <p v-if="form.errors.role" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.role }}</p>
                 </div>
@@ -538,6 +538,7 @@ import { router, useForm, Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
+import { formatRoleName } from '@/utils/roleFormat';
 
 const props = defineProps({
   regularUsers: Object,

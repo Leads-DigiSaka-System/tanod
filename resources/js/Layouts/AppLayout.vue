@@ -20,12 +20,12 @@
         <!-- Bottom user info -->
         <div class="mt-auto pt-4 border-t border-white/20">
           <div class="flex items-center gap-3 px-2 py-2 text-green-100">
-            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center text-green-900 text-sm font-bold">
+            <div class="shrink-0 w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center text-green-900 text-sm font-bold">
               {{ $page.props.auth?.user?.name?.charAt(0)?.toUpperCase() || '?' }}
             </div>
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-white truncate">{{ $page.props.auth?.user?.name }}</p>
-              <p class="text-xs text-green-200 truncate">{{ $page.props.auth?.user?.roles?.[0] || 'User' }}</p>
+              <p class="text-xs text-green-200 truncate">{{ formatRoleName($page.props.auth?.user?.roles?.[0]) || 'User' }}</p>
             </div>
           </div>
         </div>
@@ -118,6 +118,7 @@ import { usePage } from '@inertiajs/vue3';
 import SidebarNav from '@/Components/SidebarNav.vue';
 import NotificationBell from '@/Components/NotificationBell.vue';
 import Toast from '@/Components/Toast.vue';
+import { formatRoleName } from '@/utils/roleFormat';
 
 const page = usePage();
 const sidebarOpen = ref(false);
