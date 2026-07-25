@@ -17,15 +17,16 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $tab = $request->get('tab', 'regular');
+        $regularRoleNames = ['super-admin', 'sub-admin', 'tps', 'philmech'];
 
         $regularUsers = User::with('roles')
-            ->role(['super-admin', 'sub-admin', 'tps', 'philmech'])
+            ->whereHas('roles', fn ($query) => $query->whereIn('name', $regularRoleNames))
             ->when($request->search && $tab === 'regular', fn ($q, $s) => $q->where(function ($q) use ($s) {
                 $q->where('name', 'like', "%{$s}%")
                     ->orWhere('email', 'like', "%{$s}%")
                     ->orWhere('phone', 'like', "%{$s}%");
             }))
-            ->when($request->role && $tab === 'regular', fn ($q, $r) => $q->role($r))
+            ->when($request->role && $tab === 'regular', fn ($q, $r) => $q->whereHas('roles', fn ($query) => $query->where('name', $r)))
             ->when($request->has('active') && $tab === 'regular', fn ($q) => $q->where('is_active', $request->boolean('active')))
             ->latest()
             ->paginate(15, ['*'], 'regular_page')
@@ -48,7 +49,7 @@ class UserController extends Controller
             'fcaUsers' => $fcaUsers,
             'filters' => $request->only(['search', 'role', 'active', 'fca_search', 'fca_active', 'tab']),
             'roles' => Role::all(['id', 'name']),
-            'regularRoles' => Role::whereIn('name', ['super-admin', 'sub-admin', 'tps', 'philmech'])->get(['id', 'name']),
+            'regularRoles' => Role::whereIn('name', $regularRoleNames)->get(['id', 'name']),
             'fcaList' => User::role('fca')->select('id', 'name')->orderBy('name')->get(),
             'rolePermissions' => Role::query()
                 ->with('permissions:id,name')

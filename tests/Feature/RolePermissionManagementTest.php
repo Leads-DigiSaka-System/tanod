@@ -63,6 +63,20 @@ class RolePermissionManagementTest extends TestCase
     }
 
     #[Test]
+    public function users_page_does_not_fail_when_philmech_role_has_not_been_seeded(): void
+    {
+        $superAdmin = $this->createUserWithRole('super-admin');
+        Role::findByName('philmech')->delete();
+
+        $response = $this->actingAs($superAdmin)->get('/users');
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Users/Index')
+            ->where('regularRoles', fn ($roles) => $roles->doesntContain('name', 'philmech')));
+    }
+
+    #[Test]
     public function super_admin_can_replace_another_roles_permissions(): void
     {
         $superAdmin = $this->createUserWithRole('super-admin');
