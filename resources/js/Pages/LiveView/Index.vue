@@ -92,6 +92,7 @@
               <span class="w-1.5 h-1.5 rounded-full" :class="activeState === 'parked' ? 'bg-sky-200' : 'bg-sky-500'"></span>
               {{ parkedCount }} parked
             </button>
+            <!--
             <button @click="activeState = 'offline'"
               :class="['px-2.5 py-1 text-[11px] rounded-full font-semibold transition-all duration-200 flex items-center gap-1',
                 activeState === 'offline'
@@ -100,6 +101,7 @@
               <span class="w-1.5 h-1.5 rounded-full" :class="activeState === 'offline' ? 'bg-red-200' : 'bg-red-500'"></span>
               {{ offlineCount }} offline
             </button>
+            -->
           </div>
 
           <!-- Group Filter & Device List -->
