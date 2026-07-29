@@ -72,12 +72,14 @@ class BookingController extends Controller
 
         $trackImageUrl = null;
         $trackStats = null;
+        $geofences = [];
 
         if ($booking->status === 'completed' && $booking->tractor?->device?->imei) {
             $trackData = $this->getTrackData($booking, $trackingService);
             if ($trackData) {
                 $trackImageUrl = $trackData['imageUrl'];
                 $trackStats = $trackData['stats'];
+                $geofences = $trackData['geofences'] ?? [];
             }
         }
 
@@ -85,6 +87,7 @@ class BookingController extends Controller
             'booking' => $booking,
             'trackImageUrl' => $trackImageUrl,
             'trackStats' => $trackStats,
+            'geofences' => $geofences,
         ]);
     }
 
@@ -94,6 +97,7 @@ class BookingController extends Controller
     private function getTrackData(Booking $booking, JimiTrackingService $trackingService): ?array
     {
         $imei = $booking->tractor->device->imei;
+        $device = $booking->tractor->device;
         $mapKey = config('services.google.maps_key', env('GOOGLE_MAP_KEY', ''));
         if (! $mapKey) return null;
 
@@ -129,29 +133,167 @@ class BookingController extends Controller
         $first = $coordinates[0];
         $last = $coordinates[count($coordinates) - 1];
 
+        // Build path params: track line + geofence polygons
+        $pathParams = ['weight:3|color:0x4f46e5ff|enc:' . $encoded];
+
+        // Add geofences that overlap with the track area
+        $geofences = $this->getGeofenceOverlays($device, $coordinates);
+        $geoMarkers = [];
+        foreach ($geofences as $i => $geo) {
+            $pathParams[] = 'weight:2|color:0xff9800cc|fillcolor:0xff980022|' . $geo['path'];
+            // Label each geofence with a number at its center
+            $label = (string) ($i + 1);
+            $geoMarkers[] = 'color:orange|label:' . $label . '|' . $geo['centerLat'] . ',' . $geo['centerLng'];
+        }
+
+        $markers = [
+            'color:green|label:S|' . $first[0] . ',' . $first[1],
+            'color:red|label:E|' . $last[0] . ',' . $last[1],
+        ];
+        $markers = array_merge($markers, $geoMarkers);
+
         $params = [
             'size' => '600x400',
             'maptype' => 'satellite',
             'scale' => '2',
-            'path' => 'weight:3|color:0x4f46e5ff|enc:' . $encoded,
-            'markers' => [
-                'color:green|label:S|' . $first[0] . ',' . $first[1],
-                'color:red|label:E|' . $last[0] . ',' . $last[1],
-            ],
+            'path' => $pathParams,
+            'markers' => $markers,
             'key' => $mapKey,
         ];
 
-        $query = collect($params)->map(function ($value, $key) {
+        // Build URL safely
+        $baseUrl = 'https://maps.googleapis.com/maps/api/staticmap';
+        $queryParts = [];
+        foreach ($params as $key => $value) {
             if (is_array($value)) {
-                return implode('&' . $key . '=', $value);
+                foreach ($value as $v) {
+                    $queryParts[] = $key . '=' . $v;
+                }
+            } else {
+                $queryParts[] = $key . '=' . urlencode($value);
             }
-            return $key . '=' . urlencode($value);
-        })->implode('&');
+        }
+        $query = implode('&', $queryParts);
+
+        // Google Static Maps URL limit is 8192 chars — strip geofences if too long
+        if (strlen($query) > 8000 && count($geofences) > 0) {
+            // Remove geofence paths (keep only the track polyline)
+            $queryParts = [];
+            foreach ($params as $key => $value) {
+                if ($key === 'path' && is_array($value)) {
+                    $queryParts[] = $key . '=' . $value[0]; // Only the track polyline
+                } elseif (is_array($value)) {
+                    foreach ($value as $v) {
+                        $queryParts[] = $key . '=' . $v;
+                    }
+                } else {
+                    $queryParts[] = $key . '=' . urlencode($value);
+                }
+            }
+            $query = implode('&', $queryParts);
+            $geofences = []; // Clear so legend doesn't show
+        }
 
         return [
-            'imageUrl' => 'https://maps.googleapis.com/maps/api/staticmap?' . $query,
+            'imageUrl' => $baseUrl . '?' . $query,
             'stats' => $stats,
+            'geofences' => array_map(fn ($g) => $g['name'], $geofences),
         ];
+    }
+
+    /**
+     * Get geofence polygon overlays for the device that are near the track route.
+     */
+    private function getGeofenceOverlays($device, array $coordinates): array
+    {
+        $geofences = $device->geoFences()->where('is_active', true)->get();
+        if ($geofences->isEmpty()) return [];
+
+        // Compute track bounding box
+        $minLat = $maxLat = $coordinates[0][0];
+        $minLng = $maxLng = $coordinates[0][1];
+        foreach ($coordinates as $c) {
+            $minLat = min($minLat, $c[0]);
+            $maxLat = max($maxLat, $c[0]);
+            $minLng = min($minLng, $c[1]);
+            $maxLng = max($maxLng, $c[1]);
+        }
+        // Add padding
+        $pad = 0.02;
+        $minLat -= $pad; $maxLat += $pad;
+        $minLng -= $pad; $maxLng += $pad;
+
+        $overlays = [];
+
+        foreach ($geofences as $geo) {
+            $polyCoords = $this->geofenceToPolygon($geo);
+            if (empty($polyCoords)) continue;
+
+            // Quick check: does any point of the geofence fall within the track bounding box?
+            $overlaps = false;
+            foreach ($polyCoords as $pc) {
+                if ($pc[0] >= $minLat && $pc[0] <= $maxLat && $pc[1] >= $minLng && $pc[1] <= $maxLng) {
+                    $overlaps = true;
+                    break;
+                }
+            }
+            if (! $overlaps) continue;
+
+            // Build path string with reduced precision to save URL space
+            $pathParts = [];
+            foreach ($polyCoords as $pc) {
+                $pathParts[] = round($pc[0], 5) . ',' . round($pc[1], 5);
+            }
+            // Close polygon
+            $pathParts[] = round($polyCoords[0][0], 5) . ',' . round($polyCoords[0][1], 5);
+
+            // Compute center for label placement
+            $sumLat = $sumLng = 0;
+            foreach ($polyCoords as $pc) { $sumLat += $pc[0]; $sumLng += $pc[1]; }
+            $count = count($polyCoords);
+
+            $overlays[] = [
+                'name' => $geo->name,
+                'path' => implode('|', $pathParts),
+                'centerLat' => round($sumLat / $count, 5),
+                'centerLng' => round($sumLng / $count, 5),
+            ];
+        }
+
+        return $overlays;
+    }
+
+    /**
+     * Convert a geofence to an array of [lat, lng] polygon coordinates.
+     */
+    private function geofenceToPolygon($geo): array
+    {
+        if ($geo->shape === 'polygon' && ! empty($geo->coordinates)) {
+            return array_map(fn ($p) => [(float) $p['lat'], (float) $p['lng']], $geo->coordinates);
+        }
+
+        if ($geo->shape === 'circle') {
+            $centerLat = (float) $geo->center_lat;
+            $centerLng = (float) $geo->center_lng;
+            $radiusM = (int) $geo->radius;
+            if (! $centerLat || ! $centerLng || $radiusM <= 0) return [];
+
+            // Approximate circle with 8-point polygon
+            $points = [];
+            $earthRadius = 6371000; // meters
+            for ($i = 0; $i < 8; $i++) {
+                $bearing = deg2rad($i * 45);
+                $angularDist = $radiusM / $earthRadius;
+                $lat1 = deg2rad($centerLat);
+                $lng1 = deg2rad($centerLng);
+                $lat2 = asin(sin($lat1) * cos($angularDist) + cos($lat1) * sin($angularDist) * cos($bearing));
+                $lng2 = $lng1 + atan2(sin($bearing) * sin($angularDist) * cos($lat1), cos($angularDist) - sin($lat1) * sin($lat2));
+                $points[] = [round(rad2deg($lat2), 5), round(rad2deg($lng2), 5)];
+            }
+            return $points;
+        }
+
+        return [];
     }
 
     /**
@@ -168,8 +310,8 @@ class BookingController extends Controller
         $speeds = [];
         $previous = null;
 
-        $movingThreshold = 3.0; // km/h
-        $stopSeconds = 5 * 60;  // 5 minutes of no movement = stop
+        $movingThreshold = 3.0;
+        $stopSeconds = 5 * 60;
         $maxPlausibleSpeed = 120;
 
         foreach ($points as $point) {
@@ -190,7 +332,6 @@ class BookingController extends Controller
                 $distance = $this->haversineDistance($previous['lat'], $previous['lng'], $lat, $lng);
                 $impliedSpeed = $elapsedSeconds > 0 ? $distance / ($elapsedSeconds / 3600) : 0;
 
-                // Skip implausible jumps
                 if ($elapsedSeconds > 600 || $impliedSpeed > $maxPlausibleSpeed) {
                     if ($idleRunDuration >= $stopSeconds) $stopCount++;
                     $idleRunDuration = 0;
@@ -200,8 +341,6 @@ class BookingController extends Controller
 
                 $totalDist += $distance;
 
-                // Use implied speed from actual distance (not GPS-reported speed)
-                // to avoid GPS drift falsely classifying stationary time as moving
                 if ($impliedSpeed >= $movingThreshold) {
                     if ($idleRunDuration >= $stopSeconds) $stopCount++;
                     $idleRunDuration = 0;
@@ -253,15 +392,11 @@ class BookingController extends Controller
         return $earthRadius * $c;
     }
 
-    /**
-     * Encode an array of [lat, lng] coordinate pairs into Google's encoded polyline format.
-     */
     private function encodePolyline(array $points): string
     {
         $result = '';
         $prevLat = 0;
         $prevLng = 0;
-
         foreach ($points as $point) {
             $lat = (int) round($point[0] * 1e5);
             $lng = (int) round($point[1] * 1e5);
@@ -270,7 +405,6 @@ class BookingController extends Controller
             $prevLat = $lat;
             $prevLng = $lng;
         }
-
         return $result;
     }
 
@@ -278,14 +412,11 @@ class BookingController extends Controller
     {
         $num = $num < 0 ? ~($num << 1) : $num << 1;
         $result = '';
-
         while ($num >= 0x20) {
             $result .= chr((0x20 | ($num & 0x1F)) + 63);
             $num >>= 5;
         }
-
         $result .= chr($num + 63);
-
         return $result;
     }
 

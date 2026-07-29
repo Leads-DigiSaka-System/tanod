@@ -89,9 +89,13 @@
           <span v-if="booking.end_date && booking.end_date !== booking.start_date"> to {{ formatDate(booking.end_date) }}</span>
         </p>
         <img :src="trackImageUrl" alt="GPS Track" class="w-full rounded-lg border border-gray-100 dark:border-gray-700" />
-        <p class="mt-2 text-[11px] text-gray-400 dark:text-gray-500">
+        <p class="mt-2 text-[11px] text-gray-400 dark:text-gray-500 flex flex-wrap gap-x-3 gap-y-1">
           <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-green-500"></span> Start</span>
-          <span class="ml-3 inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-red-500"></span> End</span>
+          <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-red-500"></span> End</span>
+          <span v-if="geofences?.length" class="inline-flex items-center gap-1">
+            <span class="inline-block w-3 h-3 rounded-sm border border-orange-500 bg-orange-500/20"></span>
+            Geofences: {{ geofences.join(', ') }}
+          </span>
         </p>
 
         <!-- Track Stats -->
@@ -137,6 +141,7 @@ const props = defineProps({
   booking: Object,
   trackImageUrl: String,
   trackStats: Object,
+  geofences: Array,
 });
 const page = usePage();
 
