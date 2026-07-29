@@ -31,7 +31,7 @@ class DashboardController extends Controller
 
         $data = [];
 
-        if ($user->hasAnyRole(['super-admin', 'sub-admin'])) {
+        if ($user->hasAnyRole(['super-admin', 'sub-admin', 'philmech'])) {
             $data = $this->adminDashboard();
         } elseif ($user->hasRole('tsr')) {
             $data = $this->tsrDashboard($user);

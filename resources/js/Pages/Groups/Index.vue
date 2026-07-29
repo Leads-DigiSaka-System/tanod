@@ -8,7 +8,7 @@
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Tractor Groups</h1>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Organize tractors into groups and define TSR responsibility areas.</p>
       </div>
-      <button @click="openCreateDrawer"
+      <button v-if="$page.props.auth.user.permissions.includes('groups.create')" @click="openCreateDrawer"
         class="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 mt-4 sm:mt-0"
         style="background-color: #007f3d;"
         @mouseenter="$event.target.style.backgroundColor='#006631'"
@@ -83,10 +83,10 @@
           <button @click="openShowDrawer(group)" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View">
             <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
           </button>
-          <button @click="openEditDrawer(group)" class="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 transition-colors" title="Edit">
+          <button v-if="$page.props.auth.user.permissions.includes('groups.edit')" @click="openEditDrawer(group)" class="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 transition-colors" title="Edit">
             <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
           </button>
-          <button @click="confirmDelete(group)" class="p-1.5 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors" title="Delete">
+          <button v-if="$page.props.auth.user.permissions.includes('groups.delete')" @click="confirmDelete(group)" class="p-1.5 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors" title="Delete">
             <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
           </button>
         </div>
@@ -239,7 +239,7 @@
             <div class="sticky bottom-0 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 px-6 py-4 flex justify-end gap-3">
               <button @click="closeDrawer"
                 class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">Close</button>
-              <button @click="openEditDrawer(selectedGroup)"
+              <button v-if="$page.props.auth.user.permissions.includes('groups.edit')" @click="openEditDrawer(selectedGroup)"
                 class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
                 style="background-color: #007f3d;"
                 @mouseenter="$event.target.style.backgroundColor='#006631'"
@@ -308,69 +308,77 @@
                       <span class="inline-block w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-500 ml-2"></span> Offline
                     </span>
                   </div>
-                  <input v-model="tractorSearch" type="text" placeholder="Search by plate, brand, model, or IMEI..."
-                    class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 mb-3" />
-                  <div class="flex items-center gap-3 mb-3">
-                    <select v-model="tractorAreaFilter"
-                      class="rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                      <option value="">All Areas</option>
-                      <option v-for="a in distAreas" :key="a" :value="a">{{ a }}</option>
-                    </select>
-                    <button v-if="tractorAreaFilter" type="button" @click="tractorAreaFilter = ''"
-                      class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 shrink-0">
-                      Clear
-                    </button>
-                  </div>
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs text-gray-500 dark:text-gray-400">
-                      {{ filteredTractors.length }} tractor{{ filteredTractors.length !== 1 ? 's' : '' }} shown
-                    </span>
-                    <button type="button" @click="toggleAllTractors"
-                      class="text-xs font-medium text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300">
-                      {{ allFilteredSelected ? 'Deselect All' : 'Select All' }}
-                    </button>
-                  </div>
-                  <div class="max-h-56 overflow-y-auto space-y-2">
-                    <label v-for="t in filteredTractors" :key="t.id"
-                      class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all"
-                      :class="form.tractor_ids.includes(t.id)
-                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-400'
-                        : 'border-gray-200 hover:border-gray-300 dark:border-gray-600 dark:hover:border-gray-500'">
-                      <input type="checkbox" :value="t.id" v-model="form.tractor_ids" class="sr-only" />
-                      <span class="relative shrink-0 flex items-center justify-center w-10 h-10 rounded-lg text-lg"
-                        :class="t.is_online ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-gray-100 dark:bg-gray-700'">
-                        <svg class="w-5 h-5" :class="t.is_online ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0H21M3.375 14.25h3.75L9 7.5h6l1.875 6.75h3.75" />
-                        </svg>
-                        <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-gray-800"
-                          :class="t.is_online ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-500'"></span>
+
+                  <template v-if="canAssign">
+                    <input v-model="tractorSearch" type="text" placeholder="Search by plate, brand, model, or IMEI..."
+                      class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 mb-3" />
+                    <div class="flex items-center gap-3 mb-3">
+                      <select v-model="tractorAreaFilter"
+                        class="rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="">All Areas</option>
+                        <option v-for="a in distAreas" :key="a" :value="a">{{ a }}</option>
+                      </select>
+                      <button v-if="tractorAreaFilter" type="button" @click="tractorAreaFilter = ''"
+                        class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 shrink-0">
+                        Clear
+                      </button>
+                    </div>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ filteredTractors.length }} tractor{{ filteredTractors.length !== 1 ? 's' : '' }} shown
                       </span>
-                      <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2">
-                          <span class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ t.brand }} {{ t.model }}</span>
-                          <span class="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-                            :class="t.is_online
-                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
-                              : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'">
-                            {{ t.is_online ? 'Online' : 'Offline' }}
-                          </span>
-                        </div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ t.no_plate }} &middot; {{ t.imei || 'No IMEI' }}</p>
-                      </div>
-                      <div class="shrink-0">
-                        <div class="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors"
-                          :class="form.tractor_ids.includes(t.id)
-                            ? 'bg-emerald-600 border-emerald-600'
-                            : 'border-gray-300 dark:border-gray-500'">
-                          <svg v-if="form.tractor_ids.includes(t.id)" class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                      <button type="button" @click="toggleAllTractors"
+                        class="text-xs font-medium text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300">
+                        {{ allFilteredSelected ? 'Deselect All' : 'Select All' }}
+                      </button>
+                    </div>
+                    <div class="max-h-56 overflow-y-auto space-y-2">
+                      <label v-for="t in filteredTractors" :key="t.id"
+                        class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all"
+                        :class="form.tractor_ids.includes(t.id)
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-400'
+                          : 'border-gray-200 hover:border-gray-300 dark:border-gray-600 dark:hover:border-gray-500'">
+                        <input type="checkbox" :value="t.id" v-model="form.tractor_ids" class="sr-only" />
+                        <span class="relative shrink-0 flex items-center justify-center w-10 h-10 rounded-lg text-lg"
+                          :class="t.is_online ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-gray-100 dark:bg-gray-700'">
+                          <svg class="w-5 h-5" :class="t.is_online ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0H21M3.375 14.25h3.75L9 7.5h6l1.875 6.75h3.75" />
                           </svg>
+                          <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-gray-800"
+                            :class="t.is_online ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-500'"></span>
+                        </span>
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-center gap-2">
+                            <span class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ t.brand }} {{ t.model }}</span>
+                            <span class="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                              :class="t.is_online
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'">
+                              {{ t.is_online ? 'Online' : 'Offline' }}
+                            </span>
+                          </div>
+                          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ t.no_plate }} &middot; {{ t.imei || 'No IMEI' }}</p>
                         </div>
-                      </div>
-                    </label>
-                    <p v-if="!filteredTractors.length" class="text-center py-6 text-sm text-gray-400 dark:text-gray-500">
-                      {{ tractorSearch ? 'No tractors match your search.' : 'No tractors available.' }}
-                    </p>
+                        <div class="shrink-0">
+                          <div class="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors"
+                            :class="form.tractor_ids.includes(t.id)
+                              ? 'bg-emerald-600 border-emerald-600'
+                              : 'border-gray-300 dark:border-gray-500'">
+                            <svg v-if="form.tractor_ids.includes(t.id)" class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        </div>
+                      </label>
+                      <p v-if="!filteredTractors.length" class="text-center py-6 text-sm text-gray-400 dark:text-gray-500">
+                        {{ tractorSearch ? 'No tractors match your search.' : 'No tractors available.' }}
+                      </p>
+                    </div>
+                  </template>
+                  <div v-else class="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 p-6 text-center">
+                    <svg class="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Tractor assignment is locked</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">You need <strong>Assign</strong> permission to modify tractor assignments.</p>
                   </div>
                 </div>
 
@@ -384,7 +392,7 @@
                         : `${form.tps_user_ids.length} selected. These assignments control responsibility, not overall fleet visibility. TSR users already set to all tractors are managed from Users and will not appear here.` }}
                     </p>
                   </div>
-                  <div class="space-y-4">
+                  <template v-if="canAssign">
                     <label class="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-800 dark:bg-emerald-900/20">
                       <input v-model="form.assign_all_tps" type="checkbox" value="1" :disabled="!allTpsCount"
                         class="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700" />
@@ -432,6 +440,11 @@
                         </p>
                       </div>
                     </template>
+                  </template>
+                  <div v-else class="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 p-6 text-center">
+                    <svg class="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">TSR assignment is locked</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">You need <strong>Assign</strong> permission to modify TSR responsibilities.</p>
                   </div>
                 </div>
               </div>
@@ -459,7 +472,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { router, useForm, Head, Link } from '@inertiajs/vue3';
+import { router, useForm, usePage, Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
@@ -518,6 +531,7 @@ const tractorAreaFilter = ref('');
 const tpsSearch = ref('');
 const allTpsCount = computed(() => props.tpsUsers?.length || 0);
 const hasAllTpsAssigned = (assignedUsers = []) => allTpsCount.value > 0 && assignedUsers.length === allTpsCount.value;
+const canAssign = computed(() => usePage().props.auth.user.permissions.includes('groups.assign'));
 
 const form = useForm({
   name: '', area: '', region: '', description: '', is_active: true,

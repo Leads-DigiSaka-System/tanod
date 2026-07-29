@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\ApiTicketController;
 use App\Http\Controllers\Api\ApiTicketReportController;
 use App\Http\Controllers\Api\ApiTractorController;
 use App\Http\Controllers\Api\ApiTsrController;
+use App\Http\Controllers\Api\ApiTractorDistributionController;
 use App\Http\Controllers\Api\Integration\AlertController as IntegrationAlertController;
 use App\Http\Controllers\Api\Integration\OverviewController as IntegrationOverviewController;
 use App\Http\Controllers\Api\Integration\TractorController as IntegrationTractorController;
@@ -349,6 +350,33 @@ Route::prefix('v1')->group(function () {
             // FCA info for ticket report form (contacts + serial numbers)
             Route::get('tickets/{ticket}/report-form-data', [ApiTicketReportController::class, 'reportFormData']);
         });
+
+        // Booking lookups (FCAs, tractors by FCA, farmers by FCA)
+        Route::get('bookings/fcas', function () {
+            return User::role('fca')->where('is_active', true)
+                ->select('id', 'name', 'email', 'organization_name')
+                ->orderBy('name')
+                ->get();
+        })->name('api.bookings.fcas');
+
+        Route::get('bookings/fcas/{fca}/tractors', function (User $fca) {
+            return \App\Models\Tractor::query()
+                ->whereHas('distributions', fn ($q) => $q
+                    ->where('distributed_to', $fca->id)
+                    ->where('status', 'distributed'))
+                ->whereHas('device', fn ($q) => $q->where('is_active', true))
+                ->select('id', 'no_plate', 'brand', 'model', 'imei')
+                ->orderBy('no_plate')
+                ->get();
+        })->name('api.bookings.fcas.tractors');
+
+        Route::get('bookings/fcas/{fca}/farmers', function (User $fca) {
+            return $fca->farmers()
+                ->where('is_active', true)
+                ->select('id', 'name', 'phone')
+                ->orderBy('name')
+                ->get();
+        })->name('api.bookings.fcas.farmers');
 
         // Booking Slots
         Route::get('booking-slots', fn () => response()->json(

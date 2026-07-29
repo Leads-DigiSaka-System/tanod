@@ -13,6 +13,14 @@ use Inertia\Inertia;
 
 class GroupController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:groups.view')->only(['index', 'show']);
+        $this->middleware('permission:groups.create')->only(['create', 'store']);
+        $this->middleware('permission:groups.edit')->only(['edit', 'update']);
+        $this->middleware('permission:groups.delete')->only(['destroy']);
+    }
+
     public const PH_REGIONS = [
         'NCR',
         'CAR',
@@ -208,8 +216,12 @@ class GroupController extends Controller
         unset($data['tractor_ids'], $data['tps_user_ids'], $data['assign_all_tps']);
 
         $group->update($data);
-        $group->tractors()->sync($tractorIds);
-        $this->syncTpsUsers($group, $tpsUserIds, $assignAllTps);
+
+        // Only sync tractor/TSR assignments if the user has groups.assign permission
+        if ($request->user()->can('groups.assign')) {
+            $group->tractors()->sync($tractorIds);
+            $this->syncTpsUsers($group, $tpsUserIds, $assignAllTps);
+        }
 
         return redirect()->route('groups.index')
             ->with('success', 'Group updated successfully.');

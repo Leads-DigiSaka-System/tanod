@@ -42,7 +42,7 @@ class MiscellaneousController extends Controller
         ]);
 
         if ($request->input('amount') === '' || $request->input('amount') === null) {
-            $data['amount'] = 0;
+            $data['amount'] = null;
         }
 
         TractorPart::create($data);
@@ -59,7 +59,7 @@ class MiscellaneousController extends Controller
         ]);
 
         if ($request->input('amount') === '' || $request->input('amount') === null) {
-            $data['amount'] = 0;
+            $data['amount'] = null;
         }
 
         $part->update($data);

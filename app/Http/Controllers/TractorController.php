@@ -338,6 +338,16 @@ class TractorController extends Controller
                 Storage::disk('public')->delete($img->path);
             });
             $tractor->images()->delete();
+
+            // Delete all alerts (past & present) associated with this tractor
+            $tractor->alerts()->delete();
+
+            // Also soft-delete the associated Device so JIMI sync doesn't resurrect it
+            if ($tractor->device) {
+                $tractor->device->update(['is_active' => false]);
+                $tractor->device->delete();
+            }
+
             $tractor->delete();
         }
 
@@ -353,6 +363,16 @@ class TractorController extends Controller
             Storage::disk('public')->delete($img->path);
         });
         $tractor->images()->delete();
+
+        // Delete all alerts (past & present) associated with this tractor
+        $tractor->alerts()->delete();
+
+        // Also soft-delete the associated Device so JIMI sync doesn't resurrect it
+        if ($tractor->device) {
+            $tractor->device->update(['is_active' => false]);
+            $tractor->device->delete();
+        }
+
         $tractor->delete();
 
         return redirect()->route('tractors.index')

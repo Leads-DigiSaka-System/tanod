@@ -81,7 +81,13 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('devices/{device}/history', [DeviceController::class, 'locationHistory'])->name('devices.history');
 
     // Groups
-    Route::resource('groups', GroupController::class)->parameters(['groups' => 'group']);
+    Route::get('groups', [GroupController::class, 'index'])->name('groups.index')->middleware('permission:groups.view');
+    Route::get('groups/create', [GroupController::class, 'create'])->name('groups.create')->middleware('permission:groups.create');
+    Route::post('groups', [GroupController::class, 'store'])->name('groups.store')->middleware('permission:groups.create');
+    Route::get('groups/{group}', [GroupController::class, 'show'])->name('groups.show')->middleware('permission:groups.view');
+    Route::get('groups/{group}/edit', [GroupController::class, 'edit'])->name('groups.edit')->middleware('permission:groups.edit');
+    Route::put('groups/{group}', [GroupController::class, 'update'])->name('groups.update')->middleware('permission:groups.edit');
+    Route::delete('groups/{group}', [GroupController::class, 'destroy'])->name('groups.destroy')->middleware('permission:groups.delete');
 
     // Bookings
     Route::resource('bookings', BookingController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
@@ -104,7 +110,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::delete('distributions/{distribution}', [DistributionController::class, 'destroy'])->name('distributions.destroy');
 
     // Live View / Map
-    Route::middleware('role:super-admin|sub-admin|tps')->group(function () {
+    Route::middleware('permission:live_view.view')->group(function () {
         Route::get('live-view', [LiveViewController::class, 'index'])->name('live-view.index');
         Route::get('live-view/locations', [LiveViewController::class, 'allLocations'])->name('live-view.locations');
         Route::get('live-view/follow/{device}', [LiveViewController::class, 'followDevice'])->name('live-view.follow');

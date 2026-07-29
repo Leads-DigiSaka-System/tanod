@@ -20,6 +20,11 @@ class LiveViewController extends Controller
     /** Speed in km/h below which an online device is considered parked (filters GPS drift). */
     private const MOVING_SPEED_THRESHOLD = 3.0;
 
+    public function __construct()
+    {
+        $this->middleware('permission:live_view.view');
+    }
+
     public function index(Request $request)
     {
         $groups = TractorGroup::query()
