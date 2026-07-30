@@ -13,7 +13,7 @@ class UpdateTractorRequest extends FormRequest
 
     public function rules(): array
     {
-        $tractorId = $this->route('tractor');
+        $tractorId = $this->route('tractor')->id;
 
         return [
             'imei' => "required|string|unique:tractors,imei,{$tractorId}",
@@ -23,10 +23,10 @@ class UpdateTractorRequest extends FormRequest
             'chassis_no' => 'nullable|string|max:100',
             'brand' => 'required|string|max:100',
             'model' => 'required|string|max:100',
-            'fuel_consumption' => 'required|numeric|min:0',
+            'fuel_consumption' => 'nullable|numeric|min:0',
             'manufacture_date' => 'nullable|date',
             'installation_time' => 'required|date',
-            'installation_address' => 'required|string|max:500',
+            'installation_address' => 'nullable|string|max:500',
             'max_speed' => 'nullable|numeric|min:0',
             'maintenance_km' => 'nullable|numeric|min:0',
             'maintenance_hours' => 'nullable|numeric|min:0',
