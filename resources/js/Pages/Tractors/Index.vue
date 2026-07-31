@@ -215,7 +215,7 @@
           <tr>
             <th scope="col" class="px-6 py-3 whitespace-nowrap">ID</th>
             <th scope="col" class="px-6 py-3 whitespace-nowrap">FCA Name</th>
-            <th scope="col" class="px-6 py-3 whitespace-nowrap">Organization</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Coop</th>
             <th scope="col" class="px-6 py-3 whitespace-nowrap">Tractor No. Plate</th>
             <th scope="col" class="px-6 py-3 whitespace-nowrap">Address</th>
             <th scope="col" class="px-6 py-3 whitespace-nowrap">Total Distance (km)</th>
@@ -229,7 +229,7 @@
               class="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
               <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ dist.id }}</td>
               <td class="px-6 py-4 whitespace-nowrap">{{ fca.name }}</td>
-              <td class="px-6 py-4 whitespace-nowrap">{{ fca.organization_name || dist.tractor?.no_plate || '—' }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">{{ fca.organization_name || '—' }}</td>
               <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ dist.tractor?.no_plate || '—' }}</td>
               <td class="px-6 py-4 whitespace-nowrap">{{ [fca.barangay, fca.city, fca.province].filter(Boolean).join(', ') || '—' }}</td>
               <td class="px-6 py-4 whitespace-nowrap">{{ dist.tractor?.total_distance ?? '—' }}</td>
