@@ -120,6 +120,8 @@ Route::prefix('v1')->group(function () {
         Route::post('bookings/{booking}/cancel', [ApiBookingController::class, 'cancel']);
         Route::post('bookings/{booking}/approve', [ApiBookingController::class, 'approve']);
         Route::post('bookings/{booking}/reject', [ApiBookingController::class, 'reject']);
+        Route::post('bookings/{booking}/pickup-status', [ApiBookingController::class, 'pickupStatus']);
+        Route::post('bookings/{booking}/return-status', [ApiBookingController::class, 'returnStatus']);
 
         // My Farmers (FCA fetches their farmers list)
         Route::get('my-farmers', function (Illuminate\Http\Request $request) {

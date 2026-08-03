@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\DistributionCreated;
+use App\Exports\DistributionsExport;
 use App\Http\Requests\StoreDistributionRequest;
 use App\Http\Requests\UpdateDistributionRequest;
 use App\Models\Tractor;
@@ -10,6 +11,7 @@ use App\Models\TractorDistribution;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DistributionController extends Controller
 {
@@ -20,7 +22,7 @@ class DistributionController extends Controller
             ->when($request->province, fn ($q, $p) => $q->where('area', 'like', "%{$p}%"))
             ->when($request->search, fn ($q, $s) => $q->whereHas('tractor', fn ($q) => $q->where('no_plate', 'like', "%{$s}%")))
             ->latest()
-            ->paginate(15)
+            ->paginate($request->input('per_page', 15))
             ->withQueryString();
 
         $provinces = TractorDistribution::whereNotNull('area')
@@ -38,6 +40,20 @@ class DistributionController extends Controller
             'fcaUsers' => User::role('fca')->where('is_active', true)->get(['id', 'name', 'email']),
             'tpsUsers' => User::role('tps')->where('is_active', true)->get(['id', 'name', 'email']),
         ]);
+    }
+
+    public function export(Request $request)
+    {
+        $ids = $request->input('distribution_ids', []);
+
+        if (empty($ids)) {
+            return back()->with('error', 'No distributions selected for export.');
+        }
+
+        return Excel::download(
+            new DistributionsExport($ids),
+            'distributions-'.now()->format('Y-m-d-His').'.xlsx'
+        );
     }
 
     public function create()

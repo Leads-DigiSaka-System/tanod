@@ -300,4 +300,77 @@ class ApiBookingController extends Controller
             Log::warning("FCM push to farmer failed: {$e->getMessage()}");
         }
     }
+
+    /**
+     * FCA confirms whether the tractor was picked up for a booking.
+     */
+    public function pickupStatus(Request $request, Booking $booking)
+    {
+        $user = $request->user();
+
+        abort_unless(
+            $user->hasAnyRole(['super-admin', 'sub-admin', 'fca']),
+            403,
+            'You are not authorized to confirm pickup status.'
+        );
+
+        abort_unless(
+            $booking->status === 'approved',
+            422,
+            'Only approved bookings can have pickup confirmed.'
+        );
+
+        $data = $request->validate([
+            'status' => 'required|string|in:picked_up,not_picked_up,cancelled',
+        ]);
+
+        match ($data['status']) {
+            'picked_up' => $booking->update(['status' => 'in_use']),
+            'cancelled' => $booking->update(['status' => 'cancelled']),
+            'not_picked_up' => null, // keep status as approved, no change
+        };
+
+        // Mark related pickup_check notifications as read
+        Notification::where('type', 'booking_pickup_check')
+            ->whereJsonContains('data->booking_id', $booking->id)
+            ->update(['is_read' => true, 'read_at' => now()]);
+
+        return new BookingResource($booking->load(['tractor', 'bookedBy', 'approvedBy', 'farmer']));
+    }
+
+    /**
+     * FCA confirms whether the tractor was returned for a booking.
+     */
+    public function returnStatus(Request $request, Booking $booking)
+    {
+        $user = $request->user();
+
+        abort_unless(
+            $user->hasAnyRole(['super-admin', 'sub-admin', 'fca']),
+            403,
+            'You are not authorized to confirm return status.'
+        );
+
+        abort_unless(
+            $booking->status === 'in_use',
+            422,
+            'Only in-use bookings can have return confirmed.'
+        );
+
+        $data = $request->validate([
+            'status' => 'required|string|in:returned,not_returned',
+        ]);
+
+        if ($data['status'] === 'returned') {
+            $booking->update(['status' => 'completed']);
+        }
+        // 'not_returned' keeps it as 'in_use'
+
+        // Mark related return_check notifications as read
+        Notification::where('type', 'booking_return_check')
+            ->whereJsonContains('data->booking_id', $booking->id)
+            ->update(['is_read' => true, 'read_at' => now()]);
+
+        return new BookingResource($booking->load(['tractor', 'bookedBy', 'approvedBy', 'farmer']));
+    }
 }

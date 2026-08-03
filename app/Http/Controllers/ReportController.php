@@ -13,6 +13,7 @@ use App\Models\TicketReport;
 use App\Models\Tractor;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -596,6 +597,38 @@ class ReportController extends Controller
             'timeOptions' => ReportSubscription::timeOptions(),
             'ticketReports' => $ticketReports,
         ]);
+    }
+
+    /**
+     * Manually trigger sending all due scheduled reports now.
+     */
+    public function sendNow(Request $request)
+    {
+        $force = $request->boolean('force');
+
+        if ($force) {
+            Artisan::call('reports:send-scheduled', ['--force' => true]);
+        } else {
+            Artisan::call('reports:send-scheduled');
+        }
+
+        $output = Artisan::output();
+
+        $sent = substr_count($output, '✓ Sent.');
+        $failed = substr_count($output, '✗ Failed');
+
+        if (str_contains($output, 'No reports due')) {
+            session()->flash('warning', 'No reports are currently due for sending.');
+            return back();
+        }
+
+        if ($failed > 0) {
+            session()->flash('warning', "{$sent} report(s) sent, {$failed} failed. Check logs for details.");
+        } else {
+            session()->flash('success', "{$sent} report(s) sent successfully!");
+        }
+
+        return back();
     }
 
     public function storeSubscription(Request $request)

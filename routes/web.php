@@ -103,6 +103,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('distributions/create', [DistributionController::class, 'create'])->name('distributions.create');
     Route::post('distributions', [DistributionController::class, 'store'])->name('distributions.store');
     Route::post('distributions/batch-return', [DistributionController::class, 'batchReturn'])->name('distributions.batch-return');
+    Route::post('distributions/export', [DistributionController::class, 'export'])->name('distributions.export');
     Route::get('distributions/{distribution}', [DistributionController::class, 'show'])->name('distributions.show');
     Route::get('distributions/{distribution}/edit', [DistributionController::class, 'edit'])->name('distributions.edit');
     Route::put('distributions/{distribution}', [DistributionController::class, 'update'])->name('distributions.update');
@@ -155,6 +156,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Reports
     Route::get('reports', [ReportController::class, 'subscriptions'])->name('reports.index');
+    Route::post('reports/send-now', [ReportController::class, 'sendNow'])->name('reports.send-now');
     Route::post('reports/subscriptions', [ReportController::class, 'storeSubscription'])->name('reports.subscriptions.store');
     Route::put('reports/subscriptions/{subscription}', [ReportController::class, 'updateSubscription'])->name('reports.subscriptions.update');
     Route::delete('reports/subscriptions/{subscription}', [ReportController::class, 'destroySubscription'])->name('reports.subscriptions.destroy');

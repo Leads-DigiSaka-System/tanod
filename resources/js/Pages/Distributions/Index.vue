@@ -63,7 +63,7 @@
           <td class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
             {{ dist.tractor?.brand }} {{ dist.tractor?.model }} — {{ dist.tractor?.no_plate }}
           </td>
-          <td class="px-6 py-4 whitespace-nowrap">{{ dist.distributed_to_user?.name || '—' }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ dist.distributed_to_user?.organization_name || dist.distributed_to_user?.name || '—' }}</td>
           <td class="px-6 py-4 whitespace-nowrap">{{ dist.distributed_by_user?.name || '—' }}</td>
           <td class="px-6 py-4 whitespace-nowrap">{{ dist.area || '—' }}</td>
           <td class="px-6 py-4 whitespace-nowrap"><StatusBadge :status="dist.status" /></td>
@@ -90,7 +90,22 @@
       </template>
     </DataTable>
 
-    <Pagination :links="distributions.links" class="mt-6" />
+    <div class="flex items-center justify-between mt-6">
+      <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+        <span>Show</span>
+        <select v-model="perPage" @change="applyFilter"
+          class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 px-2 py-1.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+          <option :value="15">15</option>
+          <option :value="50">50</option>
+          <option :value="100">100</option>
+          <option :value="200">200</option>
+          <option :value="500">500</option>
+          <option :value="1000">1000</option>
+        </select>
+        <span>entries</span>
+      </div>
+      <Pagination :links="distributions.links" />
+    </div>
 
     <!-- Floating multi-select bar -->
     <Transition
@@ -108,11 +123,13 @@
         <button @click="clearSelection" class="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
           Clear
         </button>
+        <button @click="exportSelected"
+          class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-emerald-600 hover:bg-emerald-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Export XLSX
+        </button>
         <button @click="openBatchReturnModal"
-          class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors"
-          style="background-color: #d97706;"
-          @mouseenter="$event.target.style.backgroundColor='#b45309'"
-          @mouseleave="$event.target.style.backgroundColor='#d97706'">
+          class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-amber-600 hover:bg-amber-700">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
           Return Selected
         </button>
@@ -175,10 +192,7 @@
           </label>
         </div>
         <button type="button" @click="confirmBatchReturn" :disabled="!batchReturnConfirm || batchReturnProcessing"
-          class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          style="background-color: #d97706;"
-          @mouseenter="!batchReturnProcessing && batchReturnConfirm && ($event.target.style.backgroundColor='#b45309')"
-          @mouseleave="!batchReturnProcessing && ($event.target.style.backgroundColor='#d97706')">
+          class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-amber-600 hover:bg-amber-700">
           <svg v-if="batchReturnProcessing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
           <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
           {{ batchReturnProcessing ? 'Returning...' : 'Return All' }}
@@ -301,10 +315,7 @@
           <button type="button" @click="closeSlideOver"
             class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">Cancel</button>
           <button type="submit" :disabled="form.processing"
-            class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            style="background-color: #007f3d;"
-            @mouseenter="!form.processing && ($event.target.style.backgroundColor='#006631')"
-            @mouseleave="!form.processing && ($event.target.style.backgroundColor='#007f3d')">
+            class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-emerald-700 hover:bg-emerald-800">
             <svg v-if="form.processing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
             {{ form.processing ? 'Saving...' : (editingDistribution ? 'Update' : 'Distribute') }}
           </button>
@@ -340,6 +351,7 @@ const props = defineProps({
 const search = ref(props.filters?.search || '');
 const statusFilter = ref(props.filters?.status || '');
 const provinceFilter = ref(props.filters?.province || '');
+const perPage = ref(props.filters?.per_page || 15);
 
 // --- Online status (heartbeat within 10 minutes) ---
 const getOnlineStatus = (tractor) => {
@@ -355,6 +367,7 @@ const applyFilter = () => {
     search: search.value || undefined,
     status: statusFilter.value || undefined,
     province: provinceFilter.value || undefined,
+    per_page: perPage.value,
   }, { preserveState: true, replace: true });
 };
 
@@ -484,6 +497,36 @@ const openBatchReturnModal = () => {
   batchReturnConfirm.value = false;
   batchReturnError.value = '';
   batchReturnModalOpen.value = true;
+};
+
+const exportSelected = () => {
+  const ids = Object.keys(selectedIds.value).map(Number);
+  if (ids.length === 0) return;
+
+  const exportForm = document.createElement('form');
+  exportForm.method = 'POST';
+  exportForm.action = '/distributions/export';
+
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+  if (csrf) {
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_token';
+    csrfInput.value = csrf;
+    exportForm.appendChild(csrfInput);
+  }
+
+  ids.forEach(id => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'distribution_ids[]';
+    input.value = id;
+    exportForm.appendChild(input);
+  });
+
+  document.body.appendChild(exportForm);
+  exportForm.submit();
+  document.body.removeChild(exportForm);
 };
 
 const closeBatchReturnModal = () => {
