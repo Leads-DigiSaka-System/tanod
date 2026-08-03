@@ -138,6 +138,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Tickets
     Route::resource('tickets', TicketController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+    Route::post('tickets/export', [TicketController::class, 'export'])->name('tickets.export');
     Route::post('tickets/{ticket}/comment', [TicketController::class, 'addComment'])->name('tickets.comment');
     Route::put('tickets/{ticket}/status', [TicketController::class, 'updateStatus'])->name('tickets.status');
     Route::put('tickets/{ticket}/assign', [TicketController::class, 'assign'])->name('tickets.assign');

@@ -43,6 +43,11 @@ Route::prefix('integration/v1')
         Route::get('tractors/{tractor}/location', [IntegrationTractorController::class, 'location'])->name('tractors.location');
         Route::get('tractors/{tractor}/location-history', [IntegrationTractorController::class, 'locationHistory'])->name('tractors.location-history');
         Route::get('tractors/{tractor}/mileage', [IntegrationTractorController::class, 'mileage'])->name('tractors.mileage');
+        Route::get('tractors/{tractor}/status-summary', [IntegrationTractorController::class, 'statusSummary'])->name('tractors.status-summary');
+        Route::get('tractors/{tractor}/utilization', [IntegrationTractorController::class, 'utilization'])->name('tractors.utilization');
+        Route::get('tractors/{tractor}/maintenance-status', [IntegrationTractorController::class, 'maintenanceStatus'])->name('tractors.maintenance-status');
+        Route::get('tractors/{tractor}/events', [IntegrationTractorController::class, 'events'])->name('tractors.events');
+        Route::get('tractors/{tractor}/within-boundaries', [IntegrationTractorController::class, 'withinBoundaries'])->name('tractors.within-boundaries');
         Route::get('tractors/{tractor}/track-data', [IntegrationTractorController::class, 'trackData'])->name('tractors.track-data');
         Route::get('tractors/{tractor}/alerts', [IntegrationTractorController::class, 'alerts'])->name('tractors.alerts');
         Route::get('tractors/{tractor}/maintenance', [IntegrationTractorController::class, 'maintenance'])->name('tractors.maintenance');

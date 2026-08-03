@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Events\TicketCommentAdded;
 use App\Events\TicketCreated;
 use App\Events\TicketStatusUpdated;
+use App\Exports\TicketsExport;
 use App\Http\Requests\StoreTicketRequest;
 use App\Models\Notification;
 use App\Models\Ticket;
@@ -14,6 +15,7 @@ use App\Services\M360SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
 
 class TicketController extends Controller
 {
@@ -41,20 +43,34 @@ class TicketController extends Controller
             ->when($request->priority, fn ($q, $p) => $q->where('priority', $p))
             ->when($request->search, fn ($q, $s) => $q->where('subject', 'like', "%{$s}%"))
             ->orderBy($sort, $direction)
-            ->paginate(15)
+            ->paginate($request->input('per_page', 15))
             ->withQueryString();
 
         $oldTickets = Ticket::with(['submitter', 'assignees', 'tractor'])
             ->where('created_at', '<=', $cutoffDate . ' 23:59:59')
             ->when(! $user->hasAnyRole(['super-admin', 'sub-admin']), fn ($q) => $q->where('submitted_by', $user->id))
             ->orderBy('created_at', 'desc')
-            ->paginate(15);
+            ->paginate($request->input('per_page', 15));
 
         return Inertia::render('Tickets/Index', [
             'tickets' => $tickets,
             'oldTickets' => $oldTickets,
-            'filters' => $request->only(['search', 'status', 'priority', 'sort', 'direction']),
+            'filters' => $request->only(['search', 'status', 'priority', 'sort', 'direction', 'per_page']),
         ]);
+    }
+
+    public function export(Request $request)
+    {
+        $ids = $request->input('ticket_ids', []);
+
+        if (empty($ids)) {
+            return back()->with('error', 'No tickets selected for export.');
+        }
+
+        return Excel::download(
+            new TicketsExport($ids),
+            'tickets-'.now()->format('Y-m-d-His').'.xlsx'
+        );
     }
 
     public function create()

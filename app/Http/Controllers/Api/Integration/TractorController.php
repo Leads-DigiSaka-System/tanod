@@ -16,9 +16,11 @@ use App\Http\Resources\IntegrationTractorResource;
 use App\Models\Alert;
 use App\Models\DeviceTrackRecord;
 use App\Models\Tractor;
+use App\Services\Jimi\JimiTrackingService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class TractorController extends Controller
@@ -82,6 +84,20 @@ class TractorController extends Controller
 
         $recordedAt = $location->heartbeat_at ?? $location->created_at;
         $ageSeconds = $recordedAt ? (int) $recordedAt->diffInSeconds(now()) : null;
+        $speed = (float) ($location->speed ?? 0);
+        $ignitionOn = (bool) ($location->acc_status ?? false);
+
+        // Status: Offline, Parked, Idle, Moving
+        $status = 'Offline';
+        if ($recordedAt && now()->diffInMinutes($recordedAt) <= 10) {
+            if (! $ignitionOn) {
+                $status = 'Parked';
+            } elseif ($speed >= 3.0) {
+                $status = 'Moving';
+            } else {
+                $status = 'Idle';
+            }
+        }
 
         return response()->json([
             'data' => [
@@ -103,11 +119,13 @@ class TractorController extends Controller
                     'gps_satellites' => $location->gps_num,
                     'position_source' => $location->pos_type,
                 ],
-                'ignition_on' => (bool) $location->acc_status,
+                'ignition_on' => $ignitionOn,
                 'online' => $device->isOnline(),
                 'recorded_at' => $recordedAt?->toIso8601String(),
                 'age_seconds' => $ageSeconds,
                 'stale' => $ageSeconds === null || $ageSeconds > 300,
+                'Status' => $status,
+                'Serial_no' => $tractor->id_no,
             ],
         ]);
     }
@@ -148,6 +166,8 @@ class TractorController extends Controller
             ->latest('heartbeat_at')
             ->paginate((int) ($validated['per_page'] ?? 100))
             ->withQueryString();
+
+        IntegrationLocationResource::$serialNo = $tractor->id_no;
 
         return IntegrationLocationResource::collection($locations);
     }
@@ -240,6 +260,278 @@ class TractorController extends Controller
         ]);
     }
 
+    public function withinBoundaries(Request $request, string $tractor): JsonResponse
+    {
+        $tractor = $this->resolveTractor($tractor);
+        $tractor->load('device.latestLocation');
+        $location = $tractor->device?->latestLocation;
+
+        if (! $location) {
+            return response()->json([
+                'data' => [
+                    'Within_Boundaries' => false,
+                    'Current_Longitude' => null,
+                    'Current_Latitude' => null,
+                ],
+            ]);
+        }
+
+        $province = $request->input('province', '');
+        $withinBoundaries = false;
+        $debug = [];
+
+        if ($province) {
+            $key = env('GOOGLE_MAP_KEY', config('services.google.maps_key'));
+            $debug['key_found'] = !empty($key);
+            $debug['key_prefix'] = $key ? substr($key, 0, 8) . '...' : 'empty';
+
+            if ($key) {
+                $url = "https://maps.googleapis.com/maps/api/geocode/json?latlng={$location->lat},{$location->lng}&key={$key}&language=en";
+                $debug['url'] = $url;
+
+                try {
+                    $raw = file_get_contents($url);
+                    $debug['raw_length'] = strlen($raw);
+                    $response = json_decode($raw, true);
+                    $debug['api_status'] = $response['status'] ?? 'no status';
+                    $debug['results_count'] = count($response['results'] ?? []);
+
+                    if (($response['status'] ?? '') === 'OK') {
+                        $provincesFound = [];
+                        foreach ($response['results'] as $result) {
+                            foreach ($result['address_components'] as $component) {
+                                $types = $component['types'] ?? [];
+                                // Philippines: level_1 = Region, level_2 = Province
+                                if (array_intersect($types, ['administrative_area_level_1', 'administrative_area_level_2'])) {
+                                    $provinceName = $component['long_name'];
+                                    $provincesFound[] = $provinceName . ' (' . implode(',', $types) . ')';
+                                    $withinBoundaries = strcasecmp(trim($provinceName), trim($province)) === 0
+                                        || stripos($provinceName, $province) !== false
+                                        || stripos($province, $provinceName) !== false;
+                                    if ($withinBoundaries) {
+                                        break 2;
+                                    }
+                                }
+                            }
+                        }
+                        $debug['provinces_found'] = $provincesFound;
+                    }
+
+                    if (($response['status'] ?? '') !== 'OK') {
+                        $debug['api_error'] = $response['error_message'] ?? $response['status'] ?? 'unknown';
+                    }
+                } catch (\Throwable $e) {
+                    $debug['exception'] = $e->getMessage();
+                }
+            }
+        }
+
+        return response()->json([
+            'data' => [
+                'Within_Boundaries' => $withinBoundaries,
+                'Current_Longitude' => $location->lng,
+                'Current_Latitude' => $location->lat,
+            ],
+            '_debug' => $debug,
+        ]);
+    }
+
+    public function events(IntegrationAlertIndexRequest $request, string $tractor): JsonResponse
+    {
+        $tractor = $this->resolveTractor($tractor);
+        $validated = $request->safe()->except(['per_page', 'page']);
+
+        $alerts = Alert::query()
+            ->whereHas('device', fn ($q) => $q->whereHas('tractor', fn ($q) => $q->where('id', $tractor->id)))
+            ->when(isset($validated['from']), fn ($q) => $q->where('created_at', '>=', $validated['from']))
+            ->when(isset($validated['to']), fn ($q) => $q->where('created_at', '<=', $validated['to']))
+            ->latest()
+            ->get();
+
+        $data = $alerts->map(fn ($alert) => [
+            'Text' => $alert->message ?? $alert->title ?? '',
+            'Type' => $alert->type ?? '',
+            'Timestamp' => $alert->created_at?->toIso8601String(),
+            'Received_Time' => $alert->resolved_at?->toIso8601String() ?? $alert->created_at?->toIso8601String(),
+            'Serial_No' => $tractor->id_no ?? '—',
+        ]);
+
+        return response()->json(['data' => $data]);
+    }
+
+    public function maintenanceStatus(string $tractor): JsonResponse
+    {
+        $tractor = $this->resolveTractor($tractor);
+
+        $statusMap = [
+            'due' => 'Due',
+            'upcoming' => 'Due Soon',
+            'ok' => 'Not Due',
+        ];
+
+        return response()->json([
+            'data' => [
+                'Status' => $statusMap[$tractor->pmsStatus()] ?? 'Not Due',
+                'Serial_No' => $tractor->id_no ?? '—',
+            ],
+        ]);
+    }
+
+    public function utilization(IntegrationTrackDataRequest $request, string $tractor, JimiTrackingService $trackingService): JsonResponse
+    {
+        $tractor = $this->resolveTractor($tractor);
+        $device = $tractor->device;
+
+        abort_if(! $device, 404, 'This tractor does not have a tracking device.');
+
+        $from = $request->input('date_from', $request->input('from'));
+        $to = $request->input('date_to', $request->input('to'));
+
+        // Fetch from Jimi API (same as LiveView playback)
+        $chunks = $this->dateChunks($from, $to, 1);
+        $allPoints = [];
+
+        foreach ($chunks as [$chunkStart, $chunkEnd]) {
+            try {
+                $points = $trackingService->fetchTrackData($device->imei, $chunkStart, $chunkEnd);
+                $allPoints = array_merge($allPoints, $points);
+            } catch (\Throwable $e) {}
+        }
+
+        $distanceKm = 0;
+        $movingSeconds = 0;
+        $idleSeconds = 0;
+
+        if (! empty($allPoints)) {
+            // Normalize and sort
+            $normalized = [];
+            foreach ($allPoints as $point) {
+                $time = Carbon::parse($point['gpsTime'] ?? $point['positionTime'] ?? null);
+                if (! $time) continue;
+                $normalized[] = [
+                    'time' => $time,
+                    'speed' => max((float) ($point['speed'] ?? $point['gpsSpeed'] ?? 0), 0),
+                    'lat' => (float) ($point['lat'] ?? 0),
+                    'lng' => (float) ($point['lng'] ?? 0),
+                ];
+            }
+            usort($normalized, fn ($a, $b) => $a['time']->timestamp <=> $b['time']->timestamp);
+
+            $previous = null;
+            $movingThreshold = 3.0;
+            $totalDist = 0;
+
+            foreach ($normalized as $point) {
+                if ($previous) {
+                    $elapsed = abs($previous['time']->diffInSeconds($point['time']));
+                    $dist = $this->haversineKm($previous['lat'], $previous['lng'], $point['lat'], $point['lng']);
+
+                    if ($elapsed <= 600 && $dist < 100) { // Skip gaps/outliers
+                        $totalDist += $dist;
+
+                        if (max($previous['speed'], $point['speed']) >= $movingThreshold) {
+                            $movingSeconds += $elapsed;
+                        } else {
+                            $idleSeconds += $elapsed;
+                        }
+                    }
+                }
+                $previous = $point;
+            }
+
+            $distanceKm = round($totalDist, 2);
+        }
+
+        $workingHours = round($movingSeconds / 3600, 2);
+        $engineHours = round(($movingSeconds + $idleSeconds) / 3600, 2);
+
+        return response()->json([
+            'data' => [
+                'Working_Hours' => $workingHours,
+                'Engine_Hours' => $engineHours,
+                'Travel_Time_minutes' => (int) round($movingSeconds / 60),
+                'Operating_Time_minutes' => (int) round(($movingSeconds + $idleSeconds) / 60),
+                'Distance_km' => $distanceKm,
+                'Serial_no' => $tractor->id_no ?? '—',
+            ],
+        ]);
+    }
+
+    public function statusSummary(IntegrationTrackDataRequest $request, string $tractor, JimiTrackingService $trackingService): JsonResponse
+    {
+        $tractor = $this->resolveTractor($tractor);
+        $device = $tractor->device;
+
+        abort_if(! $device, 404, 'This tractor does not have a tracking device.');
+
+        $from = $request->input('date_from', $request->input('from'));
+        $to = $request->input('date_to', $request->input('to'));
+
+        // Split into 1-day chunks for Jimi API reliability
+        $chunks = $this->dateChunks($from, $to, 1);
+        $allPoints = [];
+
+        foreach ($chunks as [$chunkStart, $chunkEnd]) {
+            try {
+                $points = $trackingService->fetchTrackData($device->imei, $chunkStart, $chunkEnd);
+                $allPoints = array_merge($allPoints, $points);
+            } catch (\Throwable $e) {
+                // Skip failed chunks
+            }
+        }
+
+        if (empty($allPoints)) {
+            return response()->json([
+                'message' => 'No track data available for this period.',
+                'data' => [
+                    ['Status' => 'Moving',  'Time_minutes' => 0, 'Serial_no' => $tractor->id_no ?? '—'],
+                    ['Status' => 'Idle',    'Time_minutes' => 0, 'Serial_no' => $tractor->id_no ?? '—'],
+                    ['Status' => 'Parked',  'Time_minutes' => 0, 'Serial_no' => $tractor->id_no ?? '—'],
+                    ['Status' => 'Offline', 'Time_minutes' => 0, 'Serial_no' => $tractor->id_no ?? '—'],
+                ],
+            ]);
+        }
+
+        // Normalize and sort all points by GPS time
+        $normalized = [];
+        foreach ($allPoints as $point) {
+            $time = Carbon::parse($point['gpsTime'] ?? $point['positionTime'] ?? null);
+            if (! $time) continue;
+
+            $normalized[] = [
+                'time' => $time,
+                'speed' => max((float) ($point['speed'] ?? $point['gpsSpeed'] ?? 0), 0),
+            ];
+        }
+
+        usort($normalized, fn ($a, $b) => $a['time']->timestamp <=> $b['time']->timestamp);
+
+        $movingSeconds = 0;
+        $idleSeconds = 0;
+        $previous = null;
+        $movingThreshold = 3.0;
+
+        foreach ($normalized as $point) {
+            if ($previous) {
+                $elapsed = abs($previous['time']->diffInSeconds($point['time']));
+
+                if (max($previous['speed'], $point['speed']) >= $movingThreshold) {
+                    $movingSeconds += $elapsed;
+                } else {
+                    $idleSeconds += $elapsed;
+                }
+            }
+            $previous = $point;
+        }
+
+        return response()->json([
+            'data' => [
+                ['Status' => 'Moving',  'Time_minutes' => (int) round($movingSeconds / 60),  'Serial_no' => $tractor->id_no ?? '—'],
+                ['Status' => 'Idle',    'Time_minutes' => (int) round($idleSeconds / 60),    'Serial_no' => $tractor->id_no ?? '—'],
+            ],
+        ]);
+    }
+
     public function trackData(IntegrationTrackDataRequest $request, string $tractor): AnonymousResourceCollection
     {
         $tractor = $this->resolveTractor($tractor);
@@ -272,9 +564,48 @@ class TractorController extends Controller
                 ->where('start_time', '<=', Carbon::parse($range['to'])->endOfDay()));
     }
 
+    /**
+     * Split a date range into chunks (same as LiveView).
+     * @return array<int, array{string, string}>
+     */
+    private function dateChunks(string $from, string $to, int $days = 2): array
+    {
+        $begin = Carbon::parse($from);
+        $end = Carbon::parse($to);
+        $chunks = [];
+
+        while ($begin->lt($end)) {
+            $chunkEnd = $begin->copy()->addDays($days);
+            if ($chunkEnd->gt($end)) {
+                $chunkEnd = $end->copy();
+            }
+            $chunks[] = [$begin->format('Y-m-d H:i:s'), $chunkEnd->format('Y-m-d H:i:s')];
+            $begin = $chunkEnd;
+        }
+
+        return $chunks;
+    }
+
+    /**
+     * Haversine distance in km between two lat/lng points.
+     */
+    private function haversineKm(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $earthRadius = 6371;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) * sin($dLat / 2)
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2))
+            * sin($dLng / 2) * sin($dLng / 2);
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadius * $c;
+    }
+
     private function resolveTractor(string $identifier): Tractor
     {
-        $tractor = Tractor::query()->find($identifier)
+        $tractor = Tractor::query()->where('id_no', $identifier)->first()
+            ?? Tractor::query()->find($identifier)
             ?? Tractor::query()->where('imei', $identifier)->first();
 
         if ($tractor) {
