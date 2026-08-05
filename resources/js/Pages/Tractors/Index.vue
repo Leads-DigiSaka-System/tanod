@@ -99,15 +99,15 @@
         </template>
         <template #head>
           <tr>
-            <th scope="col" class="px-4 py-3 w-10">
+            <th v-if="canBulkAction" scope="col" class="px-4 py-3 w-10">
               <input type="checkbox" :checked="isAllSelected" @click="toggleSelectAll($event)"
                 class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600" />
             </th>
-            <th scope="col" class="px-6 py-3 whitespace-nowrap">ID</th>
-            <th scope="col" class="px-6 py-3 whitespace-nowrap">Name</th>
-            <th scope="col" class="px-6 py-3 whitespace-nowrap">No. Plate</th>
-            <th scope="col" class="px-6 py-3 whitespace-nowrap">Total Distance (km)</th>
-            <th scope="col" class="px-6 py-3 whitespace-nowrap">Running Hours</th>
+            <SortableTh label="ID" field="id" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
+            <SortableTh label="Name" field="name" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
+            <SortableTh label="No. Plate" field="no_plate" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
+            <SortableTh label="Total Distance (km)" field="total_distance" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
+            <SortableTh label="Running Hours" field="running_hours" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
             <th scope="col" class="px-6 py-3 text-right whitespace-nowrap">Actions</th>
           </tr>
         </template>
@@ -115,7 +115,7 @@
           <tr v-for="tractor in tractors?.data" :key="tractor.id"
             class="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600"
             :class="{ 'bg-emerald-50/50 dark:bg-emerald-900/10': selectedIsChecked(tractor.id) }">
-            <td class="px-4 py-4">
+            <td v-if="canBulkAction" class="px-4 py-4">
               <input type="checkbox" :checked="selectedIsChecked(tractor.id)" @click="toggleSelect(tractor.id, $event)"
                 class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600" />
             </td>
@@ -141,7 +141,7 @@
 
           <!-- Empty state -->
           <tr v-if="!tractors?.data?.length">
-            <td colspan="7" class="px-6 py-12 text-center">
+            <td :colspan="canBulkAction ? 7 : 6" class="px-6 py-12 text-center">
               <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
               </svg>
@@ -161,7 +161,7 @@
         leave-active-class="transition-all duration-200 ease-in"
         leave-from-class="translate-y-0 opacity-100"
         leave-to-class="translate-y-4 opacity-0">
-        <div v-if="selectedCount > 0" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-4 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 px-5 py-3">
+        <div v-if="canBulkAction && selectedCount > 0" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-4 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 px-5 py-3">
           <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
             <span class="text-emerald-600 dark:text-emerald-400 font-bold">{{ selectedCount }}</span> tractor{{ selectedCount !== 1 ? 's' : '' }} selected
           </span>
@@ -169,7 +169,12 @@
           <button @click="clearSelection" class="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
             Clear
           </button>
-          <button @click="openBatchDeleteDrawer"
+          <button v-if="canBulkEdit" @click="openGeneralEditDrawer"
+            class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-blue-600 hover:bg-blue-700">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+            General Edit
+          </button>
+          <button v-if="canBulkDelete" @click="openBatchDeleteDrawer"
             class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors"
             style="background-color: #dc2626;"
             @mouseenter="$event.target.style.backgroundColor='#b91c1c'"
@@ -607,12 +612,64 @@
         </button>
       </template>
     </Modal>
+    <!-- ==================== GENERAL EDIT DRAWER ==================== -->
+    <SlideOver :show="generalEditOpen" max-width="2xl" title="General Edit" :subtitle="`Update common fields for ${selectedCount} tractor${selectedCount !== 1 ? 's' : ''}`" @close="closeGeneralEditDrawer">
+      <form @submit.prevent="submitGeneralEdit" class="flex-1 overflow-y-auto">
+        <div class="p-6 space-y-5">
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            Only fields you fill in will be updated. Leave a field blank to keep its current value.
+          </p>
+
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Brand</label>
+            <input v-model="generalEditForm.brand" type="text" placeholder="Leave blank to keep current"
+              class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
+          </div>
+
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Model</label>
+            <input v-model="generalEditForm.model" type="text" placeholder="Leave blank to keep current"
+              class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
+          </div>
+
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Fuel Consumption (L/hr)</label>
+            <input v-model="generalEditForm.fuel_consumption" type="number" step="0.01" min="0" placeholder="Leave blank to keep current"
+              class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
+          </div>
+
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Maintenance KM Threshold</label>
+            <input v-model="generalEditForm.maintenance_km" type="number" step="0.01" min="0" placeholder="Leave blank to keep current"
+              class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
+          </div>
+
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Maintenance Hours Threshold</label>
+            <input v-model="generalEditForm.maintenance_hours" type="number" step="0.01" min="0" placeholder="Leave blank to keep current"
+              class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
+          </div>
+        </div>
+
+        <div class="sticky bottom-0 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 px-6 py-4 flex justify-end gap-3">
+          <button type="button" @click="closeGeneralEditDrawer"
+            class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">Cancel</button>
+          <button type="submit" :disabled="generalEditForm.processing"
+            class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700">
+            <svg v-if="generalEditForm.processing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+            {{ generalEditForm.processing ? 'Updating...' : `Update ${selectedCount} Tractor${selectedCount !== 1 ? 's' : ''}` }}
+          </button>
+        </div>
+      </form>
+    </SlideOver>
+
   </AppLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, h } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import SlideOver from '@/Components/SlideOver.vue';
@@ -621,6 +678,46 @@ import StatusBadge from '@/Components/StatusBadge.vue';
 import DataTable from '@/Components/DataTable.vue';
 import { formatDate } from '@/utils/dateFormat';
 import axios from 'axios';
+
+// ── Sortable Table Header Component ──
+const SortableTh = {
+  props: {
+    label: String,
+    field: String,
+    sortField: String,
+    sortDirection: String,
+  },
+  emits: ['sort'],
+  setup(props, { emit }) {
+    const isActive = computed(() => props.sortField === props.field);
+    const icon = computed(() => {
+      if (!isActive.value) return null;
+      return props.sortDirection === 'asc' ? '▲' : '▼';
+    });
+
+    return () => h('th', {
+      scope: 'col',
+      class: 'px-6 py-3 whitespace-nowrap cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group',
+      onClick: () => emit('sort', props.field),
+    }, [
+      h('span', { class: 'inline-flex items-center gap-1.5' }, [
+        h('span', { class: 'text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors' }, props.label),
+        h('span', { class: 'flex flex-col leading-none text-gray-400 dark:text-gray-500' }, [
+          h('span', {
+            class: isActive.value && props.sortDirection === 'asc'
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+              : 'group-hover:text-gray-600 dark:group-hover:text-gray-300',
+          }, '▲'),
+          h('span', {
+            class: isActive.value && props.sortDirection === 'desc'
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+              : 'group-hover:text-gray-600 dark:group-hover:text-gray-300',
+          }, '▼'),
+        ]),
+      ]),
+    ]);
+  },
+};
 
 // ── Impact Row Component ──
 const ImpactRow = {
@@ -688,18 +785,34 @@ const switchTab = (tab) => {
   router.get('/tractors', { tab }, { preserveState: true, replace: true });
 };
 
-// --- All Tractors Filters ---
+// --- All Tractors Filters & Sort ---
 const search = ref(props.filters?.search || '');
 const selectedGroup = ref(props.filters?.group_id || '');
 const selectedStatus = ref(props.filters?.status || '');
+const sortField = ref(props.filters?.sort || '');
+const sortDirection = ref(props.filters?.direction || 'asc');
+
 let timer;
 const debouncedFilter = () => { clearTimeout(timer); timer = setTimeout(applyAllFilter, 300); };
+
+const sortBy = (field) => {
+  if (sortField.value === field) {
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortField.value = field;
+    sortDirection.value = 'asc';
+  }
+  applyAllFilter();
+};
+
 const applyAllFilter = () => {
   router.get('/tractors', {
     tab: 'all',
     search: search.value || undefined,
     group_id: selectedGroup.value || undefined,
     status: selectedStatus.value || undefined,
+    sort: sortField.value || undefined,
+    direction: sortDirection.value || undefined,
   }, { preserveState: true, replace: true });
 };
 
@@ -777,8 +890,49 @@ const submitDrawer = () => {
   });
 };
 
+// ── General Edit (Bulk) ──
+const generalEditOpen = ref(false);
+const generalEditForm = useForm({
+  tractor_ids: [],
+  brand: '',
+  model: '',
+  fuel_consumption: '',
+  maintenance_km: '',
+  maintenance_hours: '',
+});
+
+const openGeneralEditDrawer = () => {
+  generalEditForm.reset();
+  generalEditForm.clearErrors();
+  generalEditForm.tractor_ids = Object.keys(selectedIds.value).map(Number);
+  generalEditOpen.value = true;
+};
+
+const closeGeneralEditDrawer = () => {
+  generalEditOpen.value = false;
+};
+
+const submitGeneralEdit = () => {
+  generalEditForm.post('/tractors/batch-update', {
+    preserveScroll: true,
+    onSuccess: () => {
+      closeGeneralEditDrawer();
+      clearSelection();
+    },
+  });
+};
+
 // ── Multi-Select (persisted in sessionStorage so it survives Inertia navigation) ──
 const STORAGE_KEY = 'tractor_selected_ids';
+
+const page = usePage();
+const canBulkEdit = computed(() =>
+  page.props.auth.user.permissions.includes('tractors.edit')
+);
+const canBulkDelete = computed(() =>
+  page.props.auth.user.permissions.includes('tractors.delete')
+);
+const canBulkAction = computed(() => canBulkEdit.value || canBulkDelete.value);
 
 const saved = sessionStorage.getItem(STORAGE_KEY);
 const selectedIds = ref(saved ? JSON.parse(saved) : {});

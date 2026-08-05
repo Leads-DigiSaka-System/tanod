@@ -84,6 +84,17 @@ class TractorController extends Controller
                 ];
             });
         } else {
+            $sort = $request->get('sort', 'id');
+            $direction = $request->get('direction', 'desc');
+            $allowedSorts = ['id', 'name', 'no_plate', 'total_distance', 'running_hours'];
+
+            if (! in_array($sort, $allowedSorts)) {
+                $sort = 'id';
+            }
+            if (! in_array($direction, ['asc', 'desc'])) {
+                $direction = 'desc';
+            }
+
             $tractors = Tractor::with(['device.latestLocation', 'groups', 'assignee'])
                 ->when($request->search, fn ($q, $s) => $q->where(function ($q) use ($s) {
                     $q->where('no_plate', 'like', "%{$s}%")
@@ -98,7 +109,7 @@ class TractorController extends Controller
                         $q->whereDoesntHave('device.latestLocation', fn ($q) => $q->where('heartbeat_at', '>=', now()->subMinutes(10)));
                     }
                 })
-                ->latest()
+                ->orderBy($sort, $direction)
                 ->paginate(15)
                 ->withQueryString();
         }
@@ -107,7 +118,7 @@ class TractorController extends Controller
             'tractors' => $tractors,
             'fcaDistributions' => $fcaDistributions,
             'tpsAssignments' => $tpsAssignments,
-            'filters' => $request->only(['search', 'group_id', 'status', 'fca_search', 'fca_status', 'tps_search', 'tab']),
+            'filters' => $request->only(['search', 'group_id', 'status', 'sort', 'direction', 'fca_search', 'fca_status', 'tps_search', 'tab']),
             'groups' => TractorGroup::where('is_active', true)->get(['id', 'name']),
             'fcaUsers' => User::role('fca')->where('is_active', true)->get(['id', 'name', 'email']),
             'allTractors' => Tractor::with('device.latestLocation')
@@ -359,6 +370,37 @@ class TractorController extends Controller
 
         return redirect()->route('tractors.index')
             ->with('success', $count.' '.str('tractor')->plural($count).' deleted successfully.');
+    }
+
+    /**
+     * Batch update common fields across multiple tractors.
+     */
+    public function batchUpdate(Request $request)
+    {
+        $data = $request->validate([
+            'tractor_ids' => 'required|array|min:1',
+            'tractor_ids.*' => 'required|exists:tractors,id',
+            'brand' => 'nullable|string|max:255',
+            'model' => 'nullable|string|max:255',
+            'fuel_consumption' => 'nullable|numeric|min:0',
+            'maintenance_km' => 'nullable|numeric|min:0',
+            'maintenance_hours' => 'nullable|numeric|min:0',
+        ]);
+
+        $tractorIds = $data['tractor_ids'];
+        unset($data['tractor_ids']);
+
+        // Only update fields that were actually provided (not null/empty)
+        $updateData = array_filter($data, fn ($value) => $value !== null && $value !== '');
+
+        if (empty($updateData)) {
+            return back()->with('error', 'No fields were provided for update.');
+        }
+
+        $count = Tractor::whereIn('id', $tractorIds)->update($updateData);
+
+        return redirect()->route('tractors.index')
+            ->with('success', $count.' '.str('tractor')->plural($count).' updated successfully.');
     }
 
     public function destroy(Tractor $tractor)

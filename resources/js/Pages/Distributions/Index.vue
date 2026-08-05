@@ -10,11 +10,19 @@
     </div>
 
     <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6 dark:bg-gray-800 dark:border-gray-700">
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Search</label>
           <input v-model="search" type="text" placeholder="Search tractor, user, area..." @input="debouncedFilter"
             class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500" />
+        </div>
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Region</label>
+          <select v-model="regionFilter" @change="applyFilter"
+            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500">
+            <option value="">All Regions</option>
+            <option v-for="reg in regions" :key="reg" :value="reg">{{ reg }}</option>
+          </select>
         </div>
         <div>
           <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Province / Area</label>
@@ -47,9 +55,9 @@
           <th scope="col" class="px-6 py-3 whitespace-nowrap">Tractor</th>
           <th scope="col" class="px-6 py-3 whitespace-nowrap">Distributed To</th>
           <th scope="col" class="px-6 py-3 whitespace-nowrap">Distributed By</th>
-          <th scope="col" class="px-6 py-3 whitespace-nowrap">Area</th>
-          <th scope="col" class="px-6 py-3 whitespace-nowrap">Status</th>
-          <th scope="col" class="px-6 py-3 whitespace-nowrap">Date</th>
+          <SortableTh label="Area" field="area" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
+          <SortableTh label="Status" field="status" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
+          <SortableTh label="Date" field="distribution_date" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
           <th scope="col" class="px-6 py-3 text-right whitespace-nowrap">Actions</th>
         </tr>
       </template>
@@ -60,8 +68,9 @@
             <input type="checkbox" :checked="selectedIsChecked(dist.id)" @click="toggleSelect(dist.id, $event)"
               class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600" />
           </td>
-          <td class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
-            {{ dist.tractor?.brand }} {{ dist.tractor?.model }} — {{ dist.tractor?.no_plate }}
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ dist.tractor?.brand }} {{ dist.tractor?.model }}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">{{ dist.tractor?.no_plate || '—' }}</div>
           </td>
           <td class="px-6 py-4 whitespace-nowrap">{{ dist.distributed_to_user?.organization_name || dist.distributed_to_user?.name || '—' }}</td>
           <td class="px-6 py-4 whitespace-nowrap">{{ dist.distributed_by_user?.name || '—' }}</td>
@@ -326,7 +335,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, h } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
@@ -337,21 +346,61 @@ import DataTable from '@/Components/DataTable.vue';
 import { formatDate } from '@/utils/dateFormat';
 import axios from 'axios';
 
+// ── Sortable Table Header Component ──
+const SortableTh = {
+  props: {
+    label: String,
+    field: String,
+    sortField: String,
+    sortDirection: String,
+  },
+  emits: ['sort'],
+  setup(props, { emit }) {
+    const isActive = computed(() => props.sortField === props.field);
+
+    return () => h('th', {
+      scope: 'col',
+      class: 'px-6 py-3 whitespace-nowrap cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group',
+      onClick: () => emit('sort', props.field),
+    }, [
+      h('span', { class: 'inline-flex items-center gap-1.5' }, [
+        h('span', { class: 'text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors' }, props.label),
+        h('span', { class: 'flex flex-col leading-none text-gray-400 dark:text-gray-500' }, [
+          h('span', {
+            class: isActive.value && props.sortDirection === 'asc'
+              ? 'text-indigo-600 dark:text-indigo-400 font-bold'
+              : 'group-hover:text-gray-600 dark:group-hover:text-gray-300',
+          }, '\u25B2'),
+          h('span', {
+            class: isActive.value && props.sortDirection === 'desc'
+              ? 'text-indigo-600 dark:text-indigo-400 font-bold'
+              : 'group-hover:text-gray-600 dark:group-hover:text-gray-300',
+          }, '\u25BC'),
+        ]),
+      ]),
+    ]);
+  },
+};
+
 const props = defineProps({
   distributions: Object,
   filters: Object,
   provinces: Array,
+  regions: Array,
   tractors: Array,
   fcaUsers: Array,
   tpsUsers: Array,
   editDistribution: { type: Object, default: null },
 });
 
-// --- Filters ---
+// --- Filters & Sort ---
 const search = ref(props.filters?.search || '');
 const statusFilter = ref(props.filters?.status || '');
 const provinceFilter = ref(props.filters?.province || '');
+const regionFilter = ref(props.filters?.region || '');
 const perPage = ref(props.filters?.per_page || 15);
+const sortField = ref(props.filters?.sort || 'distribution_date');
+const sortDirection = ref(props.filters?.direction || 'desc');
 
 // --- Online status (heartbeat within 10 minutes) ---
 const getOnlineStatus = (tractor) => {
@@ -362,12 +411,26 @@ const getOnlineStatus = (tractor) => {
 
 let timer;
 const debouncedFilter = () => { clearTimeout(timer); timer = setTimeout(applyFilter, 300); };
+
+const sortBy = (field) => {
+  if (sortField.value === field) {
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortField.value = field;
+    sortDirection.value = 'asc';
+  }
+  applyFilter();
+};
+
 const applyFilter = () => {
   router.get('/distributions', {
     search: search.value || undefined,
     status: statusFilter.value || undefined,
     province: provinceFilter.value || undefined,
+    region: regionFilter.value || undefined,
     per_page: perPage.value,
+    sort: sortField.value || undefined,
+    direction: sortDirection.value || undefined,
   }, { preserveState: true, replace: true });
 };
 

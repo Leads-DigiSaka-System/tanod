@@ -67,6 +67,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::resource('tractors', TractorController::class);
     Route::post('tractors/batch-delete-check', [TractorController::class, 'batchDeleteCheck'])->name('tractors.batch-delete-check');
     Route::post('tractors/batch-destroy', [TractorController::class, 'batchDestroy'])->name('tractors.batch-destroy');
+    Route::post('tractors/batch-update', [TractorController::class, 'batchUpdate'])->name('tractors.batch-update');
     Route::delete('tractors/batch-destroy', [TractorController::class, 'batchDestroy'])->name('tractors.batch-destroy.delete');
     Route::get('tractors/{tractor}/delete-check', [TractorController::class, 'deleteCheck'])->name('tractors.delete-check');
     Route::delete('tractors/{tractor}/images/{image}', [TractorController::class, 'deleteImage'])->name('tractors.images.destroy');

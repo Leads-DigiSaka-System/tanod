@@ -10,6 +10,7 @@ use App\Models\Tractor;
 use App\Models\TractorDistribution;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -17,11 +18,46 @@ class DistributionController extends Controller
 {
     public function index(Request $request)
     {
+        $sort = $request->get('sort', 'distribution_date');
+        $direction = $request->get('direction', 'desc');
+        $allowedSorts = ['id', 'area', 'distribution_date', 'status'];
+
+        if (! in_array($sort, $allowedSorts)) {
+            $sort = 'distribution_date';
+        }
+        if (! in_array($direction, ['asc', 'desc'])) {
+            $direction = 'desc';
+        }
+
         $distributions = TractorDistribution::with(['tractor', 'distributedToUser.fcaProfile', 'distributedByUser', 'tpsUser'])
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->province, fn ($q, $p) => $q->where('area', 'like', "%{$p}%"))
-            ->when($request->search, fn ($q, $s) => $q->whereHas('tractor', fn ($q) => $q->where('no_plate', 'like', "%{$s}%")))
-            ->latest()
+            ->when($request->region, function ($q, $regionNumber) {
+                $regionCode = DB::table('philippine_regions')
+                    ->where('region_number', $regionNumber)
+                    ->value('region_code');
+
+                if ($regionCode) {
+                    $provinces = DB::table('philippine_provinces')
+                        ->where('region_code', $regionCode)
+                        ->pluck('province_description')
+                        ->toArray();
+
+                    if (! empty($provinces)) {
+                        $q->where(function ($q) use ($provinces) {
+                            foreach ($provinces as $province) {
+                                $q->orWhere('area', 'like', "%{$province}%");
+                            }
+                        });
+                    }
+                }
+            })
+            ->when($request->search, fn ($q, $s) => $q->where(function ($q) use ($s) {
+                $q->whereHas('tractor', fn ($q) => $q->where('no_plate', 'like', "%{$s}%")->orWhere('brand', 'like', "%{$s}%"))
+                    ->orWhereHas('distributedToUser', fn ($q) => $q->where('name', 'like', "%{$s}%")->orWhere('organization_name', 'like', "%{$s}%"))
+                    ->orWhere('area', 'like', "%{$s}%");
+            }))
+            ->orderBy($sort, $direction)
             ->paginate($request->input('per_page', 15))
             ->withQueryString();
 
@@ -32,10 +68,15 @@ class DistributionController extends Controller
             ->orderBy('area')
             ->pluck('area');
 
+        $regions = DB::table('philippine_regions')
+            ->orderBy('region_number')
+            ->pluck('region_number');
+
         return Inertia::render('Distributions/Index', [
             'distributions' => $distributions,
-            'filters' => $request->only(['search', 'status', 'province']),
+            'filters' => $request->only(['search', 'status', 'province', 'region', 'sort', 'direction', 'per_page']),
             'provinces' => $provinces,
+            'regions' => $regions,
             'tractors' => Tractor::with('device.latestLocation')->orderBy('no_plate')->get(['id', 'no_plate', 'brand', 'model', 'device_id']),
             'fcaUsers' => User::role('fca')->where('is_active', true)->get(['id', 'name', 'email']),
             'tpsUsers' => User::role('tps')->where('is_active', true)->get(['id', 'name', 'email']),
