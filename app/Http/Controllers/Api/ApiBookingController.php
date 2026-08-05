@@ -59,8 +59,11 @@ class ApiBookingController extends Controller
         $user = $request->user();
 
         $data = $request->validate([
+            'is_member' => 'nullable|boolean',
             'tractor_id' => 'required|exists:tractors,id',
             'farmer_id' => 'nullable|exists:users,id',
+            'contact_name' => 'nullable|string|max:255',
+            'contact_phone' => 'nullable|string|max:20',
             'booking_date' => 'required|date|after_or_equal:today',
             'start_date' => 'nullable|date|after_or_equal:today',
             'end_date' => 'nullable|date|after_or_equal:start_date',
@@ -79,6 +82,39 @@ class ApiBookingController extends Controller
                 403,
                 'You can only book on behalf of your own farmers.'
             );
+        }
+
+        // ── Overlap check (date + time) ──
+        $startDate = $data['start_date'] ?? $data['booking_date'];
+        $endDate = $data['end_date'] ?? $startDate;
+        $startTime = $data['start_time'] ?? null;
+        $endTime = $data['end_time'] ?? null;
+
+        $overlapping = Booking::where('tractor_id', $data['tractor_id'])
+            ->whereNotIn('status', ['cancelled', 'rejected', 'completed'])
+            ->where('start_date', '<=', $endDate)
+            ->where(function ($q) use ($startDate) {
+                $q->where('end_date', '>=', $startDate)
+                    ->orWhere('booking_date', '>=', $startDate);
+            })
+            ->get();
+
+        $conflict = $overlapping->contains(function ($existing) use ($startDate, $endDate, $startTime, $endTime) {
+            // If neither side has times, any date overlap is a conflict
+            if (empty($startTime) || empty($endTime) ||
+                empty($existing->start_time) || empty($existing->end_time)) {
+                return true;
+            }
+
+            // Same-day or overlapping dates: check time overlap
+            // Time overlap: existing_start < new_end AND existing_end > new_start
+            return $existing->start_time < $endTime && $existing->end_time > $startTime;
+        });
+
+        if ($conflict) {
+            return response()->json([
+                'message' => 'This tractor is already booked for the selected schedule. Please pick a different date or time.',
+            ], 422);
         }
 
         $data['booked_by'] = $user->id;
