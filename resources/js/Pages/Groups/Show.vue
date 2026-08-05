@@ -46,7 +46,7 @@
         <h3 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Tractors ({{ group.tractors?.length || 0 }})</h3>
         <ul v-if="group.tractors?.length" class="divide-y divide-gray-200 dark:divide-gray-700">
           <li v-for="t in group.tractors" :key="t.id" class="py-3 flex justify-between items-center">
-            <Link :href="`/tractors/${t.id}`" class="text-sm font-medium text-indigo-600 dark:text-indigo-500 hover:underline">{{ t.brand }} {{ t.model }} — {{ t.no_plate }}</Link>
+            <Link :href="`/tractors/${t.id}`" class="text-sm font-medium text-indigo-600 dark:text-indigo-500 hover:underline">{{ t.name }} — {{ t.no_plate }}</Link>
             <StatusBadge :status="t.status" />
           </li>
         </ul>

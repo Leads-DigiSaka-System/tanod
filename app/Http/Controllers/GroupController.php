@@ -72,11 +72,12 @@ class GroupController extends Controller
         });
 
         $tractors = Tractor::with(['device.latestLocation', 'distributions' => fn ($q) => $q->latest()->limit(1)])
-            ->select('id', 'no_plate', 'brand', 'model', 'imei', 'device_id')
+            ->select('id', 'name', 'no_plate', 'brand', 'model', 'imei', 'device_id')
             ->whereHas('device', fn ($q) => $q->notStale())
             ->get()
             ->map(fn (Tractor $t) => [
                 'id' => $t->id,
+                'name' => $t->name,
                 'no_plate' => $t->no_plate,
                 'brand' => $t->brand,
                 'model' => $t->model,
@@ -108,11 +109,12 @@ class GroupController extends Controller
     public function create()
     {
         $tractors = Tractor::with(['device.latestLocation', 'distributions' => fn ($q) => $q->latest()->limit(1)])
-            ->select('id', 'no_plate', 'brand', 'model', 'imei', 'device_id')
+            ->select('id', 'name', 'no_plate', 'brand', 'model', 'imei', 'device_id')
             ->whereHas('device', fn ($q) => $q->notStale())
             ->get()
             ->map(fn (Tractor $t) => [
                 'id' => $t->id,
+                'name' => $t->name,
                 'no_plate' => $t->no_plate,
                 'brand' => $t->brand,
                 'model' => $t->model,
@@ -167,11 +169,12 @@ class GroupController extends Controller
         $group->load(['tractors', 'tpsUsers']);
 
         $tractors = Tractor::with(['device.latestLocation', 'distributions' => fn ($q) => $q->latest()->limit(1)])
-            ->select('id', 'no_plate', 'brand', 'model', 'imei', 'device_id')
+            ->select('id', 'name', 'no_plate', 'brand', 'model', 'imei', 'device_id')
             ->whereHas('device', fn ($q) => $q->notStale())
             ->get()
             ->map(fn (Tractor $t) => [
                 'id' => $t->id,
+                'name' => $t->name,
                 'no_plate' => $t->no_plate,
                 'brand' => $t->brand,
                 'model' => $t->model,
