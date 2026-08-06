@@ -126,6 +126,18 @@
           </div>
         </div>
       </div>
+
+      <!-- No track data available -->
+      <div v-else-if="['completed', 'in_use'].includes(booking.status)" class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 dark:bg-gray-800 dark:border-gray-700 h-fit lg:sticky lg:top-4">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4 dark:text-white">GPS Track</h2>
+        <div class="text-center py-8 text-gray-400 dark:text-gray-500">
+          <svg class="mx-auto h-10 w-10 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+          </svg>
+          <p class="text-sm font-medium">No GPS track available</p>
+          <p class="text-xs mt-1">The tractor may not have a GPS device assigned, or no location data was recorded during this booking.</p>
+        </div>
+      </div>
     </div>
   </AppLayout>
 </template>

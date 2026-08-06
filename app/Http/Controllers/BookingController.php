@@ -74,7 +74,7 @@ class BookingController extends Controller
         $trackStats = null;
         $geofences = [];
 
-        if ($booking->status === 'completed' && $booking->tractor?->device?->imei) {
+        if (in_array($booking->status, ['completed', 'in_use']) && $booking->tractor?->device?->imei) {
             $trackData = $this->getTrackData($booking, $trackingService);
             if ($trackData) {
                 $trackImageUrl = $trackData['imageUrl'];
