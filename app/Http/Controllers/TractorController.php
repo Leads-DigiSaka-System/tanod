@@ -491,6 +491,9 @@ class TractorController extends Controller
             'return_date' => now(),
         ]);
 
+        // Clear the name assigned to the tractor during distribution.
+        $distribution->tractor?->update(['name' => null]);
+
         return redirect()->route('tractors.index', ['tab' => 'fca'])
             ->with('success', 'Tractor marked as returned.');
     }

@@ -145,6 +145,10 @@
                       <div class="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3"><span class="rounded px-2 py-1 font-mono text-[11px] font-bold" :class="statusClass(testResults[endpoint.path].status)">{{ testResults[endpoint.path].status }} {{ testResults[endpoint.path].statusText }}</span><span class="text-[11px] text-slate-400">{{ testResults[endpoint.path].duration }} ms</span><button class="ml-auto text-[11px] text-slate-300" @click="copy(testResults[endpoint.path].formatted, endpoint.path)">{{ copied === endpoint.path ? 'Copied' : 'Copy JSON' }}</button></div>
                       <div class="border-b border-white/10 px-4 py-2 font-mono text-[10px] text-slate-500">{{ testResults[endpoint.path].url }}</div>
                       <pre class="max-h-96 overflow-auto p-4 text-[11px] leading-5 text-slate-300"><code>{{ testResults[endpoint.path].formatted }}</code></pre>
+                      <div class="border-t border-white/10 px-4 py-3">
+                        <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">What this means</p>
+                        <p class="mt-1.5 text-xs leading-5 text-slate-300">{{ explainError(testResults[endpoint.path].status, testResults[endpoint.path].statusText, testResults[endpoint.path].message) }}</p>
+                      </div>
                     </div>
                   </section>
 
@@ -254,7 +258,44 @@ async function runTest(endpoint) {
   finally { testingEndpoint.value = null; }
 }
 
-function setResult(key, status, statusText, duration, url, payload) { testResults.value = { ...testResults.value, [key]: { status, statusText, duration, url, formatted: JSON.stringify(payload, null, 2) } }; }
+function setResult(key, status, statusText, duration, url, payload) {
+  testResults.value = {
+    ...testResults.value,
+    [key]: {
+      status,
+      statusText,
+      duration,
+      url,
+      formatted: JSON.stringify(payload, null, 2),
+      message: payload?.message ?? payload?.error ?? null,
+    },
+  };
+}
+
+function explainError(status, statusText, message) {
+  if (status === 0) {
+    if (statusText === 'TOKEN REQUIRED') return 'No token was entered for the built-in tester. Paste the issued token into the tester field at the top of this page, then test again.';
+    if (statusText === 'PARAMETER REQUIRED') return message || 'A required parameter is missing. Fill in the required fields marked with * before testing.';
+    if (statusText === 'REQUEST FAILED') return 'The request could not reach the server (network/CORS error). Check your connection and the base URL.';
+  }
+
+  if (status >= 200 && status < 300) return 'Success. The endpoint returned data using the format shown in the example above.';
+
+  const explanations = {
+    401: 'Authentication failed. The token is missing, invalid, revoked, or expired — re-issue it from a TANOD administrator and paste it again.',
+    403: 'The token is valid but lacks the integration:read ability. Ask an administrator to enable that ability for the token.',
+    404: 'The requested resource was not found. The tractor may have been deleted (including deleted from TANOD), renamed, or the ID/IMEI/serial is incorrect.',
+    409: 'Multiple tractors share that name. Use the tractor database ID or IMEI instead of the name.',
+    422: 'One or more parameters failed validation. Review the required format and possible values in the parameter table above.',
+    429: 'Rate limit exceeded (120 requests per minute). Wait a few seconds and try again.',
+  };
+
+  if (explanations[status]) return message ? `${explanations[status]} Server message: ${message}` : explanations[status];
+
+  if (status >= 500) return 'The server crashed while processing this request. This is a server-side problem — report it to the system administrator and include the request URL and timestamp.';
+
+  return message || 'Unexpected response from the server.';
+}
 function statusClass(status) { if (status >= 200 && status < 300) return 'bg-emerald-400/15 text-emerald-300'; if (status >= 400 && status < 500) return 'bg-amber-400/15 text-amber-300'; return 'bg-red-400/15 text-red-300'; }
 async function copy(value, key) { await navigator.clipboard.writeText(value); copied.value = key; window.setTimeout(() => { copied.value = null; }, 1800); }
 </script>

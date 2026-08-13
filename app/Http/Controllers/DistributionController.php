@@ -178,6 +178,9 @@ class DistributionController extends Controller
             'return_date' => now(),
         ]);
 
+        // Clear the name assigned to the tractor during distribution.
+        $distribution->tractor?->update(['name' => null]);
+
         return back()->with('success', 'Tractor marked as returned.');
     }
 
@@ -189,12 +192,21 @@ class DistributionController extends Controller
             return back()->with('error', 'No distributions selected.');
         }
 
-        $count = TractorDistribution::whereIn('id', $ids)
+        $distributions = TractorDistribution::whereIn('id', $ids)
             ->where('status', 'distributed')
-            ->update([
+            ->get();
+
+        foreach ($distributions as $distribution) {
+            $distribution->update([
                 'status' => 'returned',
                 'return_date' => now(),
             ]);
+
+            // Clear the name assigned to the tractor during distribution.
+            $distribution->tractor?->update(['name' => null]);
+        }
+
+        $count = $distributions->count();
 
         return back()->with('success', "{$count} distribution(s) marked as returned.");
     }

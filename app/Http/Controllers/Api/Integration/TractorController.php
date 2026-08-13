@@ -624,6 +624,10 @@ class TractorController extends Controller
             'Multiple tractors use this name. Use the tractor ID or IMEI instead.',
         );
 
-        return $nameMatches->firstOrFail();
+        if ($nameMatches->isNotEmpty()) {
+            return $nameMatches->first();
+        }
+
+        abort(404, 'Tractor not found. The identifier may have been deleted, renamed, or is incorrect.');
     }
 }
