@@ -49,6 +49,15 @@ Route::post('/api-docs/authenticate', [PublicApiDocumentationController::class, 
     ->name('api-docs.authenticate');
 Route::post('/api-docs/logout', [PublicApiDocumentationController::class, 'logout'])->name('api-docs.logout');
 
+// Legal pages (public)
+Route::get('/privacy-policy', function () {
+    return Inertia::render('PrivacyPolicy');
+})->name('privacy-policy');
+
+Route::get('/terms-and-conditions', function () {
+    return Inertia::render('TermsAndConditions');
+})->name('terms-and-conditions');
+
 /*
 |--------------------------------------------------------------------------
 | Authenticated Routes
