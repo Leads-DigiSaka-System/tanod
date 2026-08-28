@@ -110,7 +110,7 @@ class TractorController extends Controller
                     }
                 })
                 ->orderBy($sort, $direction)
-                ->paginate(15)
+                ->paginate($request->input('per_page', 15))
                 ->withQueryString();
         }
 
@@ -118,7 +118,7 @@ class TractorController extends Controller
             'tractors' => $tractors,
             'fcaDistributions' => $fcaDistributions,
             'tpsAssignments' => $tpsAssignments,
-            'filters' => $request->only(['search', 'group_id', 'status', 'sort', 'direction', 'fca_search', 'fca_status', 'tps_search', 'tab']),
+            'filters' => $request->only(['search', 'group_id', 'status', 'sort', 'direction', 'per_page', 'fca_search', 'fca_status', 'tps_search', 'tab']),
             'groups' => TractorGroup::where('is_active', true)->get(['id', 'name']),
             'fcaUsers' => User::role('fca')->where('is_active', true)->get(['id', 'name', 'email']),
             'allTractors' => Tractor::with('device.latestLocation')

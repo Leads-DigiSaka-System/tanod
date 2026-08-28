@@ -151,7 +151,22 @@
           </tr>
         </template>
       </DataTable>
-      <Pagination v-if="tractors?.links" :links="tractors.links" class="mt-6" />
+      <div class="flex items-center justify-between mt-6">
+        <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+          <span>Show</span>
+          <select v-model="perPage" @change="applyAllFilter"
+            class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 px-2 py-1.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <option :value="15">15</option>
+            <option :value="50">50</option>
+            <option :value="100">100</option>
+            <option :value="200">200</option>
+            <option :value="500">500</option>
+            <option :value="1000">1000</option>
+          </select>
+          <span>entries</span>
+        </div>
+        <Pagination v-if="tractors?.links" :links="tractors.links" />
+      </div>
 
       <!-- Floating multi-select bar -->
       <Transition
@@ -789,6 +804,7 @@ const switchTab = (tab) => {
 const search = ref(props.filters?.search || '');
 const selectedGroup = ref(props.filters?.group_id || '');
 const selectedStatus = ref(props.filters?.status || '');
+const perPage = ref(props.filters?.per_page || 15);
 const sortField = ref(props.filters?.sort || '');
 const sortDirection = ref(props.filters?.direction || 'asc');
 
@@ -811,6 +827,7 @@ const applyAllFilter = () => {
     search: search.value || undefined,
     group_id: selectedGroup.value || undefined,
     status: selectedStatus.value || undefined,
+    per_page: perPage.value,
     sort: sortField.value || undefined,
     direction: sortDirection.value || undefined,
   }, { preserveState: true, replace: true });
