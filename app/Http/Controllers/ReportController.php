@@ -12,6 +12,7 @@ use App\Models\Ticket;
 use App\Models\TicketReport;
 use App\Models\Tractor;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -617,6 +618,11 @@ class ReportController extends Controller
         $sent = substr_count($output, '✓ Sent.');
         $failed = substr_count($output, '✗ Failed');
 
+        ActivityLogger::log('ReportSubscription', 0, 'reports_sent', [
+            'sent' => $sent,
+            'failed' => $failed,
+        ], $request->user());
+
         if (str_contains($output, 'No reports due')) {
             session()->flash('warning', 'No reports are currently due for sending.');
             return back();
@@ -686,6 +692,11 @@ class ReportController extends Controller
             $msg .= " {$skipped} skipped (already exists).";
         }
 
+        ActivityLogger::log('ReportSubscription', 0, 'subscription_created', [
+            'created' => $created,
+            'skipped' => $skipped,
+        ], $request->user());
+
         return back()->with('success', $msg);
     }
 
@@ -705,12 +716,21 @@ class ReportController extends Controller
 
         $subscription->update($validated);
 
+        ActivityLogger::log('ReportSubscription', $subscription->id, 'subscription_updated', [
+            'report_type' => $subscription->report_type,
+            'interval' => $subscription->interval,
+        ], $request->user());
+
         return back()->with('success', 'Report subscription updated.');
     }
 
     public function destroySubscription(ReportSubscription $subscription)
     {
         $subscription->delete();
+
+        ActivityLogger::log('ReportSubscription', $subscription->id, 'subscription_deleted', [
+            'report_type' => $subscription->report_type,
+        ], request()->user());
 
         return back()->with('success', 'Report subscription removed.');
     }
@@ -771,6 +791,10 @@ class ReportController extends Controller
         }
 
         $ticketReport->delete();
+
+        ActivityLogger::log('TicketReport', $ticketReport->id, 'deleted', [
+            'report_pdf_path' => $ticketReport->report_pdf_path,
+        ], request()->user());
 
         return redirect()->back()->with('success', 'Service report deleted successfully.');
     }

@@ -11,6 +11,7 @@ use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\GeoFenceController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\LiveViewController;
+use App\Http\Controllers\LogController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicApiDocumentationController;
@@ -81,6 +82,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('tractors/{tractor}/delete-check', [TractorController::class, 'deleteCheck'])->name('tractors.delete-check');
     Route::delete('tractors/{tractor}/images/{image}', [TractorController::class, 'deleteImage'])->name('tractors.images.destroy');
     Route::post('tractors/distribute', [TractorController::class, 'distribute'])->name('tractors.distribute');
+    Route::post('tractors/{tractor}/restore', [TractorController::class, 'restore'])->name('tractors.restore');
+    Route::delete('tractors/{tractor}/force-delete', [TractorController::class, 'forceDelete'])->name('tractors.force-delete');
     Route::post('tractor-distributions/{distribution}/return', [TractorController::class, 'returnDistribution'])->name('tractors.return-distribution');
 
     // Devices
@@ -249,6 +252,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->middleware('role:super-admin');
     Route::resource('users', UserController::class)->middleware('permission:users.view');
     Route::post('users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggle-active')->middleware('permission:users.edit');
+
+    // Logs
+    Route::get('logs', [LogController::class, 'index'])->name('logs.index')->middleware('permission:activity_logs.view');
 
     // Miscellaneous
     Route::middleware('role:super-admin|sub-admin')->group(function () {

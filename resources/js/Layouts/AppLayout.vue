@@ -178,6 +178,7 @@ const route = window.route || ((name) => {
     'miscellaneous.index': '/miscellaneous',
     'api-integration.index': '/api-integration',
     'users.index': '/users',
+    'logs.index': '/logs',
     'profile': '/profile',
     'logout': '/logout',
   };
@@ -204,6 +205,7 @@ const navigation = computed(() => {
     { name: 'Miscellaneous', href: route('miscellaneous.index'), icon: 'misc', show: can('miscellaneous.view') },
     { name: 'API Integration', href: route('api-integration.index'), icon: 'api', show: can('api_integrations.view') },
     { name: 'Users', href: route('users.index'), icon: 'users', show: can('users.view') },
+    { name: 'Logs', href: route('logs.index'), icon: 'log', show: can('activity_logs.view') },
   ];
   return items.filter(i => i.show);
 });

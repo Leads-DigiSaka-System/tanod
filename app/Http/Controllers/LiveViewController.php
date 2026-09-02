@@ -6,6 +6,7 @@ use App\Models\Device;
 use App\Models\DeviceLocation;
 use App\Models\DeviceShare;
 use App\Models\TractorGroup;
+use App\Services\ActivityLogger;
 use App\Services\Jimi\JimiDeviceService;
 use App\Services\Jimi\JimiTrackingService;
 use Carbon\Carbon;
@@ -206,6 +207,10 @@ class LiveViewController extends Controller
             'created_by' => auth()->id(),
             'expires_at' => now()->addHours($duration),
         ]);
+
+        ActivityLogger::log('DeviceShare', $share->id, 'share_created', [
+            'device_name' => $share->device_name,
+        ], auth()->user());
 
         return response()->json([
             'success' => true,

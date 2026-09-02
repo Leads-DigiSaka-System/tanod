@@ -11,6 +11,7 @@ use App\Models\Notification;
 use App\Models\Ticket;
 use App\Models\TicketComment;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use App\Services\M360SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -97,6 +98,12 @@ class TicketController extends Controller
         }
 
         $ticket = Ticket::create($data);
+
+        ActivityLogger::log('Ticket', $ticket->id, 'created', [
+            'subject' => $ticket->subject,
+            'category' => $ticket->category,
+            'status' => $ticket->status,
+        ], $request->user());
 
         $adminIds = User::role(['super-admin', 'sub-admin'])
             ->where('is_active', true)
@@ -246,6 +253,11 @@ class TicketController extends Controller
 
         event($event);
 
+        ActivityLogger::log('Ticket', $ticket->id, 'comment_added', [
+            'subject' => $ticket->subject,
+            'comment' => \Illuminate\Support\Str::limit($comment->body, 80),
+        ], $request->user());
+
         return back()->with('success', 'Comment added.');
     }
 
@@ -254,6 +266,11 @@ class TicketController extends Controller
         $request->validate(['status' => 'required|in:open,in_progress,resolved,closed']);
 
         $ticket->update(['status' => $request->status]);
+
+        ActivityLogger::log('Ticket', $ticket->id, 'status_updated', [
+            'subject' => $ticket->subject,
+            'status' => $request->status,
+        ], $request->user());
 
         if ($ticket->submitted_by !== $request->user()->id) {
             Notification::create([
@@ -281,6 +298,10 @@ class TicketController extends Controller
 
         $ticket->delete(); // soft delete
 
+        ActivityLogger::log('Ticket', $ticket->id, 'deleted', [
+            'subject' => $ticket->subject,
+        ], $user);
+
         return redirect()->route('tickets.index')
             ->with('success', 'Ticket deleted successfully.');
     }
@@ -300,6 +321,12 @@ class TicketController extends Controller
 
         // Also keep the first one in the legacy assigned_to column
         $ticket->update(['assigned_to' => $newIds->first()]);
+
+        $assigneeNames = User::whereIn('id', $newIds->all())->pluck('name')->all();
+        ActivityLogger::log('Ticket', $ticket->id, 'assigned', [
+            'subject' => $ticket->subject,
+            'assignees' => $assigneeNames,
+        ], $request->user());
 
         // Notify newly assigned TPS users
         if ($addedIds->isNotEmpty()) {

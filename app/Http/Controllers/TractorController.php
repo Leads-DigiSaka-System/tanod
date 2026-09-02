@@ -10,6 +10,7 @@ use App\Models\TractorDistribution;
 use App\Models\TractorGroup;
 use App\Models\TractorImage;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -20,9 +21,14 @@ class TractorController extends Controller
     {
         $tab = $request->get('tab', 'all');
 
+        if ($tab === 'deleted' && ! $request->user()->can('tractors.view_deleted')) {
+            $tab = 'all';
+        }
+
         $tractors = null;
         $fcaDistributions = null;
         $tpsAssignments = null;
+        $deletedTractors = null;
 
         if ($tab === 'fca') {
             $fcaQuery = User::role('fca')
@@ -83,6 +89,18 @@ class TractorController extends Controller
                     'tractors' => $tractors,
                 ];
             });
+        } elseif ($tab === 'deleted') {
+            $deletedTractors = Tractor::onlyTrashed()
+                ->with(['device.latestLocation', 'groups', 'assignee'])
+                ->when($request->deleted_search, fn ($q, $s) => $q->where(function ($q) use ($s) {
+                    $q->where('no_plate', 'like', "%{$s}%")
+                        ->orWhere('imei', 'like', "%{$s}%")
+                        ->orWhere('brand', 'like', "%{$s}%")
+                        ->orWhere('name', 'like', "%{$s}%");
+                }))
+                ->orderBy('deleted_at', 'desc')
+                ->paginate($request->input('per_page', 15))
+                ->withQueryString();
         } else {
             $sort = $request->get('sort', 'id');
             $direction = $request->get('direction', 'desc');
@@ -118,7 +136,8 @@ class TractorController extends Controller
             'tractors' => $tractors,
             'fcaDistributions' => $fcaDistributions,
             'tpsAssignments' => $tpsAssignments,
-            'filters' => $request->only(['search', 'group_id', 'status', 'sort', 'direction', 'per_page', 'fca_search', 'fca_status', 'tps_search', 'tab']),
+            'deletedTractors' => $deletedTractors,
+            'filters' => $request->only(['search', 'group_id', 'status', 'sort', 'direction', 'per_page', 'fca_search', 'fca_status', 'tps_search', 'deleted_search', 'tab']),
             'groups' => TractorGroup::where('is_active', true)->get(['id', 'name']),
             'fcaUsers' => User::role('fca')->where('is_active', true)->get(['id', 'name', 'email']),
             'allTractors' => Tractor::with('device.latestLocation')
@@ -145,6 +164,11 @@ class TractorController extends Controller
         unset($data['images']);
 
         $tractor = Tractor::create($data);
+
+        ActivityLogger::log('Tractor', $tractor->id, 'created', [
+            'no_plate' => $tractor->no_plate,
+            'name' => $tractor->name,
+        ], $request->user());
 
         foreach ($images as $i => $image) {
             $path = $image->store('tractors/'.$tractor->id, 'public');
@@ -199,6 +223,12 @@ class TractorController extends Controller
         unset($data['images']);
 
         $tractor->update($data);
+
+        ActivityLogger::log('Tractor', $tractor->id, 'updated', [
+            'no_plate' => $tractor->no_plate,
+            'name' => $tractor->name,
+            'fields' => array_keys($data),
+        ], $request->user());
 
         foreach ($images as $i => $image) {
             $path = $image->store('tractors/'.$tractor->id, 'public');
@@ -364,6 +394,11 @@ class TractorController extends Controller
             }
 
             $tractor->delete();
+
+            ActivityLogger::log('Tractor', $tractor->id, 'deleted', [
+                'no_plate' => $tractor->no_plate,
+                'name' => $tractor->name,
+            ], $request->user());
         }
 
         $count = count($data['tractor_ids']);
@@ -397,7 +432,16 @@ class TractorController extends Controller
             return back()->with('error', 'No fields were provided for update.');
         }
 
+        $tractors = Tractor::whereIn('id', $tractorIds)->get();
         $count = Tractor::whereIn('id', $tractorIds)->update($updateData);
+
+        foreach ($tractors as $tractor) {
+            ActivityLogger::log('Tractor', $tractor->id, 'updated', [
+                'no_plate' => $tractor->no_plate,
+                'name' => $tractor->name,
+                'fields' => array_keys($updateData),
+            ], $request->user());
+        }
 
         return redirect()->route('tractors.index')
             ->with('success', $count.' '.str('tractor')->plural($count).' updated successfully.');
@@ -421,6 +465,11 @@ class TractorController extends Controller
 
         $tractor->delete();
 
+        ActivityLogger::log('Tractor', $tractor->id, 'deleted', [
+            'no_plate' => $tractor->no_plate,
+            'name' => $tractor->name,
+        ], $request->user());
+
         return redirect()->route('tractors.index')
             ->with('success', 'Tractor deleted successfully.');
     }
@@ -430,6 +479,11 @@ class TractorController extends Controller
         abort_unless($image->tractor_id === $tractor->id, 404);
         Storage::disk('public')->delete($image->path);
         $image->delete();
+
+        ActivityLogger::log('Tractor', $tractor->id, 'image_deleted', [
+            'no_plate' => $tractor->no_plate,
+            'image_path' => $image->path,
+        ], request()->user());
 
         return back()->with('success', 'Image removed.');
     }
@@ -474,6 +528,15 @@ class TractorController extends Controller
                     Tractor::where('id', $tractorId)->update(['name' => $fcaUser->organization_name.' ('.$imeiSuffix.')']);
                 }
             }
+
+            $tractor = Tractor::find($tractorId);
+            if ($tractor) {
+                ActivityLogger::log('Tractor', $tractorId, 'distributed', [
+                    'no_plate' => $tractor->no_plate,
+                    'name' => $tractor->name,
+                    'to' => $fcaUser?->name,
+                ], $request->user());
+            }
         }
 
         $count = count($data['tractor_ids']);
@@ -494,7 +557,64 @@ class TractorController extends Controller
         // Clear the name assigned to the tractor during distribution.
         $distribution->tractor?->update(['name' => null]);
 
+        $tractor = $distribution->tractor;
+        if ($tractor) {
+            ActivityLogger::log('Tractor', $tractor->id, 'returned', [
+                'no_plate' => $tractor->no_plate,
+                'name' => $tractor->name,
+            ], request()->user());
+        }
+
         return redirect()->route('tractors.index', ['tab' => 'fca'])
             ->with('success', 'Tractor marked as returned.');
+    }
+
+    /**
+     * Restore a soft-deleted tractor (and re-activate its device if it was deactivated).
+     */
+    public function restore($id)
+    {
+        $tractor = Tractor::onlyTrashed()->findOrFail($id);
+
+        $tractor->restore();
+
+        ActivityLogger::log('Tractor', $tractor->id, 'restored', [
+            'no_plate' => $tractor->no_plate,
+            'name' => $tractor->name,
+        ], request()->user());
+
+        if ($tractor->device_id) {
+            $device = Device::withTrashed()->find($tractor->device_id);
+            if ($device && $device->trashed()) {
+                $device->restore();
+                $device->update(['is_active' => true]);
+            }
+        }
+
+        return redirect()->route('tractors.index', ['tab' => 'deleted'])
+            ->with('success', 'Tractor "'.$tractor->no_plate.'" restored successfully.');
+    }
+
+    /**
+     * Permanently delete a soft-deleted tractor.
+     */
+    public function forceDelete($id)
+    {
+        $tractor = Tractor::onlyTrashed()->findOrFail($id);
+
+        $tractor->images->each(function ($img) {
+            Storage::disk('public')->delete($img->path);
+        });
+        $tractor->images()->delete();
+
+        $tractor->forceDelete();
+
+        ActivityLogger::log('Tractor', $tractor->id, 'force_deleted', [
+            'no_plate' => $tractor->no_plate,
+            'name' => $tractor->name,
+        ], request()->user());
+
+        return redirect()->route('tractors.index', ['tab' => 'deleted'])
+            ->with('success', 'Tractor "'.$tractor->no_plate.'" permanently deleted.');
     }
 }

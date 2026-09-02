@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateDistributionRequest;
 use App\Models\Tractor;
 use App\Models\TractorDistribution;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -124,6 +125,11 @@ class DistributionController extends Controller
 
         DistributionCreated::dispatch($distribution, $recipientIds);
 
+        ActivityLogger::log('TractorDistribution', $distribution->id, 'distributed', [
+            'tractor_id' => $distribution->tractor_id,
+            'to' => $distribution->distributedToUser?->name,
+        ], $request->user());
+
         return redirect()->route('distributions.index')
             ->with('success', 'Tractor distribution recorded.');
     }
@@ -165,6 +171,11 @@ class DistributionController extends Controller
 
         $distribution->update($data);
 
+        ActivityLogger::log('TractorDistribution', $distribution->id, 'updated', [
+            'tractor_id' => $distribution->tractor_id,
+            'status' => $distribution->status,
+        ], $request->user());
+
         return redirect()->route('distributions.index')
             ->with('success', 'Distribution updated successfully.');
     }
@@ -180,6 +191,10 @@ class DistributionController extends Controller
 
         // Clear the name assigned to the tractor during distribution.
         $distribution->tractor?->update(['name' => null]);
+
+        ActivityLogger::log('TractorDistribution', $distribution->id, 'returned', [
+            'tractor_id' => $distribution->tractor_id,
+        ], $request->user());
 
         return back()->with('success', 'Tractor marked as returned.');
     }
@@ -204,6 +219,10 @@ class DistributionController extends Controller
 
             // Clear the name assigned to the tractor during distribution.
             $distribution->tractor?->update(['name' => null]);
+
+            ActivityLogger::log('TractorDistribution', $distribution->id, 'returned', [
+                'tractor_id' => $distribution->tractor_id,
+            ], $request->user());
         }
 
         $count = $distributions->count();
@@ -214,6 +233,10 @@ class DistributionController extends Controller
     public function destroy(TractorDistribution $distribution)
     {
         $distribution->delete();
+
+        ActivityLogger::log('TractorDistribution', $distribution->id, 'deleted', [
+            'tractor_id' => $distribution->tractor_id,
+        ], request()->user());
 
         return redirect()->route('distributions.index')
             ->with('success', 'Distribution record deleted.');

@@ -60,6 +60,16 @@
             TSR Responsibilities
           </span>
         </button>
+        <button v-if="$page.props.auth.user.permissions.includes('tractors.view_deleted')" @click="switchTab('deleted')"
+          class="whitespace-nowrap pb-3 px-1 border-b-2 text-sm font-medium transition-colors"
+          :class="activeTab === 'deleted'
+            ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'">
+          <span class="inline-flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            Deleted
+          </span>
+        </button>
       </nav>
     </div>
 
@@ -340,6 +350,75 @@
           </tr>
         </template>
       </DataTable>
+    </template>
+
+    <!-- ==================== DELETED TRACTORS TAB ==================== -->
+    <template v-if="activeTab === 'deleted' && $page.props.auth.user.permissions.includes('tractors.view_deleted')">
+      <!-- Filters -->
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-6 dark:bg-gray-800 dark:border-gray-700">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <input v-model="deletedSearch" type="text" placeholder="Search plate, IMEI, brand, name..." @input="debouncedDeletedFilter"
+            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" />
+        </div>
+      </div>
+      <!-- Table -->
+      <DataTable>
+        <template #loading>
+          <div v-if="pageLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 dark:bg-gray-800/70 backdrop-blur-[1px]">
+            <div class="flex flex-col items-center gap-3">
+              <svg class="animate-spin h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 animate-pulse">Loading...</p>
+            </div>
+          </div>
+        </template>
+        <template #head>
+          <tr>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">ID</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Name</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">No. Plate</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Brand / Model</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">IMEI</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Deleted At</th>
+            <th scope="col" class="px-6 py-3 text-right whitespace-nowrap">Actions</th>
+          </tr>
+        </template>
+        <template #body>
+          <tr v-for="tractor in deletedTractors?.data" :key="tractor.id"
+            class="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
+            <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ tractor.id }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ tractor.name || '—' }}</td>
+            <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ tractor.no_plate }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ [tractor.brand, tractor.model].filter(Boolean).join(' ') || '—' }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ tractor.imei || '—' }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ formatDate(tractor.deleted_at) }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center justify-end gap-1">
+                <button v-if="$page.props.auth.user.permissions.includes('tractors.delete')" @click="restoreTractor(tractor.id)" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="Restore">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
+                </button>
+                <button v-if="$page.props.auth.user.permissions.includes('tractors.delete')" @click="openForceDeleteModal(tractor)" class="p-1.5 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors" title="Permanently Delete">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr v-if="!deletedTractors?.data?.length">
+            <td colspan="7" class="px-6 py-12 text-center">
+              <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <h3 class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No deleted tractors</h3>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Deleted tractors will appear here.</p>
+            </td>
+          </tr>
+        </template>
+      </DataTable>
+      <div class="flex items-center justify-end mt-6">
+        <Pagination v-if="deletedTractors?.links" :links="deletedTractors.links" />
+      </div>
     </template>
 
     <!-- ==================== DELETE CONFIRMATION DRAWER ==================== -->
@@ -679,6 +758,44 @@
       </form>
     </SlideOver>
 
+    <!-- ==================== FORCE DELETE MODAL ==================== -->
+    <Modal :show="forceDeleteModalOpen" max-width="md" @close="closeForceDeleteModal">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          <span>Permanently Delete Tractor</span>
+        </div>
+      </template>
+
+      <div class="p-6 space-y-4">
+        <p class="text-sm text-gray-600 dark:text-gray-300">
+          You are about to <strong class="text-red-600 dark:text-red-400">permanently delete</strong> tractor
+          <span class="font-semibold text-gray-900 dark:text-white">{{ forceDeleteTractor?.no_plate }}</span>
+          <template v-if="forceDeleteTractor?.name">({{ forceDeleteTractor.name }})</template>.
+          This action cannot be undone and will also remove its images, distributions, bookings, and maintenance records.
+        </p>
+        <div class="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3">
+          <p class="text-sm text-amber-700 dark:text-amber-400">
+            Consider using <strong>Restore</strong> instead if you only need to bring this tractor back.
+          </p>
+        </div>
+      </div>
+
+      <template #footer>
+        <button type="button" @click="closeForceDeleteModal"
+          class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">Cancel</button>
+        <button type="button" @click="confirmForceDelete" :disabled="forceDeleteProcessing"
+          class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          style="background-color: #dc2626;"
+          @mouseenter="!forceDeleteProcessing && ($event.target.style.backgroundColor='#b91c1c')"
+          @mouseleave="!forceDeleteProcessing && ($event.target.style.backgroundColor='#dc2626')">
+          <svg v-if="forceDeleteProcessing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          {{ forceDeleteProcessing ? 'Deleting...' : 'Delete Permanently' }}
+        </button>
+      </template>
+    </Modal>
+
   </AppLayout>
 </template>
 
@@ -771,6 +888,7 @@ const props = defineProps({
   tractors: Object,
   fcaDistributions: Array,
   tsrAssignments: Array,
+  deletedTractors: Object,
   filters: Object,
   groups: Array,
   fcaUsers: Array,
@@ -854,6 +972,17 @@ const applyTpsFilter = () => {
   router.get('/tractors', {
     tab: 'tsr',
     tsr_search: tpsSearch.value || undefined,
+  }, { preserveState: true, replace: true });
+};
+
+// --- Deleted Tractors Filters ---
+const deletedSearch = ref(props.filters?.deleted_search || '');
+let deletedTimer;
+const debouncedDeletedFilter = () => { clearTimeout(deletedTimer); deletedTimer = setTimeout(applyDeletedFilter, 300); };
+const applyDeletedFilter = () => {
+  router.get('/tractors', {
+    tab: 'deleted',
+    deleted_search: deletedSearch.value || undefined,
   }, { preserveState: true, replace: true });
 };
 
@@ -1130,6 +1259,42 @@ const confirmDeleteTractor = () => {
     },
     onError: () => {
       deleteCheckError.value = 'Failed to delete tractor. Please try again.';
+    },
+  });
+};
+
+// ── Deleted Tractors: Restore & Force Delete ──
+const restoreTractor = (id) => {
+  router.post(`/tractors/${id}/restore`, {}, {
+    preserveScroll: true,
+  });
+};
+
+const forceDeleteModalOpen = ref(false);
+const forceDeleteTractor = ref(null);
+const forceDeleteProcessing = ref(false);
+
+const openForceDeleteModal = (tractor) => {
+  forceDeleteTractor.value = tractor;
+  forceDeleteModalOpen.value = true;
+};
+
+const closeForceDeleteModal = () => {
+  forceDeleteModalOpen.value = false;
+  forceDeleteTractor.value = null;
+};
+
+const confirmForceDelete = () => {
+  if (!forceDeleteTractor.value) return;
+  forceDeleteProcessing.value = true;
+  router.delete(`/tractors/${forceDeleteTractor.value.id}/force-delete`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      forceDeleteProcessing.value = false;
+      closeForceDeleteModal();
+    },
+    onError: () => {
+      forceDeleteProcessing.value = false;
     },
   });
 };

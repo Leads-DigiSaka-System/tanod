@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Device;
 use App\Models\DeviceLocation;
+use App\Services\ActivityLogger;
 use App\Services\Jimi\JimiDeviceService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -95,12 +96,20 @@ class DeviceController extends Controller
     {
         $synced = $jimiDeviceService->syncDevicesFromJimi();
 
+        ActivityLogger::log('Device', 0, 'synced', [
+            'count' => $synced,
+        ], request()->user());
+
         return back()->with('success', "Synced {$synced} devices from JIMI.");
     }
 
     public function syncLocations(JimiDeviceService $jimiDeviceService)
     {
         $locations = $jimiDeviceService->fetchAndStoreLocations(forceRefresh: true);
+
+        ActivityLogger::log('Device', 0, 'synced_locations', [
+            'count' => count($locations),
+        ], request()->user());
 
         return back()->with('success', 'Synced locations for '.count($locations).' devices.');
     }

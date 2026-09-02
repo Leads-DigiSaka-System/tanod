@@ -7,6 +7,7 @@ use App\Models\Tractor;
 use App\Models\TractorDistribution;
 use App\Models\TractorGroup;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -151,6 +152,10 @@ class GroupController extends Controller
         $group->tractors()->sync($tractorIds);
         $this->syncTpsUsers($group, $tpsUserIds, $assignAllTps);
 
+        ActivityLogger::log('TractorGroup', $group->id, 'created', [
+            'name' => $group->name,
+        ], $request->user());
+
         return redirect()->route('groups.index')
             ->with('success', 'Group created successfully.');
     }
@@ -226,6 +231,10 @@ class GroupController extends Controller
             $this->syncTpsUsers($group, $tpsUserIds, $assignAllTps);
         }
 
+        ActivityLogger::log('TractorGroup', $group->id, 'updated', [
+            'name' => $group->name,
+        ], $request->user());
+
         return redirect()->route('groups.index')
             ->with('success', 'Group updated successfully.');
     }
@@ -235,6 +244,10 @@ class GroupController extends Controller
         $group->tractors()->detach();
         $group->users()->detach();
         $group->delete();
+
+        ActivityLogger::log('TractorGroup', $group->id, 'deleted', [
+            'name' => $group->name,
+        ], request()->user());
 
         return redirect()->route('groups.index')
             ->with('success', 'Group deleted successfully.');

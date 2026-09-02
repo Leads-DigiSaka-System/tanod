@@ -9,6 +9,7 @@ use App\Models\Booking;
 use App\Models\Tractor;
 use App\Models\User;
 use App\Models\TractorDistribution;
+use App\Services\ActivityLogger;
 use App\Services\Jimi\JimiTrackingService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -54,6 +55,11 @@ class BookingController extends Controller
         unset($data['is_member'], $data['fca_id'], $data['contact_name'], $data['contact_phone']);
 
         $booking = Booking::create($data);
+
+        ActivityLogger::log('Booking', $booking->id, 'created', [
+            'tractor_id' => $booking->tractor_id,
+            'status' => $booking->status,
+        ], $request->user());
 
         $recipientIds = User::role(['super-admin', 'sub-admin'])
             ->where('is_active', true)
@@ -430,6 +436,10 @@ class BookingController extends Controller
             'approved_by' => $request->user()->id,
         ]);
 
+        ActivityLogger::log('Booking', $booking->id, 'approved', [
+            'tractor_id' => $booking->tractor_id,
+        ], $request->user());
+
         // Notify the farmer
         \App\Models\Notification::create([
             'user_id' => $booking->booked_by,
@@ -457,6 +467,11 @@ class BookingController extends Controller
             'notes' => $request->reason,
         ]);
 
+        ActivityLogger::log('Booking', $booking->id, 'rejected', [
+            'tractor_id' => $booking->tractor_id,
+            'reason' => $request->reason,
+        ], $request->user());
+
         \App\Models\Notification::create([
             'user_id' => $booking->booked_by,
             'type' => 'booking_rejected',
@@ -480,6 +495,10 @@ class BookingController extends Controller
 
         $booking->update(['status' => 'cancelled']);
 
+        ActivityLogger::log('Booking', $booking->id, 'cancelled', [
+            'tractor_id' => $booking->tractor_id,
+        ], $request->user());
+
         return back()->with('success', 'Booking cancelled.');
     }
 
@@ -492,6 +511,10 @@ class BookingController extends Controller
         }
 
         $booking->delete();
+
+        ActivityLogger::log('Booking', $booking->id, 'deleted', [
+            'tractor_id' => $booking->tractor_id,
+        ], $user);
 
         return redirect()->route('bookings.index')
             ->with('success', 'Booking deleted successfully.');
