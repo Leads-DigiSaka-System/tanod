@@ -30,7 +30,7 @@ class DistributionController extends Controller
             $direction = 'desc';
         }
 
-        $distributions = TractorDistribution::with(['tractor', 'distributedToUser.fcaProfile', 'distributedByUser', 'tpsUser'])
+        $distributions = TractorDistribution::with(['tractor.device.latestLocation', 'distributedToUser.fcaProfile', 'distributedByUser', 'tpsUser'])
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->province, fn ($q, $p) => $q->where('area', 'like', "%{$p}%"))
             ->when($request->region, function ($q, $regionNumber) {

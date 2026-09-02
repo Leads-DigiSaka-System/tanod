@@ -8,6 +8,14 @@
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage and monitor all registered tractors.</p>
       </div>
       <div class="flex items-center gap-3 mt-4 sm:mt-0">
+        <button v-if="$page.props.auth.user.permissions.includes('tractors.edit') || $page.props.auth.user.permissions.includes('tractors.delete')" @click="openDuplicateModal()"
+          class="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+          style="background-color: #b45309;"
+          @mouseenter="$event.target.style.backgroundColor='#92400e'"
+          @mouseleave="$event.target.style.backgroundColor='#b45309'">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+          Duplicate IMEI
+        </button>
         <button v-if="activeTab === 'fca'" @click="openDistributeDrawer()"
           class="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
           style="background-color: #007f3d;"
@@ -796,6 +804,88 @@
       </template>
     </Modal>
 
+    <!-- ==================== DUPLICATE IMEI MODAL ==================== -->
+    <Modal :show="duplicateModalOpen" max-width="4xl" @close="closeDuplicateModal">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+          <span>Duplicate IMEI Detection</span>
+        </div>
+      </template>
+
+      <div class="max-h-[65vh] overflow-y-auto p-6 space-y-4">
+        <!-- Loading -->
+        <div v-if="duplicateLoading" class="flex flex-col items-center justify-center py-12 gap-3">
+          <svg class="animate-spin h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <p class="text-sm font-medium text-gray-500 dark:text-gray-400 animate-pulse">Scanning tractors for duplicate IMEI...</p>
+        </div>
+
+        <!-- Error -->
+        <div v-else-if="duplicateError" class="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4">
+          <p class="text-sm text-red-700 dark:text-red-400">{{ duplicateError }}</p>
+        </div>
+
+        <!-- Empty -->
+        <div v-else-if="!duplicateGroups.length" class="py-12 text-center">
+          <svg class="mx-auto h-12 w-12 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p class="mt-4 text-sm font-medium text-gray-900 dark:text-white">No duplicate IMEIs found</p>
+          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">All tractors have unique IMEI values.</p>
+        </div>
+
+        <!-- Groups -->
+        <template v-else>
+          <div v-for="group in duplicateGroups" :key="group.imei"
+            class="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+              <div>
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">IMEI: {{ group.imei || '—' }}</p>
+                <p class="text-xs text-amber-700 dark:text-amber-400">{{ group.count }} tractor{{ group.count !== 1 ? 's' : '' }} share this IMEI</p>
+              </div>
+              <span class="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold text-white bg-amber-500">{{ group.count }}</span>
+            </div>
+            <div class="divide-y divide-gray-100 dark:divide-gray-700">
+              <div v-for="tractor in group.tractors" :key="tractor.id"
+                class="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3">
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ tractor.no_plate }}</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ tractor.name || '—' }} · {{ [tractor.brand, tractor.model].filter(Boolean).join(' ') || '—' }}
+                  </p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input v-model="imeiInputs[tractor.id]" type="text" placeholder="IMEI"
+                    class="w-48 rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
+                  <button type="button" @click="saveImei(tractor)" :disabled="imeiSaving[tractor.id]"
+                    class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg v-if="imeiSaving[tractor.id]" class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                    {{ imeiSaving[tractor.id] ? 'Saving...' : 'Save' }}
+                  </button>
+                  <button type="button" @click="deleteDuplicate(tractor)" :disabled="imeiDeleting[tractor.id]"
+                    class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg v-if="imeiDeleting[tractor.id]" class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                    {{ imeiDeleting[tractor.id] ? 'Deleting...' : 'Delete' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <template #footer>
+        <button type="button" @click="closeDuplicateModal"
+          class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">Close</button>
+        <span v-if="duplicateGroups.length" class="ml-auto text-sm text-gray-500 dark:text-gray-400">
+          {{ duplicateGroups.length }} IMEI group{{ duplicateGroups.length !== 1 ? 's' : '' }} with duplicates
+        </span>
+      </template>
+    </Modal>
+
   </AppLayout>
 </template>
 
@@ -986,11 +1076,9 @@ const applyDeletedFilter = () => {
   }, { preserveState: true, replace: true });
 };
 
-// --- Online status ---
+// --- Online status (JIMI status flag: 1 = online, e.g. parked/moving) ---
 const getOnlineStatus = (tractor) => {
-  if (!tractor.device?.latest_location?.heartbeat_at) return 'offline';
-  const heartbeat = new Date(tractor.device.latest_location.heartbeat_at);
-  return (Date.now() - heartbeat.getTime()) < 600000 ? 'online' : 'offline';
+  return Number(tractor.device?.latest_location?.status) === 1 ? 'online' : 'offline';
 };
 
 // --- Drawer (FCA distribute only) ---
@@ -1297,5 +1385,73 @@ const confirmForceDelete = () => {
       forceDeleteProcessing.value = false;
     },
   });
+};
+
+// ── Duplicate IMEI Modal ──
+const duplicateModalOpen = ref(false);
+const duplicateLoading = ref(false);
+const duplicateError = ref(null);
+const duplicateGroups = ref([]);
+const imeiInputs = ref({});
+const imeiSaving = ref({});
+const imeiDeleting = ref({});
+
+const loadDuplicates = async () => {
+  const { data } = await axios.get('/tractors/duplicates');
+  duplicateGroups.value = data.data;
+  imeiInputs.value = {};
+  data.data.forEach((group) => group.tractors.forEach((t) => { imeiInputs.value[t.id] = t.imei; }));
+};
+
+const openDuplicateModal = async () => {
+  duplicateModalOpen.value = true;
+  duplicateLoading.value = true;
+  duplicateError.value = null;
+  duplicateGroups.value = [];
+  imeiInputs.value = {};
+
+  try {
+    await loadDuplicates();
+  } catch (err) {
+    duplicateError.value = err.response?.data?.message || 'Failed to load duplicate IMEI data.';
+  } finally {
+    duplicateLoading.value = false;
+  }
+};
+
+const closeDuplicateModal = () => {
+  duplicateModalOpen.value = false;
+  duplicateGroups.value = [];
+  imeiInputs.value = {};
+  duplicateError.value = null;
+};
+
+const saveImei = async (tractor) => {
+  const newImei = (imeiInputs.value[tractor.id] || '').trim();
+  if (!newImei) return;
+
+  imeiSaving.value = { ...imeiSaving.value, [tractor.id]: true };
+  try {
+    await axios.post(`/tractors/${tractor.id}/update-imei`, { imei: newImei });
+    await loadDuplicates();
+  } catch (err) {
+    window.alert(err.response?.data?.errors?.imei?.[0] || err.response?.data?.message || 'Failed to update IMEI.');
+  } finally {
+    imeiSaving.value = { ...imeiSaving.value, [tractor.id]: false };
+  }
+};
+
+const deleteDuplicate = async (tractor) => {
+  if (!window.confirm(`Delete tractor ${tractor.no_plate}? This will remove it from the system.`)) return;
+
+  imeiDeleting.value = { ...imeiDeleting.value, [tractor.id]: true };
+  try {
+    await axios.delete(`/tractors/${tractor.id}/quick-delete`);
+    await loadDuplicates();
+  } catch (err) {
+    window.alert(err.response?.data?.message || 'Failed to delete tractor.');
+  } finally {
+    imeiDeleting.value = { ...imeiDeleting.value, [tractor.id]: false };
+  }
 };
 </script>

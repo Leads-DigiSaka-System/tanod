@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class TractorController extends Controller
@@ -486,6 +487,91 @@ class TractorController extends Controller
         ], request()->user());
 
         return back()->with('success', 'Image removed.');
+    }
+
+    /**
+     * Return tractors grouped by duplicated IMEI values.
+     */
+    public function duplicates()
+    {
+        $duplicateImeis = Tractor::whereNotNull('imei')
+            ->select('imei')
+            ->groupBy('imei')
+            ->havingRaw('COUNT(*) > 1')
+            ->pluck('imei');
+
+        $tractors = Tractor::whereIn('imei', $duplicateImeis)
+            ->orderBy('imei')
+            ->orderBy('id')
+            ->get(['id', 'imei', 'no_plate', 'name', 'brand', 'model', 'created_at']);
+
+        $groups = $tractors->groupBy('imei')->map(fn ($items, $imei) => [
+            'imei' => $imei,
+            'count' => $items->count(),
+            'tractors' => $items->map(fn ($t) => [
+                'id' => $t->id,
+                'imei' => $t->imei,
+                'no_plate' => $t->no_plate,
+                'name' => $t->name,
+                'brand' => $t->brand,
+                'model' => $t->model,
+                'created_at' => $t->created_at?->toIso8601String(),
+            ])->values(),
+        ])->values();
+
+        return response()->json(['data' => $groups]);
+    }
+
+    /**
+     * Update a tractor's IMEI (used by the duplicate IMEI cleanup modal).
+     */
+    public function updateImei(Request $request, Tractor $tractor)
+    {
+        $data = $request->validate([
+            'imei' => ['required', 'string', 'max:255', Rule::unique('tractors', 'imei')->ignore($tractor->id)->whereNull('deleted_at')],
+        ]);
+
+        $tractor->update(['imei' => $data['imei']]);
+
+        ActivityLogger::log('Tractor', $tractor->id, 'imei_updated', [
+            'no_plate' => $tractor->no_plate,
+            'imei' => $data['imei'],
+        ], $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'IMEI updated successfully.',
+        ]);
+    }
+
+    /**
+     * Soft-delete a tractor and return JSON (used by the duplicate IMEI cleanup modal).
+     */
+    public function quickDelete(Tractor $tractor)
+    {
+        $tractor->images->each(function ($img) {
+            Storage::disk('public')->delete($img->path);
+        });
+        $tractor->images()->delete();
+
+        $tractor->alerts()->delete();
+
+        if ($tractor->device) {
+            $tractor->device->update(['is_active' => false]);
+            $tractor->device->delete();
+        }
+
+        $tractor->delete();
+
+        ActivityLogger::log('Tractor', $tractor->id, 'deleted', [
+            'no_plate' => $tractor->no_plate,
+            'name' => $tractor->name,
+        ], request()->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tractor deleted successfully.',
+        ]);
     }
 
     public function distribute(Request $request)

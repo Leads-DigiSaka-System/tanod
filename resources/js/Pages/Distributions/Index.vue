@@ -53,6 +53,7 @@
               class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600" />
           </th>
           <th scope="col" class="px-6 py-3 whitespace-nowrap">Tractor</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">GPS Status</th>
           <th scope="col" class="px-6 py-3 whitespace-nowrap">Distributed To</th>
           <th scope="col" class="px-6 py-3 whitespace-nowrap">Distributed By</th>
           <SortableTh label="Area" field="area" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
@@ -71,6 +72,17 @@
           <td class="px-6 py-4 whitespace-nowrap">
             <div class="text-sm font-medium text-gray-900 dark:text-white">{{ dist.tractor?.brand }} {{ dist.tractor?.model }}</div>
             <div class="text-xs text-gray-500 dark:text-gray-400">{{ dist.tractor?.no_plate || '—' }}</div>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="relative flex h-2.5 w-2.5">
+                <span v-if="getOnlineStatus(dist.tractor) === 'online'" class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex h-2.5 w-2.5 rounded-full" :class="getOnlineStatus(dist.tractor) === 'online' ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'"></span>
+              </span>
+              <span class="text-sm" :class="getOnlineStatus(dist.tractor) === 'online' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'">
+                {{ getOnlineStatus(dist.tractor) === 'online' ? 'Online' : 'Offline' }}
+              </span>
+            </span>
           </td>
           <td class="px-6 py-4 whitespace-nowrap">{{ dist.distributed_to_user?.organization_name || dist.distributed_to_user?.name || '—' }}</td>
           <td class="px-6 py-4 whitespace-nowrap">{{ dist.distributed_by_user?.name || '—' }}</td>
@@ -94,7 +106,7 @@
 
         <!-- Empty state -->
         <tr v-if="!distributions.data?.length">
-          <td colspan="8" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No distributions found.</td>
+          <td colspan="9" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No distributions found.</td>
         </tr>
       </template>
     </DataTable>
@@ -402,11 +414,9 @@ const perPage = ref(props.filters?.per_page || 15);
 const sortField = ref(props.filters?.sort || 'distribution_date');
 const sortDirection = ref(props.filters?.direction || 'desc');
 
-// --- Online status (heartbeat within 10 minutes) ---
+// --- Online status (JIMI status flag: 1 = online, e.g. parked/moving) ---
 const getOnlineStatus = (tractor) => {
-  if (!tractor.device?.latest_location?.heartbeat_at) return 'offline';
-  const heartbeat = new Date(tractor.device.latest_location.heartbeat_at);
-  return (Date.now() - heartbeat.getTime()) < 600000 ? 'online' : 'offline';
+  return Number(tractor.device?.latest_location?.status) === 1 ? 'online' : 'offline';
 };
 
 let timer;

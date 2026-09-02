@@ -74,12 +74,15 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::put('/profile/password', [AuthController::class, 'changePassword'])->name('profile.password');
 
     // Tractors
+    Route::get('tractors/duplicates', [TractorController::class, 'duplicates'])->name('tractors.duplicates');
     Route::resource('tractors', TractorController::class);
     Route::post('tractors/batch-delete-check', [TractorController::class, 'batchDeleteCheck'])->name('tractors.batch-delete-check');
     Route::post('tractors/batch-destroy', [TractorController::class, 'batchDestroy'])->name('tractors.batch-destroy');
     Route::post('tractors/batch-update', [TractorController::class, 'batchUpdate'])->name('tractors.batch-update');
     Route::delete('tractors/batch-destroy', [TractorController::class, 'batchDestroy'])->name('tractors.batch-destroy.delete');
     Route::get('tractors/{tractor}/delete-check', [TractorController::class, 'deleteCheck'])->name('tractors.delete-check');
+    Route::post('tractors/{tractor}/update-imei', [TractorController::class, 'updateImei'])->name('tractors.update-imei');
+    Route::delete('tractors/{tractor}/quick-delete', [TractorController::class, 'quickDelete'])->name('tractors.quick-delete');
     Route::delete('tractors/{tractor}/images/{image}', [TractorController::class, 'deleteImage'])->name('tractors.images.destroy');
     Route::post('tractors/distribute', [TractorController::class, 'distribute'])->name('tractors.distribute');
     Route::post('tractors/{tractor}/restore', [TractorController::class, 'restore'])->name('tractors.restore');
