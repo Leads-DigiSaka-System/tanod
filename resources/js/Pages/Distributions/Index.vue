@@ -18,19 +18,45 @@
         </div>
         <div>
           <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Region</label>
-          <select v-model="regionFilter" @change="applyFilter"
-            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500">
-            <option value="">All Regions</option>
-            <option v-for="reg in regions" :key="reg" :value="reg">{{ reg }}</option>
-          </select>
+          <div class="relative">
+            <button type="button" @click="toggleRegionDropdown"
+              class="flex items-center justify-between gap-2 w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-indigo-500 focus:border-indigo-500">
+              <span class="truncate text-left">{{ regionLabel }}</span>
+              <svg class="w-4 h-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div v-if="regionDropdownOpen" class="fixed inset-0 z-10" @click="regionDropdownOpen = false"></div>
+            <div v-if="regionDropdownOpen" class="absolute z-20 mt-1 w-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-lg max-h-56 overflow-y-auto">
+              <label class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700">
+                <input type="checkbox" :checked="regionFilter.length === 0" @change="toggleAllRegions" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600" />
+                <span class="font-medium">All Regions</span>
+              </label>
+              <label v-for="reg in regions" :key="reg" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
+                <input type="checkbox" :value="String(reg)" v-model="regionFilter" @change="onRegionChange" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600" />
+                <span>{{ reg }}</span>
+              </label>
+            </div>
+          </div>
         </div>
         <div>
           <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Province / Area</label>
-          <select v-model="provinceFilter" @change="applyFilter"
-            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500">
-            <option value="">All Provinces</option>
-            <option v-for="prov in provinces" :key="prov" :value="prov">{{ prov }}</option>
-          </select>
+          <div class="relative">
+            <button type="button" @click="toggleProvinceDropdown"
+              class="flex items-center justify-between gap-2 w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-indigo-500 focus:border-indigo-500">
+              <span class="truncate text-left">{{ provinceLabel }}</span>
+              <svg class="w-4 h-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div v-if="provinceDropdownOpen" class="fixed inset-0 z-10" @click="provinceDropdownOpen = false"></div>
+            <div v-if="provinceDropdownOpen" class="absolute z-20 mt-1 w-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-lg max-h-56 overflow-y-auto">
+              <label class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700">
+                <input type="checkbox" :checked="provinceFilter.length === 0" @change="toggleAllProvinces" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600" />
+                <span class="font-medium">All Provinces</span>
+              </label>
+              <label v-for="prov in provinces" :key="prov" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
+                <input type="checkbox" :value="String(prov)" v-model="provinceFilter" @change="onProvinceChange" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600" />
+                <span>{{ prov }}</span>
+              </label>
+            </div>
+          </div>
         </div>
         <div>
           <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Status</label>
@@ -406,10 +432,31 @@ const props = defineProps({
 });
 
 // --- Filters & Sort ---
+const asArray = (value) => {
+  if (Array.isArray(value)) return value.map(String);
+  if (value === null || value === undefined || value === '') return [];
+  return [String(value)];
+};
+
 const search = ref(props.filters?.search || '');
 const statusFilter = ref(props.filters?.status || '');
-const provinceFilter = ref(props.filters?.province || '');
-const regionFilter = ref(props.filters?.region || '');
+const provinceFilter = ref(asArray(props.filters?.province));
+const regionFilter = ref(asArray(props.filters?.region));
+const regionDropdownOpen = ref(false);
+const provinceDropdownOpen = ref(false);
+
+const regionLabel = computed(() => {
+  const n = regionFilter.value.length;
+  if (n === 0) return 'All Regions';
+  return n === 1 ? '1 region selected' : `${n} regions selected`;
+});
+
+const provinceLabel = computed(() => {
+  const n = provinceFilter.value.length;
+  if (n === 0) return 'All Provinces';
+  return n === 1 ? '1 province selected' : `${n} provinces selected`;
+});
+
 const perPage = ref(props.filters?.per_page || 15);
 const sortField = ref(props.filters?.sort || 'distribution_date');
 const sortDirection = ref(props.filters?.direction || 'desc');
@@ -436,13 +483,29 @@ const applyFilter = () => {
   router.get('/distributions', {
     search: search.value || undefined,
     status: statusFilter.value || undefined,
-    province: provinceFilter.value || undefined,
-    region: regionFilter.value || undefined,
+    province: provinceFilter.value.length ? provinceFilter.value : undefined,
+    region: regionFilter.value.length ? regionFilter.value : undefined,
     per_page: perPage.value,
     sort: sortField.value || undefined,
     direction: sortDirection.value || undefined,
   }, { preserveState: true, replace: true });
 };
+
+const toggleRegionDropdown = () => { regionDropdownOpen.value = !regionDropdownOpen.value; };
+const toggleProvinceDropdown = () => { provinceDropdownOpen.value = !provinceDropdownOpen.value; };
+
+const toggleAllRegions = () => {
+  regionFilter.value = [];
+  applyFilter();
+};
+
+const toggleAllProvinces = () => {
+  provinceFilter.value = [];
+  applyFilter();
+};
+
+const onRegionChange = () => applyFilter();
+const onProvinceChange = () => applyFilter();
 
 // --- Slide-over ---
 const showSlideOver = ref(false);

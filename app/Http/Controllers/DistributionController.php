@@ -32,25 +32,39 @@ class DistributionController extends Controller
 
         $distributions = TractorDistribution::with(['tractor.device.latestLocation', 'distributedToUser.fcaProfile', 'distributedByUser', 'tpsUser'])
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
-            ->when($request->province, fn ($q, $p) => $q->where('area', 'like', "%{$p}%"))
-            ->when($request->region, function ($q, $regionNumber) {
-                $regionCode = DB::table('philippine_regions')
-                    ->where('region_number', $regionNumber)
-                    ->value('region_code');
+            ->when($request->filled('province'), function ($q) use ($request) {
+                $provinceFilters = (array) $request->province;
 
-                if ($regionCode) {
-                    $provinces = DB::table('philippine_provinces')
-                        ->where('region_code', $regionCode)
-                        ->pluck('province_description')
-                        ->toArray();
-
-                    if (! empty($provinces)) {
-                        $q->where(function ($q) use ($provinces) {
-                            foreach ($provinces as $province) {
-                                $q->orWhere('area', 'like', "%{$province}%");
-                            }
-                        });
+                $q->where(function ($q) use ($provinceFilters) {
+                    foreach ($provinceFilters as $province) {
+                        $q->orWhere('area', 'like', "%{$province}%");
                     }
+                });
+            })
+            ->when($request->filled('region'), function ($q) use ($request) {
+                $provinceNames = [];
+
+                foreach ((array) $request->region as $regionNumber) {
+                    $regionCode = DB::table('philippine_regions')
+                        ->where('region_number', $regionNumber)
+                        ->value('region_code');
+
+                    if ($regionCode) {
+                        $provinceNames = array_merge($provinceNames, DB::table('philippine_provinces')
+                            ->where('region_code', $regionCode)
+                            ->pluck('province_description')
+                            ->toArray());
+                    }
+                }
+
+                $provinceNames = array_values(array_unique($provinceNames));
+
+                if (! empty($provinceNames)) {
+                    $q->where(function ($q) use ($provinceNames) {
+                        foreach ($provinceNames as $province) {
+                            $q->orWhere('area', 'like', "%{$province}%");
+                        }
+                    });
                 }
             })
             ->when($request->search, fn ($q, $s) => $q->where(function ($q) use ($s) {
