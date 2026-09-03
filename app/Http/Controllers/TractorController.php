@@ -448,6 +448,52 @@ class TractorController extends Controller
             ->with('success', $count.' '.str('tractor')->plural($count).' updated successfully.');
     }
 
+    /**
+     * Sync no_plate values for the selected tractors using the VL103M-{last 5 IMEI} format.
+     */
+    public function syncNoPlates(Request $request)
+    {
+        $data = $request->validate([
+            'tractor_ids' => 'required|array|min:1',
+            'tractor_ids.*' => 'required|exists:tractors,id',
+        ]);
+
+        $tractors = Tractor::whereIn('id', $data['tractor_ids'])->get();
+
+        $updated = 0;
+        $skipped = 0;
+
+        foreach ($tractors as $tractor) {
+            if (empty($tractor->imei) || strlen($tractor->imei) < 5) {
+                $skipped++;
+                continue;
+            }
+
+            $newPlate = 'VL103M-'.substr($tractor->imei, -5);
+
+            if ($tractor->no_plate === $newPlate) {
+                continue;
+            }
+
+            $oldPlate = $tractor->no_plate;
+            $tractor->update(['no_plate' => $newPlate]);
+            $updated++;
+
+            ActivityLogger::log('Tractor', $tractor->id, 'no_plate_synced', [
+                'old_no_plate' => $oldPlate,
+                'no_plate' => $newPlate,
+            ], $request->user());
+        }
+
+        $message = $updated.' '.str('tractor')->plural($updated).' synced with new no. plate.';
+        if ($skipped > 0) {
+            $message .= ' '.$skipped.' '.str('tractor')->plural($skipped).' skipped (no valid IMEI).';
+        }
+
+        return redirect()->route('tractors.index')
+            ->with($updated > 0 ? 'success' : 'error', $message);
+    }
+
     public function destroy(Tractor $tractor)
     {
         $tractor->images->each(function ($img) {

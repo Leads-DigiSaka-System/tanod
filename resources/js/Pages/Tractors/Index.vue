@@ -722,6 +722,15 @@
             Only fields you fill in will be updated. Leave a field blank to keep its current value.
           </p>
 
+          <div class="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3">
+            <div class="flex items-start gap-2">
+              <svg class="w-5 h-5 shrink-0 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <p class="text-sm text-amber-700 dark:text-amber-400">
+                Use <strong>Sync No. Plate</strong> to set each selected tractor's plate number to <code class="font-mono">VL103M-(last 5 digits of IMEI)</code>.
+              </p>
+            </div>
+          </div>
+
           <div>
             <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Brand</label>
             <input v-model="generalEditForm.brand" type="text" placeholder="Leave blank to keep current"
@@ -754,6 +763,15 @@
         </div>
 
         <div class="sticky bottom-0 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 px-6 py-4 flex justify-end gap-3">
+          <button type="button" @click="syncNoPlates" :disabled="syncPlatesProcessing || !generalEditForm.tractor_ids.length"
+            class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            style="background-color: #b45309;"
+            @mouseenter="!syncPlatesProcessing && ($event.target.style.backgroundColor='#92400e')"
+            @mouseleave="!syncPlatesProcessing && ($event.target.style.backgroundColor='#b45309')">
+            <svg v-if="syncPlatesProcessing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            {{ syncPlatesProcessing ? 'Syncing...' : 'Sync No. Plate' }}
+          </button>
           <button type="button" @click="closeGeneralEditDrawer"
             class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">Cancel</button>
           <button type="submit" :disabled="generalEditForm.processing"
@@ -1152,6 +1170,30 @@ const submitGeneralEdit = () => {
     onSuccess: () => {
       closeGeneralEditDrawer();
       clearSelection();
+    },
+  });
+};
+
+// ── Sync No. Plate (VL103M-{last 5 IMEI}) ──
+const syncPlatesProcessing = ref(false);
+
+const syncNoPlates = () => {
+  const ids = generalEditForm.tractor_ids;
+  if (!ids.length) return;
+
+  if (!window.confirm(`Set no. plate of ${ids.length} selected tractor${ids.length !== 1 ? 's' : ''} to VL103M-(last 5 digits of IMEI)?`)) {
+    return;
+  }
+
+  syncPlatesProcessing.value = true;
+  router.post('/tractors/sync-no-plates', { tractor_ids: ids }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      syncPlatesProcessing.value = false;
+      closeGeneralEditDrawer();
+    },
+    onError: () => {
+      syncPlatesProcessing.value = false;
     },
   });
 };

@@ -25,7 +25,7 @@ class UpdateTractorRequest extends FormRequest
             'model' => 'required|string|max:100',
             'fuel_consumption' => 'nullable|numeric|min:0',
             'manufacture_date' => 'nullable|date',
-            'installation_time' => 'required|date',
+            'installation_time' => 'nullable|date',
             'installation_address' => 'nullable|string|max:500',
             'max_speed' => 'nullable|numeric|min:0',
             'maintenance_km' => 'nullable|numeric|min:0',
