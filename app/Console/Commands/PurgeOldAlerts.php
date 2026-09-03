@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Alert;
+use App\Services\AlertSummaryService;
 use Illuminate\Console\Command;
 
 class PurgeOldAlerts extends Command
@@ -47,6 +48,8 @@ class PurgeOldAlerts extends Command
 
             $deleted += Alert::query()->whereKey($ids)->delete();
         } while ($ids->count() === $chunkSize);
+
+        AlertSummaryService::recalculate();
 
         $this->info("Deleted {$deleted} alert(s) older than {$cutoff->toDateTimeString()}.");
 
