@@ -139,6 +139,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Alerts
     Route::get('alerts', [AlertController::class, 'index'])->name('alerts.index');
+    Route::post('alerts/purge', [AlertController::class, 'purge'])->name('alerts.purge');
     Route::post('alerts/{alert}/acknowledge', [AlertController::class, 'acknowledge'])->name('alerts.acknowledge');
     Route::post('alerts/acknowledge-all', [AlertController::class, 'acknowledgeAll'])->name('alerts.acknowledge-all');
     Route::delete('alerts/{alert}', [AlertController::class, 'destroy'])->name('alerts.destroy');

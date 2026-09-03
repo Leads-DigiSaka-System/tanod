@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Alert;
 use App\Models\AlertSummary;
 use App\Services\ActivityLogger;
+use App\Services\AlertPurgeService;
 use App\Services\AlertSummaryService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -79,6 +80,23 @@ class AlertController extends Controller
         ActivityLogger::log('Alert', 0, 'acknowledged_all', null, $request->user());
 
         return back()->with('success', 'All alerts acknowledged.');
+    }
+
+    public function purge()
+    {
+        $deleted = AlertPurgeService::purge(30);
+
+        AlertSummaryService::recalculate();
+
+        ActivityLogger::log('Alert', 0, 'purged_old', [
+            'deleted' => $deleted,
+        ], request()->user());
+
+        $message = $deleted > 0
+            ? $deleted.' '.str('alert')->plural($deleted).' older than 30 days deleted.'
+            : 'No alerts older than 30 days to delete.';
+
+        return back()->with('success', $message);
     }
 
     public function destroy(Alert $alert)
