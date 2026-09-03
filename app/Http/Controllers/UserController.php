@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -111,6 +112,12 @@ class UserController extends Controller
             $this->clearTpsGroupAssignments($user);
         }
 
+        ActivityLogger::log('User', $user->id, 'created', [
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $role,
+        ], $request->user());
+
         return redirect()->route('users.index')
             ->with('success', 'User created successfully.');
     }
@@ -167,6 +174,12 @@ class UserController extends Controller
             $this->clearTpsGroupAssignments($user);
         }
 
+        ActivityLogger::log('User', $user->id, 'updated', [
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $role,
+        ], $request->user());
+
         return redirect()->route('users.index')
             ->with('success', 'User updated successfully.');
     }
@@ -176,6 +189,11 @@ class UserController extends Controller
         $user->update(['is_active' => ! $user->is_active]);
 
         $status = $user->is_active ? 'activated' : 'deactivated';
+
+        ActivityLogger::log('User', $user->id, $status, [
+            'name' => $user->name,
+            'email' => $user->email,
+        ], request()->user());
 
         return back()->with('success', "User {$status} successfully.");
     }
@@ -188,6 +206,11 @@ class UserController extends Controller
             Storage::disk('public')->delete($user->profile_photo_path);
         }
         $user->delete();
+
+        ActivityLogger::log('User', $user->id, 'deleted', [
+            'name' => $user->name,
+            'email' => $user->email,
+        ], auth()->user());
 
         return redirect()->route('users.index')
             ->with('success', 'User deleted successfully.');

@@ -10,11 +10,19 @@
     </div>
 
     <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6 dark:bg-gray-800 dark:border-gray-700">
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Search</label>
           <input v-model="search" type="text" placeholder="Search tractor, user, area..." @input="debouncedFilter"
             class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500" />
+        </div>
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Region</label>
+          <select v-model="regionFilter" @change="applyFilter"
+            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500">
+            <option value="">All Regions</option>
+            <option v-for="reg in regions" :key="reg" :value="reg">{{ reg }}</option>
+          </select>
         </div>
         <div>
           <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Province / Area</label>
@@ -45,11 +53,12 @@
               class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600" />
           </th>
           <th scope="col" class="px-6 py-3 whitespace-nowrap">Tractor</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">GPS Status</th>
           <th scope="col" class="px-6 py-3 whitespace-nowrap">Distributed To</th>
           <th scope="col" class="px-6 py-3 whitespace-nowrap">Distributed By</th>
-          <th scope="col" class="px-6 py-3 whitespace-nowrap">Area</th>
-          <th scope="col" class="px-6 py-3 whitespace-nowrap">Status</th>
-          <th scope="col" class="px-6 py-3 whitespace-nowrap">Date</th>
+          <SortableTh label="Area" field="area" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
+          <SortableTh label="Status" field="status" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
+          <SortableTh label="Date" field="distribution_date" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
           <th scope="col" class="px-6 py-3 text-right whitespace-nowrap">Actions</th>
         </tr>
       </template>
@@ -60,10 +69,22 @@
             <input type="checkbox" :checked="selectedIsChecked(dist.id)" @click="toggleSelect(dist.id, $event)"
               class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600" />
           </td>
-          <td class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">
-            {{ dist.tractor?.brand }} {{ dist.tractor?.model }} — {{ dist.tractor?.no_plate }}
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ dist.tractor?.brand }} {{ dist.tractor?.model }}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">{{ dist.tractor?.no_plate || '—' }}</div>
           </td>
-          <td class="px-6 py-4 whitespace-nowrap">{{ dist.distributed_to_user?.name || '—' }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="relative flex h-2.5 w-2.5">
+                <span v-if="getOnlineStatus(dist.tractor) === 'online'" class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex h-2.5 w-2.5 rounded-full" :class="getOnlineStatus(dist.tractor) === 'online' ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'"></span>
+              </span>
+              <span class="text-sm" :class="getOnlineStatus(dist.tractor) === 'online' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'">
+                {{ getOnlineStatus(dist.tractor) === 'online' ? 'Online' : 'Offline' }}
+              </span>
+            </span>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ dist.distributed_to_user?.organization_name || dist.distributed_to_user?.name || '—' }}</td>
           <td class="px-6 py-4 whitespace-nowrap">{{ dist.distributed_by_user?.name || '—' }}</td>
           <td class="px-6 py-4 whitespace-nowrap">{{ dist.area || '—' }}</td>
           <td class="px-6 py-4 whitespace-nowrap"><StatusBadge :status="dist.status" /></td>
@@ -85,12 +106,27 @@
 
         <!-- Empty state -->
         <tr v-if="!distributions.data?.length">
-          <td colspan="8" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No distributions found.</td>
+          <td colspan="9" class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No distributions found.</td>
         </tr>
       </template>
     </DataTable>
 
-    <Pagination :links="distributions.links" class="mt-6" />
+    <div class="flex items-center justify-between mt-6">
+      <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+        <span>Show</span>
+        <select v-model="perPage" @change="applyFilter"
+          class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 px-2 py-1.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+          <option :value="15">15</option>
+          <option :value="50">50</option>
+          <option :value="100">100</option>
+          <option :value="200">200</option>
+          <option :value="500">500</option>
+          <option :value="1000">1000</option>
+        </select>
+        <span>entries</span>
+      </div>
+      <Pagination :links="distributions.links" />
+    </div>
 
     <!-- Floating multi-select bar -->
     <Transition
@@ -108,11 +144,13 @@
         <button @click="clearSelection" class="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
           Clear
         </button>
+        <button @click="exportSelected"
+          class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-emerald-600 hover:bg-emerald-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Export XLSX
+        </button>
         <button @click="openBatchReturnModal"
-          class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors"
-          style="background-color: #d97706;"
-          @mouseenter="$event.target.style.backgroundColor='#b45309'"
-          @mouseleave="$event.target.style.backgroundColor='#d97706'">
+          class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-amber-600 hover:bg-amber-700">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
           Return Selected
         </button>
@@ -175,10 +213,7 @@
           </label>
         </div>
         <button type="button" @click="confirmBatchReturn" :disabled="!batchReturnConfirm || batchReturnProcessing"
-          class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          style="background-color: #d97706;"
-          @mouseenter="!batchReturnProcessing && batchReturnConfirm && ($event.target.style.backgroundColor='#b45309')"
-          @mouseleave="!batchReturnProcessing && ($event.target.style.backgroundColor='#d97706')">
+          class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-amber-600 hover:bg-amber-700">
           <svg v-if="batchReturnProcessing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
           <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
           {{ batchReturnProcessing ? 'Returning...' : 'Return All' }}
@@ -301,10 +336,7 @@
           <button type="button" @click="closeSlideOver"
             class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">Cancel</button>
           <button type="submit" :disabled="form.processing"
-            class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            style="background-color: #007f3d;"
-            @mouseenter="!form.processing && ($event.target.style.backgroundColor='#006631')"
-            @mouseleave="!form.processing && ($event.target.style.backgroundColor='#007f3d')">
+            class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-emerald-700 hover:bg-emerald-800">
             <svg v-if="form.processing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
             {{ form.processing ? 'Saving...' : (editingDistribution ? 'Update' : 'Distribute') }}
           </button>
@@ -315,7 +347,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, h } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
@@ -326,35 +358,89 @@ import DataTable from '@/Components/DataTable.vue';
 import { formatDate } from '@/utils/dateFormat';
 import axios from 'axios';
 
+// ── Sortable Table Header Component ──
+const SortableTh = {
+  props: {
+    label: String,
+    field: String,
+    sortField: String,
+    sortDirection: String,
+  },
+  emits: ['sort'],
+  setup(props, { emit }) {
+    const isActive = computed(() => props.sortField === props.field);
+
+    return () => h('th', {
+      scope: 'col',
+      class: 'px-6 py-3 whitespace-nowrap cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group',
+      onClick: () => emit('sort', props.field),
+    }, [
+      h('span', { class: 'inline-flex items-center gap-1.5' }, [
+        h('span', { class: 'text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors' }, props.label),
+        h('span', { class: 'flex flex-col leading-none text-gray-400 dark:text-gray-500' }, [
+          h('span', {
+            class: isActive.value && props.sortDirection === 'asc'
+              ? 'text-indigo-600 dark:text-indigo-400 font-bold'
+              : 'group-hover:text-gray-600 dark:group-hover:text-gray-300',
+          }, '\u25B2'),
+          h('span', {
+            class: isActive.value && props.sortDirection === 'desc'
+              ? 'text-indigo-600 dark:text-indigo-400 font-bold'
+              : 'group-hover:text-gray-600 dark:group-hover:text-gray-300',
+          }, '\u25BC'),
+        ]),
+      ]),
+    ]);
+  },
+};
+
 const props = defineProps({
   distributions: Object,
   filters: Object,
   provinces: Array,
+  regions: Array,
   tractors: Array,
   fcaUsers: Array,
   tpsUsers: Array,
   editDistribution: { type: Object, default: null },
 });
 
-// --- Filters ---
+// --- Filters & Sort ---
 const search = ref(props.filters?.search || '');
 const statusFilter = ref(props.filters?.status || '');
 const provinceFilter = ref(props.filters?.province || '');
+const regionFilter = ref(props.filters?.region || '');
+const perPage = ref(props.filters?.per_page || 15);
+const sortField = ref(props.filters?.sort || 'distribution_date');
+const sortDirection = ref(props.filters?.direction || 'desc');
 
-// --- Online status (heartbeat within 10 minutes) ---
+// --- Online status (JIMI status flag: 1 = online, e.g. parked/moving) ---
 const getOnlineStatus = (tractor) => {
-  if (!tractor.device?.latest_location?.heartbeat_at) return 'offline';
-  const heartbeat = new Date(tractor.device.latest_location.heartbeat_at);
-  return (Date.now() - heartbeat.getTime()) < 600000 ? 'online' : 'offline';
+  return Number(tractor.device?.latest_location?.status) === 1 ? 'online' : 'offline';
 };
 
 let timer;
 const debouncedFilter = () => { clearTimeout(timer); timer = setTimeout(applyFilter, 300); };
+
+const sortBy = (field) => {
+  if (sortField.value === field) {
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortField.value = field;
+    sortDirection.value = 'asc';
+  }
+  applyFilter();
+};
+
 const applyFilter = () => {
   router.get('/distributions', {
     search: search.value || undefined,
     status: statusFilter.value || undefined,
     province: provinceFilter.value || undefined,
+    region: regionFilter.value || undefined,
+    per_page: perPage.value,
+    sort: sortField.value || undefined,
+    direction: sortDirection.value || undefined,
   }, { preserveState: true, replace: true });
 };
 
@@ -484,6 +570,36 @@ const openBatchReturnModal = () => {
   batchReturnConfirm.value = false;
   batchReturnError.value = '';
   batchReturnModalOpen.value = true;
+};
+
+const exportSelected = () => {
+  const ids = Object.keys(selectedIds.value).map(Number);
+  if (ids.length === 0) return;
+
+  const exportForm = document.createElement('form');
+  exportForm.method = 'POST';
+  exportForm.action = '/distributions/export';
+
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+  if (csrf) {
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_token';
+    csrfInput.value = csrf;
+    exportForm.appendChild(csrfInput);
+  }
+
+  ids.forEach(id => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'distribution_ids[]';
+    input.value = id;
+    exportForm.appendChild(input);
+  });
+
+  document.body.appendChild(exportForm);
+  exportForm.submit();
+  document.body.removeChild(exportForm);
 };
 
 const closeBatchReturnModal = () => {

@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\CheckBookingTimeline;
 use App\Jobs\CheckMaintenanceDue;
 use App\Jobs\SyncJimiAlarms;
 use App\Jobs\SyncJimiDevices;
@@ -47,6 +48,9 @@ Schedule::call(function () {
 
 // Process expired account deletion requests daily at 3 AM
 Schedule::command('accounts:process-deletions')->dailyAt('03:00');
+
+// Check booking timeline every minute for pickup/return confirmations
+Schedule::job(new CheckBookingTimeline)->everyMinute()->withoutOverlapping();
 
 // Retain only the most recent month of alerts
 Schedule::command('alerts:purge')->dailyAt('03:30')->withoutOverlapping();

@@ -29,7 +29,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // Tractor management
             'tractors.view', 'tractors.create', 'tractors.edit', 'tractors.delete',
-            'tractors.assign', 'tractors.import', 'tractors.export',
+            'tractors.assign', 'tractors.import', 'tractors.export', 'tractors.view_deleted',
 
             // Device management
             'devices.view', 'devices.create', 'devices.edit', 'devices.delete', 'devices.sync',

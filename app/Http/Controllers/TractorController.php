@@ -10,8 +10,10 @@ use App\Models\TractorDistribution;
 use App\Models\TractorGroup;
 use App\Models\TractorImage;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class TractorController extends Controller
@@ -20,9 +22,14 @@ class TractorController extends Controller
     {
         $tab = $request->get('tab', 'all');
 
+        if ($tab === 'deleted' && ! $request->user()->can('tractors.view_deleted')) {
+            $tab = 'all';
+        }
+
         $tractors = null;
         $fcaDistributions = null;
         $tpsAssignments = null;
+        $deletedTractors = null;
 
         if ($tab === 'fca') {
             $fcaQuery = User::role('fca')
@@ -48,6 +55,10 @@ class TractorController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'organization_name' => $user->organization_name,
+                    'barangay' => $user->barangay,
+                    'city' => $user->city,
+                    'province' => $user->province,
                     'distribution_count' => $distributions->count(),
                     'active_count' => $activeCount,
                     'distributions' => $distributions->values(),
@@ -79,7 +90,30 @@ class TractorController extends Controller
                     'tractors' => $tractors,
                 ];
             });
+        } elseif ($tab === 'deleted') {
+            $deletedTractors = Tractor::onlyTrashed()
+                ->with(['device.latestLocation', 'groups', 'assignee'])
+                ->when($request->deleted_search, fn ($q, $s) => $q->where(function ($q) use ($s) {
+                    $q->where('no_plate', 'like', "%{$s}%")
+                        ->orWhere('imei', 'like', "%{$s}%")
+                        ->orWhere('brand', 'like', "%{$s}%")
+                        ->orWhere('name', 'like', "%{$s}%");
+                }))
+                ->orderBy('deleted_at', 'desc')
+                ->paginate($request->input('per_page', 15))
+                ->withQueryString();
         } else {
+            $sort = $request->get('sort', 'id');
+            $direction = $request->get('direction', 'desc');
+            $allowedSorts = ['id', 'name', 'no_plate', 'total_distance', 'running_hours'];
+
+            if (! in_array($sort, $allowedSorts)) {
+                $sort = 'id';
+            }
+            if (! in_array($direction, ['asc', 'desc'])) {
+                $direction = 'desc';
+            }
+
             $tractors = Tractor::with(['device.latestLocation', 'groups', 'assignee'])
                 ->when($request->search, fn ($q, $s) => $q->where(function ($q) use ($s) {
                     $q->where('no_plate', 'like', "%{$s}%")
@@ -94,8 +128,8 @@ class TractorController extends Controller
                         $q->whereDoesntHave('device.latestLocation', fn ($q) => $q->where('heartbeat_at', '>=', now()->subMinutes(10)));
                     }
                 })
-                ->latest()
-                ->paginate(15)
+                ->orderBy($sort, $direction)
+                ->paginate($request->input('per_page', 15))
                 ->withQueryString();
         }
 
@@ -103,7 +137,8 @@ class TractorController extends Controller
             'tractors' => $tractors,
             'fcaDistributions' => $fcaDistributions,
             'tpsAssignments' => $tpsAssignments,
-            'filters' => $request->only(['search', 'group_id', 'status', 'fca_search', 'fca_status', 'tps_search', 'tab']),
+            'deletedTractors' => $deletedTractors,
+            'filters' => $request->only(['search', 'group_id', 'status', 'sort', 'direction', 'per_page', 'fca_search', 'fca_status', 'tps_search', 'deleted_search', 'tab']),
             'groups' => TractorGroup::where('is_active', true)->get(['id', 'name']),
             'fcaUsers' => User::role('fca')->where('is_active', true)->get(['id', 'name', 'email']),
             'allTractors' => Tractor::with('device.latestLocation')
@@ -130,6 +165,11 @@ class TractorController extends Controller
         unset($data['images']);
 
         $tractor = Tractor::create($data);
+
+        ActivityLogger::log('Tractor', $tractor->id, 'created', [
+            'no_plate' => $tractor->no_plate,
+            'name' => $tractor->name,
+        ], $request->user());
 
         foreach ($images as $i => $image) {
             $path = $image->store('tractors/'.$tractor->id, 'public');
@@ -184,6 +224,12 @@ class TractorController extends Controller
         unset($data['images']);
 
         $tractor->update($data);
+
+        ActivityLogger::log('Tractor', $tractor->id, 'updated', [
+            'no_plate' => $tractor->no_plate,
+            'name' => $tractor->name,
+            'fields' => array_keys($data),
+        ], $request->user());
 
         foreach ($images as $i => $image) {
             $path = $image->store('tractors/'.$tractor->id, 'public');
@@ -338,7 +384,22 @@ class TractorController extends Controller
                 Storage::disk('public')->delete($img->path);
             });
             $tractor->images()->delete();
+
+            // Delete all alerts (past & present) associated with this tractor
+            $tractor->alerts()->delete();
+
+            // Also soft-delete the associated Device so JIMI sync doesn't resurrect it
+            if ($tractor->device) {
+                $tractor->device->update(['is_active' => false]);
+                $tractor->device->delete();
+            }
+
             $tractor->delete();
+
+            ActivityLogger::log('Tractor', $tractor->id, 'deleted', [
+                'no_plate' => $tractor->no_plate,
+                'name' => $tractor->name,
+            ], $request->user());
         }
 
         $count = count($data['tractor_ids']);
@@ -347,13 +408,114 @@ class TractorController extends Controller
             ->with('success', $count.' '.str('tractor')->plural($count).' deleted successfully.');
     }
 
+    /**
+     * Batch update common fields across multiple tractors.
+     */
+    public function batchUpdate(Request $request)
+    {
+        $data = $request->validate([
+            'tractor_ids' => 'required|array|min:1',
+            'tractor_ids.*' => 'required|exists:tractors,id',
+            'brand' => 'nullable|string|max:255',
+            'model' => 'nullable|string|max:255',
+            'fuel_consumption' => 'nullable|numeric|min:0',
+            'maintenance_km' => 'nullable|numeric|min:0',
+            'maintenance_hours' => 'nullable|numeric|min:0',
+        ]);
+
+        $tractorIds = $data['tractor_ids'];
+        unset($data['tractor_ids']);
+
+        // Only update fields that were actually provided (not null/empty)
+        $updateData = array_filter($data, fn ($value) => $value !== null && $value !== '');
+
+        if (empty($updateData)) {
+            return back()->with('error', 'No fields were provided for update.');
+        }
+
+        $tractors = Tractor::whereIn('id', $tractorIds)->get();
+        $count = Tractor::whereIn('id', $tractorIds)->update($updateData);
+
+        foreach ($tractors as $tractor) {
+            ActivityLogger::log('Tractor', $tractor->id, 'updated', [
+                'no_plate' => $tractor->no_plate,
+                'name' => $tractor->name,
+                'fields' => array_keys($updateData),
+            ], $request->user());
+        }
+
+        return redirect()->route('tractors.index')
+            ->with('success', $count.' '.str('tractor')->plural($count).' updated successfully.');
+    }
+
+    /**
+     * Sync no_plate values for the selected tractors using the VL103M-{last 5 IMEI} format.
+     */
+    public function syncNoPlates(Request $request)
+    {
+        $data = $request->validate([
+            'tractor_ids' => 'required|array|min:1',
+            'tractor_ids.*' => 'required|exists:tractors,id',
+        ]);
+
+        $tractors = Tractor::whereIn('id', $data['tractor_ids'])->get();
+
+        $updated = 0;
+        $skipped = 0;
+
+        foreach ($tractors as $tractor) {
+            if (empty($tractor->imei) || strlen($tractor->imei) < 5) {
+                $skipped++;
+                continue;
+            }
+
+            $newPlate = 'VL103M-'.substr($tractor->imei, -5);
+
+            if ($tractor->no_plate === $newPlate) {
+                continue;
+            }
+
+            $oldPlate = $tractor->no_plate;
+            $tractor->update(['no_plate' => $newPlate]);
+            $updated++;
+
+            ActivityLogger::log('Tractor', $tractor->id, 'no_plate_synced', [
+                'old_no_plate' => $oldPlate,
+                'no_plate' => $newPlate,
+            ], $request->user());
+        }
+
+        $message = $updated.' '.str('tractor')->plural($updated).' synced with new no. plate.';
+        if ($skipped > 0) {
+            $message .= ' '.$skipped.' '.str('tractor')->plural($skipped).' skipped (no valid IMEI).';
+        }
+
+        return redirect()->route('tractors.index')
+            ->with($updated > 0 ? 'success' : 'error', $message);
+    }
+
     public function destroy(Tractor $tractor)
     {
         $tractor->images->each(function ($img) {
             Storage::disk('public')->delete($img->path);
         });
         $tractor->images()->delete();
+
+        // Delete all alerts (past & present) associated with this tractor
+        $tractor->alerts()->delete();
+
+        // Also soft-delete the associated Device so JIMI sync doesn't resurrect it
+        if ($tractor->device) {
+            $tractor->device->update(['is_active' => false]);
+            $tractor->device->delete();
+        }
+
         $tractor->delete();
+
+        ActivityLogger::log('Tractor', $tractor->id, 'deleted', [
+            'no_plate' => $tractor->no_plate,
+            'name' => $tractor->name,
+        ], $request->user());
 
         return redirect()->route('tractors.index')
             ->with('success', 'Tractor deleted successfully.');
@@ -365,7 +527,97 @@ class TractorController extends Controller
         Storage::disk('public')->delete($image->path);
         $image->delete();
 
+        ActivityLogger::log('Tractor', $tractor->id, 'image_deleted', [
+            'no_plate' => $tractor->no_plate,
+            'image_path' => $image->path,
+        ], request()->user());
+
         return back()->with('success', 'Image removed.');
+    }
+
+    /**
+     * Return tractors grouped by duplicated IMEI values.
+     */
+    public function duplicates()
+    {
+        $duplicateImeis = Tractor::whereNotNull('imei')
+            ->select('imei')
+            ->groupBy('imei')
+            ->havingRaw('COUNT(*) > 1')
+            ->pluck('imei');
+
+        $tractors = Tractor::whereIn('imei', $duplicateImeis)
+            ->orderBy('imei')
+            ->orderBy('id')
+            ->get(['id', 'imei', 'no_plate', 'name', 'brand', 'model', 'created_at']);
+
+        $groups = $tractors->groupBy('imei')->map(fn ($items, $imei) => [
+            'imei' => $imei,
+            'count' => $items->count(),
+            'tractors' => $items->map(fn ($t) => [
+                'id' => $t->id,
+                'imei' => $t->imei,
+                'no_plate' => $t->no_plate,
+                'name' => $t->name,
+                'brand' => $t->brand,
+                'model' => $t->model,
+                'created_at' => $t->created_at?->toIso8601String(),
+            ])->values(),
+        ])->values();
+
+        return response()->json(['data' => $groups]);
+    }
+
+    /**
+     * Update a tractor's IMEI (used by the duplicate IMEI cleanup modal).
+     */
+    public function updateImei(Request $request, Tractor $tractor)
+    {
+        $data = $request->validate([
+            'imei' => ['required', 'string', 'max:255', Rule::unique('tractors', 'imei')->ignore($tractor->id)->whereNull('deleted_at')],
+        ]);
+
+        $tractor->update(['imei' => $data['imei']]);
+
+        ActivityLogger::log('Tractor', $tractor->id, 'imei_updated', [
+            'no_plate' => $tractor->no_plate,
+            'imei' => $data['imei'],
+        ], $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'IMEI updated successfully.',
+        ]);
+    }
+
+    /**
+     * Soft-delete a tractor and return JSON (used by the duplicate IMEI cleanup modal).
+     */
+    public function quickDelete(Tractor $tractor)
+    {
+        $tractor->images->each(function ($img) {
+            Storage::disk('public')->delete($img->path);
+        });
+        $tractor->images()->delete();
+
+        $tractor->alerts()->delete();
+
+        if ($tractor->device) {
+            $tractor->device->update(['is_active' => false]);
+            $tractor->device->delete();
+        }
+
+        $tractor->delete();
+
+        ActivityLogger::log('Tractor', $tractor->id, 'deleted', [
+            'no_plate' => $tractor->no_plate,
+            'name' => $tractor->name,
+        ], request()->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tractor deleted successfully.',
+        ]);
     }
 
     public function distribute(Request $request)
@@ -408,6 +660,15 @@ class TractorController extends Controller
                     Tractor::where('id', $tractorId)->update(['name' => $fcaUser->organization_name.' ('.$imeiSuffix.')']);
                 }
             }
+
+            $tractor = Tractor::find($tractorId);
+            if ($tractor) {
+                ActivityLogger::log('Tractor', $tractorId, 'distributed', [
+                    'no_plate' => $tractor->no_plate,
+                    'name' => $tractor->name,
+                    'to' => $fcaUser?->name,
+                ], $request->user());
+            }
         }
 
         $count = count($data['tractor_ids']);
@@ -425,7 +686,67 @@ class TractorController extends Controller
             'return_date' => now(),
         ]);
 
+        // Clear the name assigned to the tractor during distribution.
+        $distribution->tractor?->update(['name' => null]);
+
+        $tractor = $distribution->tractor;
+        if ($tractor) {
+            ActivityLogger::log('Tractor', $tractor->id, 'returned', [
+                'no_plate' => $tractor->no_plate,
+                'name' => $tractor->name,
+            ], request()->user());
+        }
+
         return redirect()->route('tractors.index', ['tab' => 'fca'])
             ->with('success', 'Tractor marked as returned.');
+    }
+
+    /**
+     * Restore a soft-deleted tractor (and re-activate its device if it was deactivated).
+     */
+    public function restore($id)
+    {
+        $tractor = Tractor::onlyTrashed()->findOrFail($id);
+
+        $tractor->restore();
+
+        ActivityLogger::log('Tractor', $tractor->id, 'restored', [
+            'no_plate' => $tractor->no_plate,
+            'name' => $tractor->name,
+        ], request()->user());
+
+        if ($tractor->device_id) {
+            $device = Device::withTrashed()->find($tractor->device_id);
+            if ($device && $device->trashed()) {
+                $device->restore();
+                $device->update(['is_active' => true]);
+            }
+        }
+
+        return redirect()->route('tractors.index', ['tab' => 'deleted'])
+            ->with('success', 'Tractor "'.$tractor->no_plate.'" restored successfully.');
+    }
+
+    /**
+     * Permanently delete a soft-deleted tractor.
+     */
+    public function forceDelete($id)
+    {
+        $tractor = Tractor::onlyTrashed()->findOrFail($id);
+
+        $tractor->images->each(function ($img) {
+            Storage::disk('public')->delete($img->path);
+        });
+        $tractor->images()->delete();
+
+        $tractor->forceDelete();
+
+        ActivityLogger::log('Tractor', $tractor->id, 'force_deleted', [
+            'no_plate' => $tractor->no_plate,
+            'name' => $tractor->name,
+        ], request()->user());
+
+        return redirect()->route('tractors.index', ['tab' => 'deleted'])
+            ->with('success', 'Tractor "'.$tractor->no_plate.'" permanently deleted.');
     }
 }

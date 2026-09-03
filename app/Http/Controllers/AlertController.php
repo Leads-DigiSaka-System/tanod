@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Alert;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -47,6 +48,10 @@ class AlertController extends Controller
             'acknowledged_by' => auth()->id(),
         ]);
 
+        ActivityLogger::log('Alert', $alert->id, 'acknowledged', [
+            'type' => $alert->type,
+        ], auth()->user());
+
         return back()->with('success', 'Alert acknowledged.');
     }
 
@@ -59,12 +64,18 @@ class AlertController extends Controller
                 'acknowledged_by' => $request->user()->id,
             ]);
 
+        ActivityLogger::log('Alert', 0, 'acknowledged_all', null, $request->user());
+
         return back()->with('success', 'All alerts acknowledged.');
     }
 
     public function destroy(Alert $alert)
     {
         $alert->delete();
+
+        ActivityLogger::log('Alert', $alert->id, 'deleted', [
+            'type' => $alert->type,
+        ], auth()->user());
 
         return back()->with('success', 'Alert deleted.');
     }

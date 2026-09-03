@@ -8,6 +8,14 @@
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage and monitor all registered tractors.</p>
       </div>
       <div class="flex items-center gap-3 mt-4 sm:mt-0">
+        <button v-if="$page.props.auth.user.permissions.includes('tractors.edit') || $page.props.auth.user.permissions.includes('tractors.delete')" @click="openDuplicateModal()"
+          class="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+          style="background-color: #b45309;"
+          @mouseenter="$event.target.style.backgroundColor='#92400e'"
+          @mouseleave="$event.target.style.backgroundColor='#b45309'">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+          Duplicate IMEI
+        </button>
         <button v-if="activeTab === 'fca'" @click="openDistributeDrawer()"
           class="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
           style="background-color: #007f3d;"
@@ -60,6 +68,16 @@
             TSR Responsibilities
           </span>
         </button>
+        <button v-if="$page.props.auth.user.permissions.includes('tractors.view_deleted')" @click="switchTab('deleted')"
+          class="whitespace-nowrap pb-3 px-1 border-b-2 text-sm font-medium transition-colors"
+          :class="activeTab === 'deleted'
+            ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'">
+          <span class="inline-flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            Deleted
+          </span>
+        </button>
       </nav>
     </div>
 
@@ -99,15 +117,15 @@
         </template>
         <template #head>
           <tr>
-            <th scope="col" class="px-4 py-3 w-10">
+            <th v-if="canBulkAction" scope="col" class="px-4 py-3 w-10">
               <input type="checkbox" :checked="isAllSelected" @click="toggleSelectAll($event)"
                 class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600" />
             </th>
-            <th scope="col" class="px-6 py-3 whitespace-nowrap">ID</th>
-            <th scope="col" class="px-6 py-3 whitespace-nowrap">Name</th>
-            <th scope="col" class="px-6 py-3 whitespace-nowrap">No. Plate</th>
-            <th scope="col" class="px-6 py-3 whitespace-nowrap">Total Distance (km)</th>
-            <th scope="col" class="px-6 py-3 whitespace-nowrap">Running Hours</th>
+            <SortableTh label="ID" field="id" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
+            <SortableTh label="Name" field="name" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
+            <SortableTh label="No. Plate" field="no_plate" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
+            <SortableTh label="Total Distance (km)" field="total_distance" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
+            <SortableTh label="Running Hours" field="running_hours" :sort-field="sortField" :sort-direction="sortDirection" @sort="sortBy" />
             <th scope="col" class="px-6 py-3 text-right whitespace-nowrap">Actions</th>
           </tr>
         </template>
@@ -115,7 +133,7 @@
           <tr v-for="tractor in tractors?.data" :key="tractor.id"
             class="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600"
             :class="{ 'bg-emerald-50/50 dark:bg-emerald-900/10': selectedIsChecked(tractor.id) }">
-            <td class="px-4 py-4">
+            <td v-if="canBulkAction" class="px-4 py-4">
               <input type="checkbox" :checked="selectedIsChecked(tractor.id)" @click="toggleSelect(tractor.id, $event)"
                 class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600" />
             </td>
@@ -141,7 +159,7 @@
 
           <!-- Empty state -->
           <tr v-if="!tractors?.data?.length">
-            <td colspan="7" class="px-6 py-12 text-center">
+            <td :colspan="canBulkAction ? 7 : 6" class="px-6 py-12 text-center">
               <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
               </svg>
@@ -151,7 +169,22 @@
           </tr>
         </template>
       </DataTable>
-      <Pagination v-if="tractors?.links" :links="tractors.links" class="mt-6" />
+      <div class="flex items-center justify-between mt-6">
+        <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+          <span>Show</span>
+          <select v-model="perPage" @change="applyAllFilter"
+            class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 px-2 py-1.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <option :value="15">15</option>
+            <option :value="50">50</option>
+            <option :value="100">100</option>
+            <option :value="200">200</option>
+            <option :value="500">500</option>
+            <option :value="1000">1000</option>
+          </select>
+          <span>entries</span>
+        </div>
+        <Pagination v-if="tractors?.links" :links="tractors.links" />
+      </div>
 
       <!-- Floating multi-select bar -->
       <Transition
@@ -161,7 +194,7 @@
         leave-active-class="transition-all duration-200 ease-in"
         leave-from-class="translate-y-0 opacity-100"
         leave-to-class="translate-y-4 opacity-0">
-        <div v-if="selectedCount > 0" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-4 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 px-5 py-3">
+        <div v-if="canBulkAction && selectedCount > 0" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-4 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 px-5 py-3">
           <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
             <span class="text-emerald-600 dark:text-emerald-400 font-bold">{{ selectedCount }}</span> tractor{{ selectedCount !== 1 ? 's' : '' }} selected
           </span>
@@ -169,7 +202,12 @@
           <button @click="clearSelection" class="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
             Clear
           </button>
-          <button @click="openBatchDeleteDrawer"
+          <button v-if="canBulkEdit" @click="openGeneralEditDrawer"
+            class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-blue-600 hover:bg-blue-700">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+            General Edit
+          </button>
+          <button v-if="canBulkDelete" @click="openBatchDeleteDrawer"
             class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors"
             style="background-color: #dc2626;"
             @mouseenter="$event.target.style.backgroundColor='#b91c1c'"
@@ -215,7 +253,7 @@
           <tr>
             <th scope="col" class="px-6 py-3 whitespace-nowrap">ID</th>
             <th scope="col" class="px-6 py-3 whitespace-nowrap">FCA Name</th>
-            <th scope="col" class="px-6 py-3 whitespace-nowrap">Organization</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Coop</th>
             <th scope="col" class="px-6 py-3 whitespace-nowrap">Tractor No. Plate</th>
             <th scope="col" class="px-6 py-3 whitespace-nowrap">Address</th>
             <th scope="col" class="px-6 py-3 whitespace-nowrap">Total Distance (km)</th>
@@ -229,7 +267,7 @@
               class="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
               <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ dist.id }}</td>
               <td class="px-6 py-4 whitespace-nowrap">{{ fca.name }}</td>
-              <td class="px-6 py-4 whitespace-nowrap">{{ fca.organization_name || dist.tractor?.no_plate || '—' }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">{{ fca.organization_name || '—' }}</td>
               <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ dist.tractor?.no_plate || '—' }}</td>
               <td class="px-6 py-4 whitespace-nowrap">{{ [fca.barangay, fca.city, fca.province].filter(Boolean).join(', ') || '—' }}</td>
               <td class="px-6 py-4 whitespace-nowrap">{{ dist.tractor?.total_distance ?? '—' }}</td>
@@ -320,6 +358,75 @@
           </tr>
         </template>
       </DataTable>
+    </template>
+
+    <!-- ==================== DELETED TRACTORS TAB ==================== -->
+    <template v-if="activeTab === 'deleted' && $page.props.auth.user.permissions.includes('tractors.view_deleted')">
+      <!-- Filters -->
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-6 dark:bg-gray-800 dark:border-gray-700">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <input v-model="deletedSearch" type="text" placeholder="Search plate, IMEI, brand, name..." @input="debouncedDeletedFilter"
+            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" />
+        </div>
+      </div>
+      <!-- Table -->
+      <DataTable>
+        <template #loading>
+          <div v-if="pageLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 dark:bg-gray-800/70 backdrop-blur-[1px]">
+            <div class="flex flex-col items-center gap-3">
+              <svg class="animate-spin h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 animate-pulse">Loading...</p>
+            </div>
+          </div>
+        </template>
+        <template #head>
+          <tr>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">ID</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Name</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">No. Plate</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Brand / Model</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">IMEI</th>
+            <th scope="col" class="px-6 py-3 whitespace-nowrap">Deleted At</th>
+            <th scope="col" class="px-6 py-3 text-right whitespace-nowrap">Actions</th>
+          </tr>
+        </template>
+        <template #body>
+          <tr v-for="tractor in deletedTractors?.data" :key="tractor.id"
+            class="bg-white border-b hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
+            <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ tractor.id }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ tractor.name || '—' }}</td>
+            <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ tractor.no_plate }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ [tractor.brand, tractor.model].filter(Boolean).join(' ') || '—' }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ tractor.imei || '—' }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ formatDate(tractor.deleted_at) }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center justify-end gap-1">
+                <button v-if="$page.props.auth.user.permissions.includes('tractors.delete')" @click="restoreTractor(tractor.id)" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="Restore">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
+                </button>
+                <button v-if="$page.props.auth.user.permissions.includes('tractors.delete')" @click="openForceDeleteModal(tractor)" class="p-1.5 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors" title="Permanently Delete">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr v-if="!deletedTractors?.data?.length">
+            <td colspan="7" class="px-6 py-12 text-center">
+              <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <h3 class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">No deleted tractors</h3>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Deleted tractors will appear here.</p>
+            </td>
+          </tr>
+        </template>
+      </DataTable>
+      <div class="flex items-center justify-end mt-6">
+        <Pagination v-if="deletedTractors?.links" :links="deletedTractors.links" />
+      </div>
     </template>
 
     <!-- ==================== DELETE CONFIRMATION DRAWER ==================== -->
@@ -607,12 +714,202 @@
         </button>
       </template>
     </Modal>
+    <!-- ==================== GENERAL EDIT DRAWER ==================== -->
+    <SlideOver :show="generalEditOpen" max-width="2xl" title="General Edit" :subtitle="`Update common fields for ${selectedCount} tractor${selectedCount !== 1 ? 's' : ''}`" @close="closeGeneralEditDrawer">
+      <form @submit.prevent="submitGeneralEdit" class="flex-1 overflow-y-auto">
+        <div class="p-6 space-y-5">
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            Only fields you fill in will be updated. Leave a field blank to keep its current value.
+          </p>
+
+          <div class="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3">
+            <div class="flex items-start gap-2">
+              <svg class="w-5 h-5 shrink-0 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <p class="text-sm text-amber-700 dark:text-amber-400">
+                Use <strong>Sync No. Plate</strong> to set each selected tractor's plate number to <code class="font-mono">VL103M-(last 5 digits of IMEI)</code>.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Brand</label>
+            <input v-model="generalEditForm.brand" type="text" placeholder="Leave blank to keep current"
+              class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
+          </div>
+
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Model</label>
+            <input v-model="generalEditForm.model" type="text" placeholder="Leave blank to keep current"
+              class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
+          </div>
+
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Fuel Consumption (L/hr)</label>
+            <input v-model="generalEditForm.fuel_consumption" type="number" step="0.01" min="0" placeholder="Leave blank to keep current"
+              class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
+          </div>
+
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Maintenance KM Threshold</label>
+            <input v-model="generalEditForm.maintenance_km" type="number" step="0.01" min="0" placeholder="Leave blank to keep current"
+              class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
+          </div>
+
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">Maintenance Hours Threshold</label>
+            <input v-model="generalEditForm.maintenance_hours" type="number" step="0.01" min="0" placeholder="Leave blank to keep current"
+              class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
+          </div>
+        </div>
+
+        <div class="sticky bottom-0 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 px-6 py-4 flex justify-end gap-3">
+          <button type="button" @click="syncNoPlates" :disabled="syncPlatesProcessing || !generalEditForm.tractor_ids.length"
+            class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            style="background-color: #b45309;"
+            @mouseenter="!syncPlatesProcessing && ($event.target.style.backgroundColor='#92400e')"
+            @mouseleave="!syncPlatesProcessing && ($event.target.style.backgroundColor='#b45309')">
+            <svg v-if="syncPlatesProcessing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            {{ syncPlatesProcessing ? 'Syncing...' : 'Sync No. Plate' }}
+          </button>
+          <button type="button" @click="closeGeneralEditDrawer"
+            class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">Cancel</button>
+          <button type="submit" :disabled="generalEditForm.processing"
+            class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700">
+            <svg v-if="generalEditForm.processing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+            {{ generalEditForm.processing ? 'Updating...' : `Update ${selectedCount} Tractor${selectedCount !== 1 ? 's' : ''}` }}
+          </button>
+        </div>
+      </form>
+    </SlideOver>
+
+    <!-- ==================== FORCE DELETE MODAL ==================== -->
+    <Modal :show="forceDeleteModalOpen" max-width="md" @close="closeForceDeleteModal">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          <span>Permanently Delete Tractor</span>
+        </div>
+      </template>
+
+      <div class="p-6 space-y-4">
+        <p class="text-sm text-gray-600 dark:text-gray-300">
+          You are about to <strong class="text-red-600 dark:text-red-400">permanently delete</strong> tractor
+          <span class="font-semibold text-gray-900 dark:text-white">{{ forceDeleteTractor?.no_plate }}</span>
+          <template v-if="forceDeleteTractor?.name">({{ forceDeleteTractor.name }})</template>.
+          This action cannot be undone and will also remove its images, distributions, bookings, and maintenance records.
+        </p>
+        <div class="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3">
+          <p class="text-sm text-amber-700 dark:text-amber-400">
+            Consider using <strong>Restore</strong> instead if you only need to bring this tractor back.
+          </p>
+        </div>
+      </div>
+
+      <template #footer>
+        <button type="button" @click="closeForceDeleteModal"
+          class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">Cancel</button>
+        <button type="button" @click="confirmForceDelete" :disabled="forceDeleteProcessing"
+          class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          style="background-color: #dc2626;"
+          @mouseenter="!forceDeleteProcessing && ($event.target.style.backgroundColor='#b91c1c')"
+          @mouseleave="!forceDeleteProcessing && ($event.target.style.backgroundColor='#dc2626')">
+          <svg v-if="forceDeleteProcessing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          {{ forceDeleteProcessing ? 'Deleting...' : 'Delete Permanently' }}
+        </button>
+      </template>
+    </Modal>
+
+    <!-- ==================== DUPLICATE IMEI MODAL ==================== -->
+    <Modal :show="duplicateModalOpen" max-width="4xl" @close="closeDuplicateModal">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+          <span>Duplicate IMEI Detection</span>
+        </div>
+      </template>
+
+      <div class="max-h-[65vh] overflow-y-auto p-6 space-y-4">
+        <!-- Loading -->
+        <div v-if="duplicateLoading" class="flex flex-col items-center justify-center py-12 gap-3">
+          <svg class="animate-spin h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <p class="text-sm font-medium text-gray-500 dark:text-gray-400 animate-pulse">Scanning tractors for duplicate IMEI...</p>
+        </div>
+
+        <!-- Error -->
+        <div v-else-if="duplicateError" class="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4">
+          <p class="text-sm text-red-700 dark:text-red-400">{{ duplicateError }}</p>
+        </div>
+
+        <!-- Empty -->
+        <div v-else-if="!duplicateGroups.length" class="py-12 text-center">
+          <svg class="mx-auto h-12 w-12 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p class="mt-4 text-sm font-medium text-gray-900 dark:text-white">No duplicate IMEIs found</p>
+          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">All tractors have unique IMEI values.</p>
+        </div>
+
+        <!-- Groups -->
+        <template v-else>
+          <div v-for="group in duplicateGroups" :key="group.imei"
+            class="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+              <div>
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">IMEI: {{ group.imei || '—' }}</p>
+                <p class="text-xs text-amber-700 dark:text-amber-400">{{ group.count }} tractor{{ group.count !== 1 ? 's' : '' }} share this IMEI</p>
+              </div>
+              <span class="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold text-white bg-amber-500">{{ group.count }}</span>
+            </div>
+            <div class="divide-y divide-gray-100 dark:divide-gray-700">
+              <div v-for="tractor in group.tractors" :key="tractor.id"
+                class="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3">
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ tractor.no_plate }}</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ tractor.name || '—' }} · {{ [tractor.brand, tractor.model].filter(Boolean).join(' ') || '—' }}
+                  </p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input v-model="imeiInputs[tractor.id]" type="text" placeholder="IMEI"
+                    class="w-48 rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
+                  <button type="button" @click="saveImei(tractor)" :disabled="imeiSaving[tractor.id]"
+                    class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg v-if="imeiSaving[tractor.id]" class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                    {{ imeiSaving[tractor.id] ? 'Saving...' : 'Save' }}
+                  </button>
+                  <button type="button" @click="deleteDuplicate(tractor)" :disabled="imeiDeleting[tractor.id]"
+                    class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg v-if="imeiDeleting[tractor.id]" class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                    {{ imeiDeleting[tractor.id] ? 'Deleting...' : 'Delete' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <template #footer>
+        <button type="button" @click="closeDuplicateModal"
+          class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">Close</button>
+        <span v-if="duplicateGroups.length" class="ml-auto text-sm text-gray-500 dark:text-gray-400">
+          {{ duplicateGroups.length }} IMEI group{{ duplicateGroups.length !== 1 ? 's' : '' }} with duplicates
+        </span>
+      </template>
+    </Modal>
+
   </AppLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, h } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import SlideOver from '@/Components/SlideOver.vue';
@@ -621,6 +918,46 @@ import StatusBadge from '@/Components/StatusBadge.vue';
 import DataTable from '@/Components/DataTable.vue';
 import { formatDate } from '@/utils/dateFormat';
 import axios from 'axios';
+
+// ── Sortable Table Header Component ──
+const SortableTh = {
+  props: {
+    label: String,
+    field: String,
+    sortField: String,
+    sortDirection: String,
+  },
+  emits: ['sort'],
+  setup(props, { emit }) {
+    const isActive = computed(() => props.sortField === props.field);
+    const icon = computed(() => {
+      if (!isActive.value) return null;
+      return props.sortDirection === 'asc' ? '▲' : '▼';
+    });
+
+    return () => h('th', {
+      scope: 'col',
+      class: 'px-6 py-3 whitespace-nowrap cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group',
+      onClick: () => emit('sort', props.field),
+    }, [
+      h('span', { class: 'inline-flex items-center gap-1.5' }, [
+        h('span', { class: 'text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors' }, props.label),
+        h('span', { class: 'flex flex-col leading-none text-gray-400 dark:text-gray-500' }, [
+          h('span', {
+            class: isActive.value && props.sortDirection === 'asc'
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+              : 'group-hover:text-gray-600 dark:group-hover:text-gray-300',
+          }, '▲'),
+          h('span', {
+            class: isActive.value && props.sortDirection === 'desc'
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+              : 'group-hover:text-gray-600 dark:group-hover:text-gray-300',
+          }, '▼'),
+        ]),
+      ]),
+    ]);
+  },
+};
 
 // ── Impact Row Component ──
 const ImpactRow = {
@@ -659,6 +996,7 @@ const props = defineProps({
   tractors: Object,
   fcaDistributions: Array,
   tsrAssignments: Array,
+  deletedTractors: Object,
   filters: Object,
   groups: Array,
   fcaUsers: Array,
@@ -688,18 +1026,36 @@ const switchTab = (tab) => {
   router.get('/tractors', { tab }, { preserveState: true, replace: true });
 };
 
-// --- All Tractors Filters ---
+// --- All Tractors Filters & Sort ---
 const search = ref(props.filters?.search || '');
 const selectedGroup = ref(props.filters?.group_id || '');
 const selectedStatus = ref(props.filters?.status || '');
+const perPage = ref(props.filters?.per_page || 15);
+const sortField = ref(props.filters?.sort || '');
+const sortDirection = ref(props.filters?.direction || 'asc');
+
 let timer;
 const debouncedFilter = () => { clearTimeout(timer); timer = setTimeout(applyAllFilter, 300); };
+
+const sortBy = (field) => {
+  if (sortField.value === field) {
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortField.value = field;
+    sortDirection.value = 'asc';
+  }
+  applyAllFilter();
+};
+
 const applyAllFilter = () => {
   router.get('/tractors', {
     tab: 'all',
     search: search.value || undefined,
     group_id: selectedGroup.value || undefined,
     status: selectedStatus.value || undefined,
+    per_page: perPage.value,
+    sort: sortField.value || undefined,
+    direction: sortDirection.value || undefined,
   }, { preserveState: true, replace: true });
 };
 
@@ -727,11 +1083,20 @@ const applyTpsFilter = () => {
   }, { preserveState: true, replace: true });
 };
 
-// --- Online status ---
+// --- Deleted Tractors Filters ---
+const deletedSearch = ref(props.filters?.deleted_search || '');
+let deletedTimer;
+const debouncedDeletedFilter = () => { clearTimeout(deletedTimer); deletedTimer = setTimeout(applyDeletedFilter, 300); };
+const applyDeletedFilter = () => {
+  router.get('/tractors', {
+    tab: 'deleted',
+    deleted_search: deletedSearch.value || undefined,
+  }, { preserveState: true, replace: true });
+};
+
+// --- Online status (JIMI status flag: 1 = online, e.g. parked/moving) ---
 const getOnlineStatus = (tractor) => {
-  if (!tractor.device?.latest_location?.heartbeat_at) return 'offline';
-  const heartbeat = new Date(tractor.device.latest_location.heartbeat_at);
-  return (Date.now() - heartbeat.getTime()) < 600000 ? 'online' : 'offline';
+  return Number(tractor.device?.latest_location?.status) === 1 ? 'online' : 'offline';
 };
 
 // --- Drawer (FCA distribute only) ---
@@ -777,8 +1142,73 @@ const submitDrawer = () => {
   });
 };
 
+// ── General Edit (Bulk) ──
+const generalEditOpen = ref(false);
+const generalEditForm = useForm({
+  tractor_ids: [],
+  brand: '',
+  model: '',
+  fuel_consumption: '',
+  maintenance_km: '',
+  maintenance_hours: '',
+});
+
+const openGeneralEditDrawer = () => {
+  generalEditForm.reset();
+  generalEditForm.clearErrors();
+  generalEditForm.tractor_ids = Object.keys(selectedIds.value).map(Number);
+  generalEditOpen.value = true;
+};
+
+const closeGeneralEditDrawer = () => {
+  generalEditOpen.value = false;
+};
+
+const submitGeneralEdit = () => {
+  generalEditForm.post('/tractors/batch-update', {
+    preserveScroll: true,
+    onSuccess: () => {
+      closeGeneralEditDrawer();
+      clearSelection();
+    },
+  });
+};
+
+// ── Sync No. Plate (VL103M-{last 5 IMEI}) ──
+const syncPlatesProcessing = ref(false);
+
+const syncNoPlates = () => {
+  const ids = generalEditForm.tractor_ids;
+  if (!ids.length) return;
+
+  if (!window.confirm(`Set no. plate of ${ids.length} selected tractor${ids.length !== 1 ? 's' : ''} to VL103M-(last 5 digits of IMEI)?`)) {
+    return;
+  }
+
+  syncPlatesProcessing.value = true;
+  router.post('/tractors/sync-no-plates', { tractor_ids: ids }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      syncPlatesProcessing.value = false;
+      closeGeneralEditDrawer();
+    },
+    onError: () => {
+      syncPlatesProcessing.value = false;
+    },
+  });
+};
+
 // ── Multi-Select (persisted in sessionStorage so it survives Inertia navigation) ──
 const STORAGE_KEY = 'tractor_selected_ids';
+
+const page = usePage();
+const canBulkEdit = computed(() =>
+  page.props.auth.user.permissions.includes('tractors.edit')
+);
+const canBulkDelete = computed(() =>
+  page.props.auth.user.permissions.includes('tractors.delete')
+);
+const canBulkAction = computed(() => canBulkEdit.value || canBulkDelete.value);
 
 const saved = sessionStorage.getItem(STORAGE_KEY);
 const selectedIds = ref(saved ? JSON.parse(saved) : {});
@@ -961,5 +1391,109 @@ const confirmDeleteTractor = () => {
       deleteCheckError.value = 'Failed to delete tractor. Please try again.';
     },
   });
+};
+
+// ── Deleted Tractors: Restore & Force Delete ──
+const restoreTractor = (id) => {
+  router.post(`/tractors/${id}/restore`, {}, {
+    preserveScroll: true,
+  });
+};
+
+const forceDeleteModalOpen = ref(false);
+const forceDeleteTractor = ref(null);
+const forceDeleteProcessing = ref(false);
+
+const openForceDeleteModal = (tractor) => {
+  forceDeleteTractor.value = tractor;
+  forceDeleteModalOpen.value = true;
+};
+
+const closeForceDeleteModal = () => {
+  forceDeleteModalOpen.value = false;
+  forceDeleteTractor.value = null;
+};
+
+const confirmForceDelete = () => {
+  if (!forceDeleteTractor.value) return;
+  forceDeleteProcessing.value = true;
+  router.delete(`/tractors/${forceDeleteTractor.value.id}/force-delete`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      forceDeleteProcessing.value = false;
+      closeForceDeleteModal();
+    },
+    onError: () => {
+      forceDeleteProcessing.value = false;
+    },
+  });
+};
+
+// ── Duplicate IMEI Modal ──
+const duplicateModalOpen = ref(false);
+const duplicateLoading = ref(false);
+const duplicateError = ref(null);
+const duplicateGroups = ref([]);
+const imeiInputs = ref({});
+const imeiSaving = ref({});
+const imeiDeleting = ref({});
+
+const loadDuplicates = async () => {
+  const { data } = await axios.get('/tractors/duplicates');
+  duplicateGroups.value = data.data;
+  imeiInputs.value = {};
+  data.data.forEach((group) => group.tractors.forEach((t) => { imeiInputs.value[t.id] = t.imei; }));
+};
+
+const openDuplicateModal = async () => {
+  duplicateModalOpen.value = true;
+  duplicateLoading.value = true;
+  duplicateError.value = null;
+  duplicateGroups.value = [];
+  imeiInputs.value = {};
+
+  try {
+    await loadDuplicates();
+  } catch (err) {
+    duplicateError.value = err.response?.data?.message || 'Failed to load duplicate IMEI data.';
+  } finally {
+    duplicateLoading.value = false;
+  }
+};
+
+const closeDuplicateModal = () => {
+  duplicateModalOpen.value = false;
+  duplicateGroups.value = [];
+  imeiInputs.value = {};
+  duplicateError.value = null;
+};
+
+const saveImei = async (tractor) => {
+  const newImei = (imeiInputs.value[tractor.id] || '').trim();
+  if (!newImei) return;
+
+  imeiSaving.value = { ...imeiSaving.value, [tractor.id]: true };
+  try {
+    await axios.post(`/tractors/${tractor.id}/update-imei`, { imei: newImei });
+    await loadDuplicates();
+  } catch (err) {
+    window.alert(err.response?.data?.errors?.imei?.[0] || err.response?.data?.message || 'Failed to update IMEI.');
+  } finally {
+    imeiSaving.value = { ...imeiSaving.value, [tractor.id]: false };
+  }
+};
+
+const deleteDuplicate = async (tractor) => {
+  if (!window.confirm(`Delete tractor ${tractor.no_plate}? This will remove it from the system.`)) return;
+
+  imeiDeleting.value = { ...imeiDeleting.value, [tractor.id]: true };
+  try {
+    await axios.delete(`/tractors/${tractor.id}/quick-delete`);
+    await loadDuplicates();
+  } catch (err) {
+    window.alert(err.response?.data?.message || 'Failed to delete tractor.');
+  } finally {
+    imeiDeleting.value = { ...imeiDeleting.value, [tractor.id]: false };
+  }
 };
 </script>

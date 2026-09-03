@@ -8,6 +8,7 @@ use App\Models\Maintenance;
 use App\Models\MaintenanceImage;
 use App\Models\Tractor;
 use App\Models\TractorRecipient;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Storage;
@@ -151,6 +152,11 @@ class MaintenanceController extends Controller
 
         $maintenance = Maintenance::create($data);
 
+        ActivityLogger::log('Maintenance', $maintenance->id, 'created', [
+            'title' => $maintenance->title,
+            'tractor_id' => $maintenance->tractor_id,
+        ], $request->user());
+
         foreach ($images as $i => $image) {
             $path = $image->store('maintenance/'.$maintenance->id, 'public');
             MaintenanceImage::create([
@@ -206,6 +212,11 @@ class MaintenanceController extends Controller
 
         $maintenance->update($data);
 
+        ActivityLogger::log('Maintenance', $maintenance->id, 'updated', [
+            'title' => $maintenance->title,
+            'status' => $maintenance->status,
+        ], $request->user());
+
         foreach ($images as $i => $image) {
             $path = $image->store('maintenance/'.$maintenance->id, 'public');
             MaintenanceImage::create([
@@ -224,6 +235,10 @@ class MaintenanceController extends Controller
         $maintenance->images->each(fn ($img) => Storage::disk('public')->delete($img->path));
         $maintenance->images()->delete();
         $maintenance->delete();
+
+        ActivityLogger::log('Maintenance', $maintenance->id, 'deleted', [
+            'title' => $maintenance->title,
+        ], request()->user());
 
         return redirect()->route('maintenance.index')
             ->with('success', 'Maintenance record deleted.');

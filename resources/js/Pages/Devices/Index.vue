@@ -152,7 +152,20 @@ const filter = () => {
 };
 
 const getStatus = (device) => {
-  if (!device.latest_location?.heartbeat_at) return 'offline';
-  return (Date.now() - new Date(device.latest_location.heartbeat_at).getTime()) < 600000 ? 'online' : 'offline';
+  // Prefer JIMI's own status field (same as Live View uses)
+  if (device.jimi_status) return device.jimi_status;
+
+  // Fallback: live heartbeat from JIMI API
+  if (device.live_heartbeat_at) {
+    return (Date.now() - new Date(device.live_heartbeat_at).getTime()) < 600000 ? 'online' : 'offline';
+  }
+
+  // Last resort: DB-stored heartbeat
+  const loc = device.latest_location || device.latestLocation || {};
+  if (loc.heartbeat_at) {
+    return (Date.now() - new Date(loc.heartbeat_at).getTime()) < 600000 ? 'online' : 'offline';
+  }
+
+  return 'offline';
 };
 </script>

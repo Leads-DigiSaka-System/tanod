@@ -64,8 +64,8 @@
               <p v-if="form.errors.model" class="mt-2 text-sm text-red-600 dark:text-red-500">{{ form.errors.model }}</p>
             </div>
             <div>
-              <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Fuel Consumption (L/hr) *</label>
-              <input v-model="form.fuel_consumption" type="number" step="0.01" required class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500" placeholder="e.g. 5.5" />
+              <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Fuel Consumption (L/hr)</label>
+              <input v-model="form.fuel_consumption" type="number" step="0.01" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500" placeholder="e.g. 5.5" />
               <p v-if="form.errors.fuel_consumption" class="mt-2 text-sm text-red-600 dark:text-red-500">{{ form.errors.fuel_consumption }}</p>
             </div>
           </div>
@@ -78,13 +78,13 @@
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Installation</h3>
           <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
-              <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Installation Date *</label>
-              <input v-model="form.installation_time" type="date" required class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500" />
+              <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Installation Date</label>
+              <input v-model="form.installation_time" type="date" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500" />
               <p v-if="form.errors.installation_time" class="mt-2 text-sm text-red-600 dark:text-red-500">{{ form.errors.installation_time }}</p>
             </div>
             <div>
-              <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Installation Address *</label>
-              <input v-model="form.installation_address" type="text" required class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500" placeholder="Enter installation address" />
+              <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Installation Address</label>
+              <input v-model="form.installation_address" type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500" placeholder="Enter installation address" />
               <p v-if="form.errors.installation_address" class="mt-2 text-sm text-red-600 dark:text-red-500">{{ form.errors.installation_address }}</p>
             </div>
           </div>

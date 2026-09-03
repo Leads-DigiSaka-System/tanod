@@ -7,12 +7,21 @@ use App\Models\Tractor;
 use App\Models\TractorDistribution;
 use App\Models\TractorGroup;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class GroupController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:groups.view')->only(['index', 'show']);
+        $this->middleware('permission:groups.create')->only(['create', 'store']);
+        $this->middleware('permission:groups.edit')->only(['edit', 'update']);
+        $this->middleware('permission:groups.delete')->only(['destroy']);
+    }
+
     public const PH_REGIONS = [
         'NCR',
         'CAR',
@@ -64,11 +73,12 @@ class GroupController extends Controller
         });
 
         $tractors = Tractor::with(['device.latestLocation', 'distributions' => fn ($q) => $q->latest()->limit(1)])
-            ->select('id', 'no_plate', 'brand', 'model', 'imei', 'device_id')
+            ->select('id', 'name', 'no_plate', 'brand', 'model', 'imei', 'device_id')
             ->whereHas('device', fn ($q) => $q->notStale())
             ->get()
             ->map(fn (Tractor $t) => [
                 'id' => $t->id,
+                'name' => $t->name,
                 'no_plate' => $t->no_plate,
                 'brand' => $t->brand,
                 'model' => $t->model,
@@ -100,11 +110,12 @@ class GroupController extends Controller
     public function create()
     {
         $tractors = Tractor::with(['device.latestLocation', 'distributions' => fn ($q) => $q->latest()->limit(1)])
-            ->select('id', 'no_plate', 'brand', 'model', 'imei', 'device_id')
+            ->select('id', 'name', 'no_plate', 'brand', 'model', 'imei', 'device_id')
             ->whereHas('device', fn ($q) => $q->notStale())
             ->get()
             ->map(fn (Tractor $t) => [
                 'id' => $t->id,
+                'name' => $t->name,
                 'no_plate' => $t->no_plate,
                 'brand' => $t->brand,
                 'model' => $t->model,
@@ -141,6 +152,10 @@ class GroupController extends Controller
         $group->tractors()->sync($tractorIds);
         $this->syncTpsUsers($group, $tpsUserIds, $assignAllTps);
 
+        ActivityLogger::log('TractorGroup', $group->id, 'created', [
+            'name' => $group->name,
+        ], $request->user());
+
         return redirect()->route('groups.index')
             ->with('success', 'Group created successfully.');
     }
@@ -159,11 +174,12 @@ class GroupController extends Controller
         $group->load(['tractors', 'tpsUsers']);
 
         $tractors = Tractor::with(['device.latestLocation', 'distributions' => fn ($q) => $q->latest()->limit(1)])
-            ->select('id', 'no_plate', 'brand', 'model', 'imei', 'device_id')
+            ->select('id', 'name', 'no_plate', 'brand', 'model', 'imei', 'device_id')
             ->whereHas('device', fn ($q) => $q->notStale())
             ->get()
             ->map(fn (Tractor $t) => [
                 'id' => $t->id,
+                'name' => $t->name,
                 'no_plate' => $t->no_plate,
                 'brand' => $t->brand,
                 'model' => $t->model,
@@ -208,8 +224,16 @@ class GroupController extends Controller
         unset($data['tractor_ids'], $data['tps_user_ids'], $data['assign_all_tps']);
 
         $group->update($data);
-        $group->tractors()->sync($tractorIds);
-        $this->syncTpsUsers($group, $tpsUserIds, $assignAllTps);
+
+        // Only sync tractor/TSR assignments if the user has groups.assign permission
+        if ($request->user()->can('groups.assign')) {
+            $group->tractors()->sync($tractorIds);
+            $this->syncTpsUsers($group, $tpsUserIds, $assignAllTps);
+        }
+
+        ActivityLogger::log('TractorGroup', $group->id, 'updated', [
+            'name' => $group->name,
+        ], $request->user());
 
         return redirect()->route('groups.index')
             ->with('success', 'Group updated successfully.');
@@ -220,6 +244,10 @@ class GroupController extends Controller
         $group->tractors()->detach();
         $group->users()->detach();
         $group->delete();
+
+        ActivityLogger::log('TractorGroup', $group->id, 'deleted', [
+            'name' => $group->name,
+        ], request()->user());
 
         return redirect()->route('groups.index')
             ->with('success', 'Group deleted successfully.');

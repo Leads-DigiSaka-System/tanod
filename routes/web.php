@@ -11,6 +11,7 @@ use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\GeoFenceController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\LiveViewController;
+use App\Http\Controllers\LogController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicApiDocumentationController;
@@ -49,6 +50,15 @@ Route::post('/api-docs/authenticate', [PublicApiDocumentationController::class, 
     ->name('api-docs.authenticate');
 Route::post('/api-docs/logout', [PublicApiDocumentationController::class, 'logout'])->name('api-docs.logout');
 
+// Legal pages (public)
+Route::get('/privacy-policy', function () {
+    return Inertia::render('PrivacyPolicy');
+})->name('privacy-policy');
+
+Route::get('/terms-and-conditions', function () {
+    return Inertia::render('TermsAndConditions');
+})->name('terms-and-conditions');
+
 /*
 |--------------------------------------------------------------------------
 | Authenticated Routes
@@ -64,13 +74,20 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::put('/profile/password', [AuthController::class, 'changePassword'])->name('profile.password');
 
     // Tractors
+    Route::get('tractors/duplicates', [TractorController::class, 'duplicates'])->name('tractors.duplicates');
     Route::resource('tractors', TractorController::class);
     Route::post('tractors/batch-delete-check', [TractorController::class, 'batchDeleteCheck'])->name('tractors.batch-delete-check');
     Route::post('tractors/batch-destroy', [TractorController::class, 'batchDestroy'])->name('tractors.batch-destroy');
+    Route::post('tractors/batch-update', [TractorController::class, 'batchUpdate'])->name('tractors.batch-update');
+    Route::post('tractors/sync-no-plates', [TractorController::class, 'syncNoPlates'])->name('tractors.sync-no-plates');
     Route::delete('tractors/batch-destroy', [TractorController::class, 'batchDestroy'])->name('tractors.batch-destroy.delete');
     Route::get('tractors/{tractor}/delete-check', [TractorController::class, 'deleteCheck'])->name('tractors.delete-check');
+    Route::post('tractors/{tractor}/update-imei', [TractorController::class, 'updateImei'])->name('tractors.update-imei');
+    Route::delete('tractors/{tractor}/quick-delete', [TractorController::class, 'quickDelete'])->name('tractors.quick-delete');
     Route::delete('tractors/{tractor}/images/{image}', [TractorController::class, 'deleteImage'])->name('tractors.images.destroy');
     Route::post('tractors/distribute', [TractorController::class, 'distribute'])->name('tractors.distribute');
+    Route::post('tractors/{tractor}/restore', [TractorController::class, 'restore'])->name('tractors.restore');
+    Route::delete('tractors/{tractor}/force-delete', [TractorController::class, 'forceDelete'])->name('tractors.force-delete');
     Route::post('tractor-distributions/{distribution}/return', [TractorController::class, 'returnDistribution'])->name('tractors.return-distribution');
 
     // Devices
@@ -81,7 +98,13 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('devices/{device}/history', [DeviceController::class, 'locationHistory'])->name('devices.history');
 
     // Groups
-    Route::resource('groups', GroupController::class)->parameters(['groups' => 'group']);
+    Route::get('groups', [GroupController::class, 'index'])->name('groups.index')->middleware('permission:groups.view');
+    Route::get('groups/create', [GroupController::class, 'create'])->name('groups.create')->middleware('permission:groups.create');
+    Route::post('groups', [GroupController::class, 'store'])->name('groups.store')->middleware('permission:groups.create');
+    Route::get('groups/{group}', [GroupController::class, 'show'])->name('groups.show')->middleware('permission:groups.view');
+    Route::get('groups/{group}/edit', [GroupController::class, 'edit'])->name('groups.edit')->middleware('permission:groups.edit');
+    Route::put('groups/{group}', [GroupController::class, 'update'])->name('groups.update')->middleware('permission:groups.edit');
+    Route::delete('groups/{group}', [GroupController::class, 'destroy'])->name('groups.destroy')->middleware('permission:groups.delete');
 
     // Bookings
     Route::resource('bookings', BookingController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
@@ -97,6 +120,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('distributions/create', [DistributionController::class, 'create'])->name('distributions.create');
     Route::post('distributions', [DistributionController::class, 'store'])->name('distributions.store');
     Route::post('distributions/batch-return', [DistributionController::class, 'batchReturn'])->name('distributions.batch-return');
+    Route::post('distributions/export', [DistributionController::class, 'export'])->name('distributions.export');
     Route::get('distributions/{distribution}', [DistributionController::class, 'show'])->name('distributions.show');
     Route::get('distributions/{distribution}/edit', [DistributionController::class, 'edit'])->name('distributions.edit');
     Route::put('distributions/{distribution}', [DistributionController::class, 'update'])->name('distributions.update');
@@ -104,7 +128,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::delete('distributions/{distribution}', [DistributionController::class, 'destroy'])->name('distributions.destroy');
 
     // Live View / Map
-    Route::middleware('role:super-admin|sub-admin|tps')->group(function () {
+    Route::middleware('permission:live_view.view')->group(function () {
         Route::get('live-view', [LiveViewController::class, 'index'])->name('live-view.index');
         Route::get('live-view/locations', [LiveViewController::class, 'allLocations'])->name('live-view.locations');
         Route::get('live-view/follow/{device}', [LiveViewController::class, 'followDevice'])->name('live-view.follow');
@@ -131,6 +155,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Tickets
     Route::resource('tickets', TicketController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+    Route::post('tickets/export', [TicketController::class, 'export'])->name('tickets.export');
     Route::post('tickets/{ticket}/comment', [TicketController::class, 'addComment'])->name('tickets.comment');
     Route::put('tickets/{ticket}/status', [TicketController::class, 'updateStatus'])->name('tickets.status');
     Route::put('tickets/{ticket}/assign', [TicketController::class, 'assign'])->name('tickets.assign');
@@ -149,6 +174,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Reports
     Route::get('reports', [ReportController::class, 'subscriptions'])->name('reports.index');
+    Route::post('reports/send-now', [ReportController::class, 'sendNow'])->name('reports.send-now');
     Route::post('reports/subscriptions', [ReportController::class, 'storeSubscription'])->name('reports.subscriptions.store');
     Route::put('reports/subscriptions/{subscription}', [ReportController::class, 'updateSubscription'])->name('reports.subscriptions.update');
     Route::delete('reports/subscriptions/{subscription}', [ReportController::class, 'destroySubscription'])->name('reports.subscriptions.destroy');
@@ -230,6 +256,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->middleware('role:super-admin');
     Route::resource('users', UserController::class)->middleware('permission:users.view');
     Route::post('users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggle-active')->middleware('permission:users.edit');
+
+    // Logs
+    Route::get('logs', [LogController::class, 'index'])->name('logs.index')->middleware('permission:activity_logs.view');
 
     // Miscellaneous
     Route::middleware('role:super-admin|sub-admin')->group(function () {

@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\ApiTicketController;
 use App\Http\Controllers\Api\ApiTicketReportController;
 use App\Http\Controllers\Api\ApiTractorController;
 use App\Http\Controllers\Api\ApiTsrController;
+use App\Http\Controllers\Api\ApiTractorDistributionController;
 use App\Http\Controllers\Api\Integration\AlertController as IntegrationAlertController;
 use App\Http\Controllers\Api\Integration\OverviewController as IntegrationOverviewController;
 use App\Http\Controllers\Api\Integration\TractorController as IntegrationTractorController;
@@ -42,6 +43,11 @@ Route::prefix('integration/v1')
         Route::get('tractors/{tractor}/location', [IntegrationTractorController::class, 'location'])->name('tractors.location');
         Route::get('tractors/{tractor}/location-history', [IntegrationTractorController::class, 'locationHistory'])->name('tractors.location-history');
         Route::get('tractors/{tractor}/mileage', [IntegrationTractorController::class, 'mileage'])->name('tractors.mileage');
+        Route::get('tractors/{tractor}/status-summary', [IntegrationTractorController::class, 'statusSummary'])->name('tractors.status-summary');
+        Route::get('tractors/{tractor}/utilization', [IntegrationTractorController::class, 'utilization'])->name('tractors.utilization');
+        Route::get('tractors/{tractor}/maintenance-status', [IntegrationTractorController::class, 'maintenanceStatus'])->name('tractors.maintenance-status');
+        Route::get('tractors/{tractor}/events', [IntegrationTractorController::class, 'events'])->name('tractors.events');
+        Route::get('tractors/{tractor}/within-boundaries', [IntegrationTractorController::class, 'withinBoundaries'])->name('tractors.within-boundaries');
         Route::get('tractors/{tractor}/track-data', [IntegrationTractorController::class, 'trackData'])->name('tractors.track-data');
         Route::get('tractors/{tractor}/alerts', [IntegrationTractorController::class, 'alerts'])->name('tractors.alerts');
         Route::get('tractors/{tractor}/maintenance', [IntegrationTractorController::class, 'maintenance'])->name('tractors.maintenance');
@@ -119,6 +125,8 @@ Route::prefix('v1')->group(function () {
         Route::post('bookings/{booking}/cancel', [ApiBookingController::class, 'cancel']);
         Route::post('bookings/{booking}/approve', [ApiBookingController::class, 'approve']);
         Route::post('bookings/{booking}/reject', [ApiBookingController::class, 'reject']);
+        Route::post('bookings/{booking}/pickup-status', [ApiBookingController::class, 'pickupStatus']);
+        Route::post('bookings/{booking}/return-status', [ApiBookingController::class, 'returnStatus']);
 
         // My Farmers (FCA fetches their farmers list)
         Route::get('my-farmers', function (Illuminate\Http\Request $request) {
@@ -349,6 +357,33 @@ Route::prefix('v1')->group(function () {
             // FCA info for ticket report form (contacts + serial numbers)
             Route::get('tickets/{ticket}/report-form-data', [ApiTicketReportController::class, 'reportFormData']);
         });
+
+        // Booking lookups (FCAs, tractors by FCA, farmers by FCA)
+        Route::get('bookings/fcas', function () {
+            return User::role('fca')->where('is_active', true)
+                ->select('id', 'name', 'email', 'organization_name')
+                ->orderBy('name')
+                ->get();
+        })->name('api.bookings.fcas');
+
+        Route::get('bookings/fcas/{fca}/tractors', function (User $fca) {
+            return \App\Models\Tractor::query()
+                ->whereHas('distributions', fn ($q) => $q
+                    ->where('distributed_to', $fca->id)
+                    ->where('status', 'distributed'))
+                ->whereHas('device', fn ($q) => $q->where('is_active', true))
+                ->select('id', 'no_plate', 'brand', 'model', 'imei')
+                ->orderBy('no_plate')
+                ->get();
+        })->name('api.bookings.fcas.tractors');
+
+        Route::get('bookings/fcas/{fca}/farmers', function (User $fca) {
+            return $fca->farmers()
+                ->where('is_active', true)
+                ->select('id', 'name', 'phone')
+                ->orderBy('name')
+                ->get();
+        })->name('api.bookings.fcas.farmers');
 
         // Booking Slots
         Route::get('booking-slots', fn () => response()->json(
