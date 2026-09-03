@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 class PurgeOldAlerts extends Command
 {
     protected $signature = 'alerts:purge
-                            {--months=1 : Delete alerts older than this many months}
+                            {--days=30 : Delete alerts older than this many days}
                             {--chunk=1000 : Number of alerts to delete per batch}
                             {--dry-run : Show how many alerts would be deleted}';
 
@@ -16,14 +16,14 @@ class PurgeOldAlerts extends Command
 
     public function handle(): int
     {
-        $months = $this->positiveIntegerOption('months');
+        $days = $this->positiveIntegerOption('days');
         $chunkSize = $this->positiveIntegerOption('chunk');
 
-        if ($months === null || $chunkSize === null) {
+        if ($days === null || $chunkSize === null) {
             return self::INVALID;
         }
 
-        $cutoff = now()->subMonthsNoOverflow($months);
+        $cutoff = now()->subDays($days);
         $query = Alert::query()->where('created_at', '<', $cutoff);
 
         if ($this->option('dry-run')) {
