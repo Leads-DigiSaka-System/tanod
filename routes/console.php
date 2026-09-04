@@ -53,4 +53,4 @@ Schedule::command('accounts:process-deletions')->dailyAt('03:00');
 Schedule::job(new CheckBookingTimeline)->everyMinute()->withoutOverlapping();
 
 // Retain only the most recent month of alerts
-Schedule::command('alerts:purge')->dailyAt('03:30')->withoutOverlapping();
+Schedule::command('alerts:purge')->hourly()->withoutOverlapping();

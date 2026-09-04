@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -26,5 +27,20 @@ class LogController extends Controller
             'filters' => $request->only(['search', 'action']),
             'actions' => ActivityLog::query()->distinct()->orderBy('action')->pluck('action'),
         ]);
+    }
+
+    public function cleanup(Request $request)
+    {
+        $deleted = ActivityLog::where('created_at', '<', now()->subDays(3))->delete();
+
+        ActivityLogger::log('ActivityLog', 0, 'cleaned', [
+            'deleted' => $deleted,
+        ], $request->user());
+
+        $message = $deleted > 0
+            ? $deleted.' '.str('log')->plural($deleted).' older than 3 days deleted.'
+            : 'No logs older than 3 days to delete.';
+
+        return back()->with('success', $message);
     }
 }

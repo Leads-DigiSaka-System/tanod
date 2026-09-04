@@ -260,6 +260,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Logs
     Route::get('logs', [LogController::class, 'index'])->name('logs.index')->middleware('permission:activity_logs.view');
+    Route::post('logs/cleanup', [LogController::class, 'cleanup'])->name('logs.cleanup')->middleware('permission:activity_logs.view');
 
     // Miscellaneous
     Route::middleware('role:super-admin|sub-admin')->group(function () {
