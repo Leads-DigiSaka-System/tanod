@@ -128,10 +128,11 @@ class JimiSyncAll extends Command
             $device = Device::withTrashed()->where('imei', $imei)->first();
 
             if ($device) {
-                $device->update($attributes);
                 if ($device->trashed()) {
-                    $device->restore();
+                    // Device was intentionally deleted by the user — skip it
+                    continue;
                 }
+                $device->update($attributes);
                 $this->devicesUpdated++;
             } else {
                 $device = Device::create(array_merge(['imei' => $imei], $attributes));

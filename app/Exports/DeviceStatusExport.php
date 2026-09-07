@@ -9,6 +9,7 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Color;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
@@ -105,7 +106,7 @@ class DeviceStatusExport implements FromArray, WithColumnWidths, WithHeadings, W
             if (($r - 5) % 2 === 1) {
                 $sheet->getStyle("A{$r}:H{$r}")->getFill()
                     ->setFillType(Fill::FILL_SOLID)
-                    ->setStartColor(['rgb' => 'F9FAFB']);
+                    ->setStartColor(new Color('F9FAFB'));
             }
         }
 

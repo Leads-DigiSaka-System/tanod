@@ -59,8 +59,11 @@ class ApiBookingController extends Controller
         $user = $request->user();
 
         $data = $request->validate([
+            'is_member' => 'nullable|boolean',
             'tractor_id' => 'required|exists:tractors,id',
             'farmer_id' => 'nullable|exists:users,id',
+            'contact_name' => 'nullable|string|max:255',
+            'contact_phone' => 'nullable|string|max:20',
             'booking_date' => 'required|date|after_or_equal:today',
             'start_date' => 'nullable|date|after_or_equal:today',
             'end_date' => 'nullable|date|after_or_equal:start_date',
@@ -79,6 +82,39 @@ class ApiBookingController extends Controller
                 403,
                 'You can only book on behalf of your own farmers.'
             );
+        }
+
+        // ── Overlap check (date + time) ──
+        $startDate = $data['start_date'] ?? $data['booking_date'];
+        $endDate = $data['end_date'] ?? $startDate;
+        $startTime = $data['start_time'] ?? null;
+        $endTime = $data['end_time'] ?? null;
+
+        $overlapping = Booking::where('tractor_id', $data['tractor_id'])
+            ->whereNotIn('status', ['cancelled', 'rejected', 'completed'])
+            ->where('start_date', '<=', $endDate)
+            ->where(function ($q) use ($startDate) {
+                $q->where('end_date', '>=', $startDate)
+                    ->orWhere('booking_date', '>=', $startDate);
+            })
+            ->get();
+
+        $conflict = $overlapping->contains(function ($existing) use ($startDate, $endDate, $startTime, $endTime) {
+            // If neither side has times, any date overlap is a conflict
+            if (empty($startTime) || empty($endTime) ||
+                empty($existing->start_time) || empty($existing->end_time)) {
+                return true;
+            }
+
+            // Same-day or overlapping dates: check time overlap
+            // Time overlap: existing_start < new_end AND existing_end > new_start
+            return $existing->start_time < $endTime && $existing->end_time > $startTime;
+        });
+
+        if ($conflict) {
+            return response()->json([
+                'message' => 'This tractor is already booked for the selected schedule. Please pick a different date or time.',
+            ], 422);
         }
 
         $data['booked_by'] = $user->id;
@@ -299,5 +335,78 @@ class ApiBookingController extends Controller
         } catch (\Exception $e) {
             Log::warning("FCM push to farmer failed: {$e->getMessage()}");
         }
+    }
+
+    /**
+     * FCA confirms whether the tractor was picked up for a booking.
+     */
+    public function pickupStatus(Request $request, Booking $booking)
+    {
+        $user = $request->user();
+
+        abort_unless(
+            $user->hasAnyRole(['super-admin', 'sub-admin', 'fca']),
+            403,
+            'You are not authorized to confirm pickup status.'
+        );
+
+        abort_unless(
+            $booking->status === 'approved',
+            422,
+            'Only approved bookings can have pickup confirmed.'
+        );
+
+        $data = $request->validate([
+            'status' => 'required|string|in:picked_up,not_picked_up,cancelled',
+        ]);
+
+        match ($data['status']) {
+            'picked_up' => $booking->update(['status' => 'in_use']),
+            'cancelled' => $booking->update(['status' => 'cancelled']),
+            'not_picked_up' => null, // keep status as approved, no change
+        };
+
+        // Mark related pickup_check notifications as read
+        Notification::where('type', 'booking_pickup_check')
+            ->whereJsonContains('data->booking_id', $booking->id)
+            ->update(['is_read' => true, 'read_at' => now()]);
+
+        return new BookingResource($booking->load(['tractor', 'bookedBy', 'approvedBy', 'farmer']));
+    }
+
+    /**
+     * FCA confirms whether the tractor was returned for a booking.
+     */
+    public function returnStatus(Request $request, Booking $booking)
+    {
+        $user = $request->user();
+
+        abort_unless(
+            $user->hasAnyRole(['super-admin', 'sub-admin', 'fca']),
+            403,
+            'You are not authorized to confirm return status.'
+        );
+
+        abort_unless(
+            $booking->status === 'in_use',
+            422,
+            'Only in-use bookings can have return confirmed.'
+        );
+
+        $data = $request->validate([
+            'status' => 'required|string|in:returned,not_returned',
+        ]);
+
+        if ($data['status'] === 'returned') {
+            $booking->update(['status' => 'completed']);
+        }
+        // 'not_returned' keeps it as 'in_use'
+
+        // Mark related return_check notifications as read
+        Notification::where('type', 'booking_return_check')
+            ->whereJsonContains('data->booking_id', $booking->id)
+            ->update(['is_read' => true, 'read_at' => now()]);
+
+        return new BookingResource($booking->load(['tractor', 'bookedBy', 'approvedBy', 'farmer']));
     }
 }

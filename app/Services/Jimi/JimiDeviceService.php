@@ -46,6 +46,12 @@ class JimiDeviceService
                 continue;
             }
 
+            // Skip devices that were intentionally soft-deleted by the user
+            $existingDevice = Device::withTrashed()->where('imei', $imei)->first();
+            if ($existingDevice && $existingDevice->trashed()) {
+                continue;
+            }
+
             $device = Device::updateOrCreate(
                 ['imei' => $imei],
                 [
@@ -61,6 +67,12 @@ class JimiDeviceService
                     'is_active' => true,
                 ]
             );
+
+            // Skip tractors that were intentionally soft-deleted by the user
+            $existingTractor = Tractor::withTrashed()->where('imei', $imei)->first();
+            if ($existingTractor && $existingTractor->trashed()) {
+                continue;
+            }
 
             // Find or create tractor by IMEI — the universal unique key
             // This ensures Excel-imported tractors and Jimi-synced tractors merge into one record

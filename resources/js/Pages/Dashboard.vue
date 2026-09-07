@@ -149,9 +149,9 @@
             <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
           </div>
           <div class="min-w-0">
-            <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Users</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">FCA Users</p>
             <p class="text-xl font-bold text-gray-900 dark:text-white">{{ Number(stats.totalUsers || 0).toLocaleString() }} <span class="text-sm font-normal text-gray-400">total</span></p>
-            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Registered users</p>
+            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Registered FCA users</p>
           </div>
         </div>
       </div>
@@ -163,26 +163,26 @@
         <div class="rounded-2xl bg-gray-100 dark:bg-gray-800/60 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
           <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-6">Tractor Status</h3>
           <div class="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-0 sm:divide-x divide-gray-200 dark:divide-gray-700">
-            <!-- Activated -->
+            <!-- Active (parked + idle + moving) -->
             <div class="flex-1 flex flex-col items-center px-3">
-              <span class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Activated</span>
+              <span class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Active</span>
               <div class="relative w-full max-w-[160px] mx-auto flex justify-center mb-3">
-                <apexchart type="donut" height="120" :options="activatedDonutOptions" :series="activatedDonutSeries" />
+                <apexchart type="donut" height="120" :options="activeDonutOptions" :series="activeDonutSeries" />
               </div>
               <div class="flex items-center gap-2 mt-1">
-                <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Activated {{ deviceActivation.activated.toLocaleString() }}</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Active {{ activeCount.toLocaleString() }}</span>
               </div>
             </div>
-            <!-- Inactive -->
+            <!-- Inactive (offline) -->
             <div class="flex-1 flex flex-col items-center px-3">
               <span class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Inactive</span>
               <div class="relative w-full max-w-[160px] mx-auto flex justify-center mb-3">
-                <apexchart type="donut" height="120" :options="inactivatedDonutOptions" :series="inactivatedDonutSeries" />
+                <apexchart type="donut" height="120" :options="offlineDonutOptions" :series="offlineDonutSeries" />
               </div>
               <div class="flex items-center gap-2 mt-1">
                 <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
-                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Inactive {{ deviceActivation.inactivated.toLocaleString() }}</span>
+                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Inactive {{ offlineCount.toLocaleString() }}</span>
               </div>
             </div>
           </div>
@@ -296,10 +296,13 @@ const getStatColor = (key) => {
 }
 
 
-// Activation
-const deviceActivation = computed(() => props.charts?.deviceActivation || { total: 0, activated: 0, inactivated: 0 })
-const activationActivatedPercent = computed(() => deviceActivation.value.total > 0 ? Math.round((deviceActivation.value.activated / deviceActivation.value.total) * 100 * 100) / 100 : 0)
-const activationInactivatedPercent = computed(() => deviceActivation.value.total > 0 ? Math.round((deviceActivation.value.inactivated / deviceActivation.value.total) * 100 * 100) / 100 : 0)
+// Tractor Status (Active = parked + idle + moving, Inactive = offline)
+const tractorStatusBreakdown = computed(() => props.charts?.tractorStatusBreakdown || { active: 0, offline: 0 })
+const activeCount = computed(() => tractorStatusBreakdown.value.active || 0)
+const offlineCount = computed(() => tractorStatusBreakdown.value.offline || 0)
+const statusTotal = computed(() => activeCount.value + offlineCount.value || 1)
+const activePercent = computed(() => Math.round((activeCount.value / statusTotal.value) * 1000) / 10)
+const offlinePercent = computed(() => Math.round((offlineCount.value / statusTotal.value) * 1000) / 10)
 
 // Tractor Status donut charts
 const buildStatusDonut = (percent, color) => ({
@@ -311,10 +314,10 @@ const buildStatusDonut = (percent, color) => ({
   legend: { show: false },
   tooltip: { enabled: false },
 })
-const activatedDonutSeries = computed(() => [activationActivatedPercent.value, 100 - activationActivatedPercent.value])
-const activatedDonutOptions = computed(() => buildStatusDonut(activationActivatedPercent.value, '#3b82f6'))
-const inactivatedDonutSeries = computed(() => [activationInactivatedPercent.value, 100 - activationInactivatedPercent.value])
-const inactivatedDonutOptions = computed(() => buildStatusDonut(activationInactivatedPercent.value, '#f43f5e'))
+const activeDonutSeries = computed(() => [activePercent.value, 100 - activePercent.value])
+const activeDonutOptions = computed(() => buildStatusDonut(activePercent.value, '#22c55e'))
+const offlineDonutSeries = computed(() => [offlinePercent.value, 100 - offlinePercent.value])
+const offlineDonutOptions = computed(() => buildStatusDonut(offlinePercent.value, '#ef4444'))
 
 // PMS Schedule
 const pmsSchedule = computed(() => props.charts?.pmsScheduleBreakdown || { finished: 0, upcoming: 0, due: 0 })

@@ -298,6 +298,16 @@
                 </button>
               </form>
 
+              <!-- Legal -->
+              <div class="mt-6 text-center">
+                <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                  By signing in, you agree to our
+                  <Link href="/privacy-policy" class="font-medium text-green-700 dark:text-green-400 hover:underline">Privacy Policy</Link>
+                  and
+                  <Link href="/terms-and-conditions" class="font-medium text-green-700 dark:text-green-400 hover:underline">Terms &amp; Conditions</Link>
+                </p>
+              </div>
+
               <!-- Feature badges -->
               <div class="mt-8 grid grid-cols-3 gap-2">
                 <div class="text-center p-2.5 rounded-xl bg-green-50 border border-green-100 dark:bg-green-900/20 dark:border-green-800/30 feature-badge" style="animation-delay: 0.1s;">
@@ -361,7 +371,7 @@
 
 <script setup>
 import { onMounted, ref } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 
 const showPassword = ref(false);
