@@ -75,6 +75,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Tractors
     Route::get('tractors/duplicates', [TractorController::class, 'duplicates'])->name('tractors.duplicates');
+    Route::get('tractors/empty-imei', [TractorController::class, 'emptyImei'])->name('tractors.empty-imei');
     Route::resource('tractors', TractorController::class);
     Route::post('tractors/batch-delete-check', [TractorController::class, 'batchDeleteCheck'])->name('tractors.batch-delete-check');
     Route::post('tractors/batch-destroy', [TractorController::class, 'batchDestroy'])->name('tractors.batch-destroy');

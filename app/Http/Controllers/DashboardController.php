@@ -53,6 +53,7 @@ class DashboardController extends Controller
         $onlineTractors = $tractorStatus['onlineTractors'];
         $offlineTractors = $tractorStatus['offlineTractors'];
         $inactiveTractors = $tractorStatus['inactiveTractors'];
+        $tractorStatusBreakdown = $this->tractorStatusBreakdown($liveLocations);
 
         // ── Tractor usage & PMS (report-style 100‑hr schedule) ──
         $usage = $this->tractorUsageSummary();
@@ -225,7 +226,7 @@ class DashboardController extends Controller
                 'totalMaintenanceRecords' => $usage['totalMaintenanceRecords'],
                 'totalDevices' => $totalDevices,
                 'onlineDevices' => $onlineDevices,
-                'totalUsers' => User::count(),
+                'totalUsers' => User::role('fca')->count(),
                 'pendingBookings' => $bookingsByStatus['pending'] ?? 0,
                 'maintenanceDue' => $maintenanceDueCount,
                 'unacknowledgedAlerts' => $unacknowledgedAlerts,
@@ -254,6 +255,7 @@ class DashboardController extends Controller
                     'offline' => $offlineTractors,
                     'inactive' => $inactiveTractors,
                 ],
+                'tractorStatusBreakdown' => $tractorStatusBreakdown,
                 'offlineBreakdown' => [
                     'lessThanDay' => $offlineBreakdown['lessThanDay'],
                     'oneToSevenDays' => $offlineBreakdown['oneToSevenDays'],
@@ -337,6 +339,80 @@ class DashboardController extends Controller
             'inactiveTractors' => max($totalTractors - $activeTractorCount, 0),
             'onlineDevices' => $onlineDevices,
         ];
+    }
+
+    /**
+     * Classify tracked tractors into Parked / Idle / Moving / Offline using the
+     * same rules as LiveView, then roll up Active (parked+idle+moving) vs Offline.
+     *
+     * @return array{parked:int, idling:int, moving:int, offline:int, active:int}
+     */
+    private function tractorStatusBreakdown(array $liveLocations): array
+    {
+        $counts = ['parked' => 0, 'idling' => 0, 'moving' => 0, 'offline' => 0];
+
+        $devices = Device::query()
+            ->select(['id', 'imei'])
+            ->with('tractor:id,device_id')
+            ->whereHas('tractor')
+            ->notStale()
+            ->get();
+
+        foreach ($devices as $device) {
+            $status = $this->resolveTractorStatus($liveLocations[$device->imei] ?? null);
+            $counts[$status]++;
+        }
+
+        $counts['active'] = $counts['parked'] + $counts['idling'] + $counts['moving'];
+
+        return $counts;
+    }
+
+    /**
+     * Resolve a tractor's live status from JIMI location data.
+     *
+     * @param  array<string, mixed>|null  $apiData
+     */
+    private function resolveTractorStatus(?array $apiData): string
+    {
+        if (! $apiData) {
+            return 'offline';
+        }
+
+        $heartbeatAt = $this->parseHeartbeat($apiData['hbTime'] ?? null);
+        $minutesAgo = $heartbeatAt
+            ? (int) floor($heartbeatAt->diffInMinutes(now()->utc()))
+            : 999;
+
+        // Prefer JIMI's own online/offline determination (status=1 → online).
+        // Fall back to heartbeat age only when status is missing.
+        $jimiStatus = array_key_exists('status', $apiData) ? (int) $apiData['status'] : null;
+
+        $isOnline = match ($jimiStatus) {
+            1 => true,
+            0 => false,
+            default => $minutesAgo <= $this->onlineThresholdMinutes(),
+        };
+
+        if (! $isOnline) {
+            return 'offline';
+        }
+
+        if (! (bool) ($apiData['accStatus'] ?? false)) {
+            return 'parked';
+        }
+
+        $speed = (float) ($apiData['speed'] ?? 0);
+
+        $gpsAt = $this->parseHeartbeat($apiData['gpsTime'] ?? null);
+        $gpsMinutesAgo = $gpsAt
+            ? max((int) floor($gpsAt->diffInMinutes(now()->utc())), 0)
+            : $minutesAgo;
+
+        $movementFreshness = max((int) config('jimi.movement_freshness_minutes', 5), 1);
+        $hasFreshMovement = $speed >= 3.0 && $gpsMinutesAgo <= $movementFreshness;
+
+        return $hasFreshMovement ? 'moving' : 'idling';
     }
 
     /**

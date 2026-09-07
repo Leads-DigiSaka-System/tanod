@@ -569,6 +569,30 @@ class TractorController extends Controller
     }
 
     /**
+     * Return tractors that have no IMEI value (used by the cleanup modal's Empty IMEI tab).
+     */
+    public function emptyImei()
+    {
+        $tractors = Tractor::where(function ($q) {
+            $q->whereNull('imei')->orWhere('imei', '');
+        })
+            ->orderBy('id')
+            ->get(['id', 'imei', 'no_plate', 'name', 'brand', 'model', 'created_at']);
+
+        return response()->json([
+            'data' => $tractors->map(fn ($t) => [
+                'id' => $t->id,
+                'imei' => $t->imei,
+                'no_plate' => $t->no_plate,
+                'name' => $t->name,
+                'brand' => $t->brand,
+                'model' => $t->model,
+                'created_at' => $t->created_at?->toIso8601String(),
+            ])->values(),
+        ]);
+    }
+
+    /**
      * Update a tractor's IMEI (used by the duplicate IMEI cleanup modal).
      */
     public function updateImei(Request $request, Tractor $tractor)

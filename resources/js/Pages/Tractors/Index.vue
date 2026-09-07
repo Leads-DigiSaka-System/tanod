@@ -14,7 +14,7 @@
           @mouseenter="$event.target.style.backgroundColor='#92400e'"
           @mouseleave="$event.target.style.backgroundColor='#b45309'">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-          Duplicate IMEI
+          Need to Clean
         </button>
         <button v-if="activeTab === 'fca'" @click="openDistributeDrawer()"
           class="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
@@ -827,11 +827,30 @@
       <template #header>
         <div class="flex items-center gap-2">
           <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-          <span>Duplicate IMEI Detection</span>
+          <span>Need to Clean</span>
         </div>
       </template>
 
+      <!-- Tabs -->
+      <div class="flex gap-1 px-6 pt-4 border-b border-gray-200 dark:border-gray-700">
+        <button type="button" @click="switchCleanupTab('duplicates')"
+          class="px-3 py-2 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-colors"
+          :class="cleanupTab === 'duplicates'
+            ? 'border-amber-500 text-amber-600 dark:text-amber-400'
+            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'">
+          Duplicate IMEI
+        </button>
+        <button type="button" @click="switchCleanupTab('empty')"
+          class="px-3 py-2 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-colors"
+          :class="cleanupTab === 'empty'
+            ? 'border-amber-500 text-amber-600 dark:text-amber-400'
+            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'">
+          Empty IMEI
+        </button>
+      </div>
+
       <div class="max-h-[65vh] overflow-y-auto p-6 space-y-4">
+        <template v-if="cleanupTab === 'duplicates'">
         <!-- Loading -->
         <div v-if="duplicateLoading" class="flex flex-col items-center justify-center py-12 gap-3">
           <svg class="animate-spin h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24">
@@ -893,13 +912,74 @@
             </div>
           </div>
         </template>
+        </template>
+
+        <!-- Empty IMEI tab -->
+        <template v-else>
+          <div v-if="emptyLoading" class="flex flex-col items-center justify-center py-12 gap-3">
+            <svg class="animate-spin h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 animate-pulse">Loading tractors without IMEI...</p>
+          </div>
+
+          <div v-else-if="emptyError" class="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4">
+            <p class="text-sm text-red-700 dark:text-red-400">{{ emptyError }}</p>
+          </div>
+
+          <div v-else-if="!emptyTractors.length" class="py-12 text-center">
+            <svg class="mx-auto h-12 w-12 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="mt-4 text-sm font-medium text-gray-900 dark:text-white">No tractors without IMEI</p>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Every tractor already has an IMEI value.</p>
+          </div>
+
+          <template v-else>
+            <div class="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+              <div class="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-600">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">Tractors with no IMEI</p>
+                <span class="inline-flex items-center justify-center min-w-7 h-7 px-2 rounded-full text-xs font-bold text-white bg-amber-500">{{ emptyTractors.length }}</span>
+              </div>
+              <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                <div v-for="tractor in emptyTractors" :key="tractor.id"
+                  class="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3">
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">{{ tractor.no_plate }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ tractor.name || '—' }} · {{ [tractor.brand, tractor.model].filter(Boolean).join(' ') || '—' }}
+                    </p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <input v-model="imeiInputs[tractor.id]" type="text" placeholder="IMEI"
+                      class="w-48 rounded-lg border-gray-300 shadow-sm text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400" />
+                    <button type="button" @click="saveImei(tractor)" :disabled="imeiSaving[tractor.id]"
+                      class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <svg v-if="imeiSaving[tractor.id]" class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                      {{ imeiSaving[tractor.id] ? 'Saving...' : 'Save' }}
+                    </button>
+                    <button type="button" @click="deleteDuplicate(tractor)" :disabled="imeiDeleting[tractor.id]"
+                      class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <svg v-if="imeiDeleting[tractor.id]" class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                      {{ imeiDeleting[tractor.id] ? 'Deleting...' : 'Delete' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </template>
       </div>
 
       <template #footer>
         <button type="button" @click="closeDuplicateModal"
           class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">Close</button>
-        <span v-if="duplicateGroups.length" class="ml-auto text-sm text-gray-500 dark:text-gray-400">
+        <span v-if="cleanupTab === 'duplicates' && duplicateGroups.length" class="ml-auto text-sm text-gray-500 dark:text-gray-400">
           {{ duplicateGroups.length }} IMEI group{{ duplicateGroups.length !== 1 ? 's' : '' }} with duplicates
+        </span>
+        <span v-else-if="cleanupTab === 'empty' && emptyTractors.length" class="ml-auto text-sm text-gray-500 dark:text-gray-400">
+          {{ emptyTractors.length }} tractor{{ emptyTractors.length !== 1 ? 's' : '' }} without IMEI
         </span>
       </template>
     </Modal>
@@ -1429,11 +1509,15 @@ const confirmForceDelete = () => {
   });
 };
 
-// ── Duplicate IMEI Modal ──
+// ── Need to Clean Modal (Duplicate IMEI + Empty IMEI) ──
 const duplicateModalOpen = ref(false);
+const cleanupTab = ref('duplicates');
 const duplicateLoading = ref(false);
 const duplicateError = ref(null);
 const duplicateGroups = ref([]);
+const emptyLoading = ref(false);
+const emptyError = ref(null);
+const emptyTractors = ref([]);
 const imeiInputs = ref({});
 const imeiSaving = ref({});
 const imeiDeleting = ref({});
@@ -1441,15 +1525,45 @@ const imeiDeleting = ref({});
 const loadDuplicates = async () => {
   const { data } = await axios.get('/tractors/duplicates');
   duplicateGroups.value = data.data;
-  imeiInputs.value = {};
   data.data.forEach((group) => group.tractors.forEach((t) => { imeiInputs.value[t.id] = t.imei; }));
+};
+
+const loadEmptyImei = async () => {
+  const { data } = await axios.get('/tractors/empty-imei');
+  emptyTractors.value = data.data;
+  data.data.forEach((t) => { imeiInputs.value[t.id] = t.imei || ''; });
+};
+
+const reloadCurrentTab = () => {
+  return cleanupTab.value === 'empty' ? loadEmptyImei() : loadDuplicates();
+};
+
+const switchCleanupTab = async (tab) => {
+  cleanupTab.value = tab;
+
+  if (tab === 'duplicates') {
+    return;
+  }
+
+  emptyLoading.value = true;
+  emptyError.value = null;
+  try {
+    await loadEmptyImei();
+  } catch (err) {
+    emptyError.value = err.response?.data?.message || 'Failed to load tractors without IMEI.';
+  } finally {
+    emptyLoading.value = false;
+  }
 };
 
 const openDuplicateModal = async () => {
   duplicateModalOpen.value = true;
+  cleanupTab.value = 'duplicates';
   duplicateLoading.value = true;
   duplicateError.value = null;
   duplicateGroups.value = [];
+  emptyTractors.value = [];
+  emptyError.value = null;
   imeiInputs.value = {};
 
   try {
@@ -1464,8 +1578,10 @@ const openDuplicateModal = async () => {
 const closeDuplicateModal = () => {
   duplicateModalOpen.value = false;
   duplicateGroups.value = [];
+  emptyTractors.value = [];
   imeiInputs.value = {};
   duplicateError.value = null;
+  emptyError.value = null;
 };
 
 const saveImei = async (tractor) => {
@@ -1475,7 +1591,7 @@ const saveImei = async (tractor) => {
   imeiSaving.value = { ...imeiSaving.value, [tractor.id]: true };
   try {
     await axios.post(`/tractors/${tractor.id}/update-imei`, { imei: newImei });
-    await loadDuplicates();
+    await reloadCurrentTab();
   } catch (err) {
     window.alert(err.response?.data?.errors?.imei?.[0] || err.response?.data?.message || 'Failed to update IMEI.');
   } finally {
@@ -1489,7 +1605,7 @@ const deleteDuplicate = async (tractor) => {
   imeiDeleting.value = { ...imeiDeleting.value, [tractor.id]: true };
   try {
     await axios.delete(`/tractors/${tractor.id}/quick-delete`);
-    await loadDuplicates();
+    await reloadCurrentTab();
   } catch (err) {
     window.alert(err.response?.data?.message || 'Failed to delete tractor.');
   } finally {
