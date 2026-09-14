@@ -34,6 +34,7 @@ class DistributionsExport implements FromArray, ShouldAutoSize, WithColumnWidths
             'IMEI Number',
             'Sim Card Number',
             'Status of GPS',
+            'Distributed By',
         ];
     }
 
@@ -45,6 +46,7 @@ class DistributionsExport implements FromArray, ShouldAutoSize, WithColumnWidths
             'C' => 22,
             'D' => 22,
             'E' => 18,
+            'F' => 24,
         ];
     }
 
@@ -53,6 +55,7 @@ class DistributionsExport implements FromArray, ShouldAutoSize, WithColumnWidths
         $distributions = TractorDistribution::with([
             'tractor.device.latestLocation',
             'distributedToUser',
+            'distributedByUser',
         ])->whereIn('id', $this->ids)->get();
 
         $rows = [];
@@ -74,6 +77,7 @@ class DistributionsExport implements FromArray, ShouldAutoSize, WithColumnWidths
                 $device->imei ?? '—',
                 $device->sim ?? '—',
                 $gpsStatus,
+                $dist->distributedByUser->name ?? '—',
             ];
         }
 
@@ -83,7 +87,7 @@ class DistributionsExport implements FromArray, ShouldAutoSize, WithColumnWidths
     public function styles(Worksheet $sheet)
     {
         // Header style
-        $sheet->getStyle('A1:E1')->applyFromArray([
+        $sheet->getStyle('A1:F1')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '166534']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
@@ -96,7 +100,7 @@ class DistributionsExport implements FromArray, ShouldAutoSize, WithColumnWidths
         }
 
         // Data style
-        $sheet->getStyle("A2:E{$lastRow}")->applyFromArray([
+        $sheet->getStyle("A2:F{$lastRow}")->applyFromArray([
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']]],
             'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
         ]);
@@ -104,7 +108,7 @@ class DistributionsExport implements FromArray, ShouldAutoSize, WithColumnWidths
         // Zebra striping
         for ($r = 2; $r <= $lastRow; $r++) {
             if (($r - 2) % 2 === 1) {
-                $sheet->getStyle("A{$r}:E{$r}")->getFill()
+                $sheet->getStyle("A{$r}:F{$r}")->getFill()
                     ->setFillType(Fill::FILL_SOLID)
                     ->setStartColor(new Color('F9FAFB'));
             }

@@ -35,6 +35,39 @@
       </div>
     </div>
 
+    <!-- Distribution Summary -->
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 mb-6">
+      <div class="flex items-center gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/40">
+          <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10"/></svg>
+        </div>
+        <div class="min-w-0">
+          <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Tractors</p>
+          <p class="text-xl font-bold text-gray-900 dark:text-white">{{ summary.total }}</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 rounded-xl border border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/60 dark:bg-emerald-900/20 p-4 shadow-sm">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40">
+          <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div class="min-w-0">
+          <p class="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Distributed</p>
+          <p class="text-xl font-bold text-emerald-700 dark:text-emerald-400">{{ summary.distributed }}</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 rounded-xl border border-amber-200 dark:border-amber-800/50 bg-amber-50/60 dark:bg-amber-900/20 p-4 shadow-sm">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
+          <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div class="min-w-0">
+          <p class="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">Not Yet Distributed</p>
+          <p class="text-xl font-bold text-amber-700 dark:text-amber-400">{{ summary.not_distributed }}</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Tabs -->
     <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
       <nav class="-mb-px flex gap-6">
@@ -893,6 +926,15 @@
                   <p class="text-xs text-gray-500 dark:text-gray-400">
                     {{ tractor.name || '—' }} · {{ [tractor.brand, tractor.model].filter(Boolean).join(' ') || '—' }}
                   </p>
+                  <div class="flex items-center gap-1.5 mt-1">
+                    <span v-if="tractor.assigned_fca" class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                      FCA: {{ tractor.assigned_fca }}
+                    </span>
+                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                      :class="tractor.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'">
+                      {{ tractor.is_active ? 'Active' : 'Inactive' }}
+                    </span>
+                  </div>
                 </div>
                 <div class="flex items-center gap-2">
                   <input v-model="imeiInputs[tractor.id]" type="text" placeholder="IMEI"
@@ -950,6 +992,15 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                       {{ tractor.name || '—' }} · {{ [tractor.brand, tractor.model].filter(Boolean).join(' ') || '—' }}
                     </p>
+                    <div class="flex items-center gap-1.5 mt-1">
+                      <span v-if="tractor.assigned_fca" class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                        FCA: {{ tractor.assigned_fca }}
+                      </span>
+                      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                        :class="tractor.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'">
+                        {{ tractor.is_active ? 'Active' : 'Inactive' }}
+                      </span>
+                    </div>
                   </div>
                   <div class="flex items-center gap-2">
                     <input v-model="imeiInputs[tractor.id]" type="text" placeholder="IMEI"
@@ -1081,6 +1132,7 @@ const props = defineProps({
   groups: Array,
   fcaUsers: Array,
   allTractors: Array,
+  summary: Object,
 });
 
 // --- Loading state ---

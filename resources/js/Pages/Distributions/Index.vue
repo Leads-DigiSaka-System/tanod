@@ -10,7 +10,7 @@
     </div>
 
     <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6 dark:bg-gray-800 dark:border-gray-700">
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div>
           <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Search</label>
           <input v-model="search" type="text" placeholder="Search tractor, user, area..." @input="debouncedFilter"
@@ -66,6 +66,14 @@
             <option value="distributed">Distributed</option>
             <option value="returned">Returned</option>
             <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div>
+          <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Distributed By</label>
+          <select v-model="distributedByFilter" @change="applyFilter"
+            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500">
+            <option value="">All Distributors</option>
+            <option v-for="u in distributors" :key="u.id" :value="u.id">{{ u.name }}</option>
           </select>
         </div>
       </div>
@@ -428,6 +436,7 @@ const props = defineProps({
   tractors: Array,
   fcaUsers: Array,
   tpsUsers: Array,
+  distributors: Array,
   editDistribution: { type: Object, default: null },
 });
 
@@ -440,6 +449,7 @@ const asArray = (value) => {
 
 const search = ref(props.filters?.search || '');
 const statusFilter = ref(props.filters?.status || '');
+const distributedByFilter = ref(props.filters?.distributed_by || '');
 const provinceFilter = ref(asArray(props.filters?.province));
 const regionFilter = ref(asArray(props.filters?.region));
 const regionDropdownOpen = ref(false);
@@ -483,6 +493,7 @@ const applyFilter = () => {
   router.get('/distributions', {
     search: search.value || undefined,
     status: statusFilter.value || undefined,
+    distributed_by: distributedByFilter.value || undefined,
     province: provinceFilter.value.length ? provinceFilter.value : undefined,
     region: regionFilter.value.length ? regionFilter.value : undefined,
     per_page: perPage.value,

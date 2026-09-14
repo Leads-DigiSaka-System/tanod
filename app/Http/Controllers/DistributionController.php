@@ -32,6 +32,7 @@ class DistributionController extends Controller
 
         $distributions = TractorDistribution::with(['tractor.device.latestLocation', 'distributedToUser.fcaProfile', 'distributedByUser', 'tpsUser'])
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
+            ->when($request->filled('distributed_by'), fn ($q, $s) => $q->where('distributed_by', $s))
             ->when($request->filled('province'), function ($q) use ($request) {
                 $provinceFilters = (array) $request->province;
 
@@ -89,12 +90,15 @@ class DistributionController extends Controller
 
         return Inertia::render('Distributions/Index', [
             'distributions' => $distributions,
-            'filters' => $request->only(['search', 'status', 'province', 'region', 'sort', 'direction', 'per_page']),
+            'filters' => $request->only(['search', 'status', 'province', 'region', 'distributed_by', 'sort', 'direction', 'per_page']),
             'provinces' => $provinces,
             'regions' => $regions,
             'tractors' => Tractor::with('device.latestLocation')->orderBy('no_plate')->get(['id', 'no_plate', 'brand', 'model', 'device_id']),
             'fcaUsers' => User::role('fca')->where('is_active', true)->get(['id', 'name', 'email']),
             'tpsUsers' => User::role('tps')->where('is_active', true)->get(['id', 'name', 'email']),
+            'distributors' => User::whereIn('id', TractorDistribution::whereNotNull('distributed_by')->select('distributed_by')->distinct())
+                ->orderBy('name')
+                ->get(['id', 'name', 'email']),
         ]);
     }
 
@@ -169,6 +173,9 @@ class DistributionController extends Controller
             'tractors' => Tractor::with('device.latestLocation')->orderBy('no_plate')->get(['id', 'no_plate', 'brand', 'model', 'device_id']),
             'fcaUsers' => User::role('fca')->where('is_active', true)->get(['id', 'name', 'email']),
             'tpsUsers' => User::role('tps')->where('is_active', true)->get(['id', 'name', 'email']),
+            'distributors' => User::whereIn('id', TractorDistribution::whereNotNull('distributed_by')->select('distributed_by')->distinct())
+                ->orderBy('name')
+                ->get(['id', 'name', 'email']),
             'editDistribution' => $distribution,
         ]);
     }

@@ -133,7 +133,17 @@ class TractorController extends Controller
                 ->withQueryString();
         }
 
+        $totalTractors = Tractor::whereNull('deleted_at')->count();
+        $distributedTractors = Tractor::whereNull('deleted_at')
+            ->whereHas('distributions', fn ($q) => $q->where('status', 'distributed'))
+            ->count();
+
         return Inertia::render('Tractors/Index', [
+            'summary' => [
+                'total' => $totalTractors,
+                'distributed' => $distributedTractors,
+                'not_distributed' => $totalTractors - $distributedTractors,
+            ],
             'tractors' => $tractors,
             'fcaDistributions' => $fcaDistributions,
             'tpsAssignments' => $tpsAssignments,
@@ -547,9 +557,14 @@ class TractorController extends Controller
             ->pluck('imei');
 
         $tractors = Tractor::whereIn('imei', $duplicateImeis)
+            ->with(['distributions' => fn ($q) => $q
+                ->where('status', 'distributed')
+                ->with('distributedToUser')
+                ->latest(),
+            ])
             ->orderBy('imei')
             ->orderBy('id')
-            ->get(['id', 'imei', 'no_plate', 'name', 'brand', 'model', 'created_at']);
+            ->get(['id', 'imei', 'no_plate', 'name', 'brand', 'model', 'is_active', 'created_at']);
 
         $groups = $tractors->groupBy('imei')->map(fn ($items, $imei) => [
             'imei' => $imei,
@@ -561,6 +576,8 @@ class TractorController extends Controller
                 'name' => $t->name,
                 'brand' => $t->brand,
                 'model' => $t->model,
+                'is_active' => (bool) $t->is_active,
+                'assigned_fca' => $t->distributions->first()?->distributedToUser?->name,
                 'created_at' => $t->created_at?->toIso8601String(),
             ])->values(),
         ])->values();
@@ -576,8 +593,13 @@ class TractorController extends Controller
         $tractors = Tractor::where(function ($q) {
             $q->whereNull('imei')->orWhere('imei', '');
         })
+            ->with(['distributions' => fn ($q) => $q
+                ->where('status', 'distributed')
+                ->with('distributedToUser')
+                ->latest(),
+            ])
             ->orderBy('id')
-            ->get(['id', 'imei', 'no_plate', 'name', 'brand', 'model', 'created_at']);
+            ->get(['id', 'imei', 'no_plate', 'name', 'brand', 'model', 'is_active', 'created_at']);
 
         return response()->json([
             'data' => $tractors->map(fn ($t) => [
@@ -587,6 +609,8 @@ class TractorController extends Controller
                 'name' => $t->name,
                 'brand' => $t->brand,
                 'model' => $t->model,
+                'is_active' => (bool) $t->is_active,
+                'assigned_fca' => $t->distributions->first()?->distributedToUser?->name,
                 'created_at' => $t->created_at?->toIso8601String(),
             ])->values(),
         ]);
