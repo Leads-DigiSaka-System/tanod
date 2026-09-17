@@ -64,12 +64,8 @@ class DistributionsExport implements FromArray, ShouldAutoSize, WithColumnWidths
             $device = $dist->tractor->device ?? null;
             $loc = $device->latestLocation ?? null;
 
-            // GPS status: online if heartbeat within 10 minutes
-            $gpsStatus = 'Offline';
-            if ($loc && $loc->heartbeat_at) {
-                $heartbeat = \Carbon\Carbon::parse($loc->heartbeat_at);
-                $gpsStatus = $heartbeat->diffInMinutes(now()) < 10 ? 'Online' : 'Offline';
-            }
+            // GPS status: match the Distributions page (JIMI status flag: 1 = online)
+            $gpsStatus = $loc && (int) $loc->status === 1 ? 'Online' : 'Offline';
 
             $rows[] = [
                 $dist->distributedToUser->organization_name ?? $dist->distributedToUser->name ?? '—',
