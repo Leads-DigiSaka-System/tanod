@@ -62,10 +62,10 @@
           <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Status</label>
           <select v-model="statusFilter" @change="applyFilter"
             class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-indigo-500 dark:focus:border-indigo-500">
-            <option value="">All Status</option>
             <option value="distributed">Distributed</option>
             <option value="returned">Returned</option>
             <option value="cancelled">Cancelled</option>
+            <option value="all">All Status</option>
           </select>
         </div>
         <div>
@@ -455,7 +455,8 @@ const asArray = (value) => {
 };
 
 const search = ref(props.filters?.search || '');
-const statusFilter = ref(props.filters?.status || '');
+// Defaults to "distributed" so the page opens showing only currently-distributed tractors.
+const statusFilter = ref(props.filters?.status || 'distributed');
 const distributedByFilter = ref(props.filters?.distributed_by || '');
 const provinceFilter = ref(asArray(props.filters?.province));
 const regionFilter = ref(asArray(props.filters?.region));
@@ -499,7 +500,7 @@ const sortBy = (field) => {
 const applyFilter = () => {
   router.get('/distributions', {
     search: search.value || undefined,
-    status: statusFilter.value || undefined,
+    status: statusFilter.value || 'all',
     distributed_by: distributedByFilter.value || undefined,
     province: provinceFilter.value.length ? provinceFilter.value : undefined,
     region: regionFilter.value.length ? regionFilter.value : undefined,

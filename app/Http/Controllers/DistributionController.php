@@ -30,8 +30,15 @@ class DistributionController extends Controller
             $direction = 'desc';
         }
 
+        // Default the listing to currently-distributed tractors.
+        // The "All Status" option sends "all", which clears the filter.
+        $status = $request->input('status', 'distributed');
+        if ($status === 'all' || $status === '') {
+            $status = null;
+        }
+
         $distributions = TractorDistribution::with(['tractor.device.latestLocation', 'tractor.images', 'distributedToUser.fcaProfile', 'distributedByUser', 'tpsUser'])
-            ->when($request->status, fn ($q, $s) => $q->where('status', $s))
+            ->when($status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->filled('distributed_by'), fn ($q, $s) => $q->where('distributed_by', $s))
             ->when($request->filled('province'), function ($q) use ($request) {
                 $provinceFilters = (array) $request->province;
@@ -90,7 +97,10 @@ class DistributionController extends Controller
 
         return Inertia::render('Distributions/Index', [
             'distributions' => $distributions,
-            'filters' => $request->only(['search', 'status', 'province', 'region', 'distributed_by', 'sort', 'direction', 'per_page']),
+            'filters' => array_merge(
+                $request->only(['search', 'status', 'province', 'region', 'distributed_by', 'sort', 'direction', 'per_page']),
+                ['status' => $status ?? 'all']
+            ),
             'provinces' => $provinces,
             'regions' => $regions,
             'tractors' => Tractor::with('device.latestLocation')->orderBy('no_plate')->get(['id', 'no_plate', 'brand', 'model', 'device_id']),
@@ -169,7 +179,7 @@ class DistributionController extends Controller
             'distributions' => TractorDistribution::with(['tractor.images', 'distributedToUser', 'distributedByUser', 'tpsUser'])
                 ->latest()
                 ->paginate(15),
-            'filters' => [],
+            'filters' => ['status' => 'all'],
             'tractors' => Tractor::with('device.latestLocation')->orderBy('no_plate')->get(['id', 'no_plate', 'brand', 'model', 'device_id']),
             'fcaUsers' => User::role('fca')->where('is_active', true)->get(['id', 'name', 'email']),
             'tpsUsers' => User::role('tps')->where('is_active', true)->get(['id', 'name', 'email']),
