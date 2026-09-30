@@ -94,18 +94,39 @@
 
               <!-- Implements Section -->
               <div class="border-t border-gray-100 dark:border-gray-700 pt-3 mt-3">
-                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Implements</p>
-                <div class="flex justify-between">
+                <div class="flex items-center justify-between gap-2 mb-2">
+                  <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Implements</p>
+                  <ImplementPhotos ref="implementPhotos" :images="distribution.tractor.images || []" :tractor-name="distribution.tractor.no_plate" label="View Photos" />
+                </div>
+                <div class="flex items-center justify-between gap-2">
                   <dt class="text-sm text-gray-500 dark:text-gray-400">Front Loader SN</dt>
-                  <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ distribution.tractor.front_loader_sn || '—' }}</dd>
+                  <dd class="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
+                    <span>{{ distribution.tractor.front_loader_sn || '—' }}</span>
+                    <button v-if="hasImplementPhoto('front_loader_sn')" type="button" @click="viewImplementPhoto('front_loader_sn')" title="View Front Loader photo"
+                      class="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    </button>
+                  </dd>
                 </div>
-                <div class="flex justify-between mt-2">
+                <div class="flex items-center justify-between gap-2 mt-2">
                   <dt class="text-sm text-gray-500 dark:text-gray-400">Rotary Tiller SN</dt>
-                  <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ distribution.tractor.rotary_tiller_sn || '—' }}</dd>
+                  <dd class="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
+                    <span>{{ distribution.tractor.rotary_tiller_sn || '—' }}</span>
+                    <button v-if="hasImplementPhoto('rotary_tiller_sn')" type="button" @click="viewImplementPhoto('rotary_tiller_sn')" title="View Rotary Tiller photo"
+                      class="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    </button>
+                  </dd>
                 </div>
-                <div class="flex justify-between mt-2">
+                <div class="flex items-center justify-between gap-2 mt-2">
                   <dt class="text-sm text-gray-500 dark:text-gray-400">Disc Plow SN</dt>
-                  <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ distribution.tractor.disc_plow_sn || '—' }}</dd>
+                  <dd class="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
+                    <span>{{ distribution.tractor.disc_plow_sn || '—' }}</span>
+                    <button v-if="hasImplementPhoto('disc_plow_sn')" type="button" @click="viewImplementPhoto('disc_plow_sn')" title="View Disc Plow photo"
+                      class="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    </button>
+                  </dd>
                 </div>
               </div>
             </dl>
@@ -171,9 +192,26 @@
 </template>
 
 <script setup>
+import { computed, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
+import ImplementPhotos from '@/Components/ImplementPhotos.vue';
 import { formatDate } from '@/utils/dateFormat';
 
-defineProps({ distribution: Object });
+const props = defineProps({ distribution: Object });
+
+// ── Implement photos (captured from the mobile app) ──
+const implementPhotos = ref(null);
+
+const imagesByType = computed(() => {
+  const map = {};
+  (props.distribution?.tractor?.images || []).forEach((img) => {
+    if (img?.type && !map[img.type]) map[img.type] = img;
+  });
+  return map;
+});
+
+const hasImplementPhoto = (type) => !!imagesByType.value[type];
+
+const viewImplementPhoto = (type) => implementPhotos.value?.open({ type });
 </script>

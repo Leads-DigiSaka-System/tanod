@@ -125,6 +125,9 @@
           <td class="px-6 py-4 whitespace-nowrap">{{ formatDate(dist.distributed_at || dist.created_at) }}</td>
           <td class="px-6 py-4 whitespace-nowrap">
             <div class="flex items-center justify-end gap-1">
+              <button @click="viewImplementPhotos(dist)" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="Implement Photos">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              </button>
               <Link :href="`/distributions/${dist.id}`" class="p-1.5 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:bg-emerald-900/20 transition-colors" title="View">
                 <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
               </Link>
@@ -377,6 +380,9 @@
         </div>
       </form>
     </SlideOver>
+
+    <!-- Shared implement photos viewer -->
+    <ImplementPhotos ref="implementPhotos" hide-trigger />
   </AppLayout>
 </template>
 
@@ -389,6 +395,7 @@ import SlideOver from '@/Components/SlideOver.vue';
 import Modal from '@/Components/Modal.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
 import DataTable from '@/Components/DataTable.vue';
+import ImplementPhotos from '@/Components/ImplementPhotos.vue';
 import { formatDate } from '@/utils/dateFormat';
 import axios from 'axios';
 
@@ -627,6 +634,16 @@ const toggleSelectAll = (event) => {
 const clearSelection = () => {
   selectedIds.value = {};
   sessionStorage.removeItem(STORAGE_KEY);
+};
+
+// ── Implement Photos viewer (photos captured from the mobile app) ──
+const implementPhotos = ref(null);
+
+const viewImplementPhotos = (dist) => {
+  implementPhotos.value?.open({
+    images: dist.tractor?.images || [],
+    tractorName: dist.tractor?.no_plate || '',
+  });
 };
 
 // ── Batch Return ──

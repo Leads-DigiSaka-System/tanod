@@ -30,7 +30,7 @@ class DistributionController extends Controller
             $direction = 'desc';
         }
 
-        $distributions = TractorDistribution::with(['tractor.device.latestLocation', 'distributedToUser.fcaProfile', 'distributedByUser', 'tpsUser'])
+        $distributions = TractorDistribution::with(['tractor.device.latestLocation', 'tractor.images', 'distributedToUser.fcaProfile', 'distributedByUser', 'tpsUser'])
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->filled('distributed_by'), fn ($q, $s) => $q->where('distributed_by', $s))
             ->when($request->filled('province'), function ($q) use ($request) {
@@ -154,7 +154,7 @@ class DistributionController extends Controller
 
     public function show(TractorDistribution $distribution)
     {
-        $distribution->load(['tractor.device.latestLocation', 'distributedToUser', 'distributedByUser', 'tpsUser']);
+        $distribution->load(['tractor.device.latestLocation', 'tractor.images', 'distributedToUser', 'distributedByUser', 'tpsUser']);
 
         return Inertia::render('Distributions/Show', [
             'distribution' => $distribution,
@@ -163,10 +163,10 @@ class DistributionController extends Controller
 
     public function edit(TractorDistribution $distribution)
     {
-        $distribution->load(['tractor', 'distributedToUser', 'distributedByUser', 'tpsUser']);
+        $distribution->load(['tractor.images', 'distributedToUser', 'distributedByUser', 'tpsUser']);
 
         return Inertia::render('Distributions/Index', [
-            'distributions' => TractorDistribution::with(['tractor', 'distributedToUser', 'distributedByUser', 'tpsUser'])
+            'distributions' => TractorDistribution::with(['tractor.images', 'distributedToUser', 'distributedByUser', 'tpsUser'])
                 ->latest()
                 ->paginate(15),
             'filters' => [],
