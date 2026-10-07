@@ -186,28 +186,57 @@ const route = window.route || ((name) => {
 });
 
 const navigation = computed(() => {
-  const items = [
-    { name: 'Dashboard', href: route('dashboard'), icon: 'dashboard', show: can('dashboard.view') },
-    { name: 'Live View', href: route('live-view.index'), icon: 'map', show: can('live_view.view') },
-    { name: 'Tractors', href: route('tractors.index'), icon: 'tractor', show: can('tractors.view') },
-    { name: 'Devices', href: route('devices.index'), icon: 'device', show: can('devices.view') },
-    { name: 'Groups', href: route('groups.index'), icon: 'group', show: can('groups.view') },
-    { name: 'Bookings', href: route('bookings.index'), icon: 'calendar', show: can('bookings.view') },
-    { name: 'Maintenance', href: route('maintenance.index'), icon: 'wrench', show: can('maintenance.view') },
-    { name: 'Distributions', href: route('distributions.index'), icon: 'share', show: can('distributions.view') },
-    { name: 'Geo-Fences', href: route('geofences.index'), icon: 'fence', show: can('geofences.view') },
-    { name: 'Alerts', href: route('alerts.index'), icon: 'alert', show: can('alerts.view') },
-    { name: 'Tickets', href: route('tickets.index'), icon: 'ticket', show: can('tickets.view') },
-    { name: 'Feedback', href: route('feedback.index'), icon: 'feedback', show: can('feedback.view') },
-    { name: 'Reports', href: route('reports.index'), icon: 'report', show: can('reports.view') },
-    { name: 'Support Contact', href: route('support-contact.index'), icon: 'support', show: can('support_contacts.view') },
-    { name: 'Collectibles', href: route('collectibles.index'), icon: 'collectible', show: can('collectibles.view') },
-    { name: 'Miscellaneous', href: route('miscellaneous.index'), icon: 'misc', show: can('miscellaneous.view') },
-    { name: 'API Integration', href: route('api-integration.index'), icon: 'api', show: can('api_integrations.view') },
-    { name: 'Users', href: route('users.index'), icon: 'users', show: can('users.view') },
-    { name: 'Logs', href: route('logs.index'), icon: 'log', show: can('activity_logs.view') },
+  // Grouped sidebar navigation. `name: null` renders items without a category header.
+  const groups = [
+    {
+      name: null,
+      items: [
+        { name: 'Dashboard', href: route('dashboard'), icon: 'dashboard', show: can('dashboard.view') },
+        { name: 'Live View', href: route('live-view.index'), icon: 'map', show: can('live_view.view') },
+      ],
+    },
+    {
+      name: 'Tractor',
+      items: [
+        { name: 'Tractors', href: route('tractors.index'), icon: 'tractor', show: can('tractors.view') },
+        { name: 'Groups', href: route('groups.index'), icon: 'group', show: can('groups.view') },
+        { name: 'Distributions', href: route('distributions.index'), icon: 'share', show: can('distributions.view') },
+        { name: 'Devices', href: route('devices.index'), icon: 'device', show: can('devices.view') },
+      ],
+    },
+    {
+      name: 'FCA Concern',
+      items: [
+        { name: 'Maintenance', href: route('maintenance.index'), icon: 'wrench', show: can('maintenance.view') },
+        { name: 'Bookings', href: route('bookings.index'), icon: 'calendar', show: can('bookings.view') },
+        { name: 'Geo-Fences', href: route('geofences.index'), icon: 'fence', show: can('geofences.view') },
+        { name: 'Alerts', href: route('alerts.index'), icon: 'alert', show: can('alerts.view') },
+        { name: 'Tickets', href: route('tickets.index'), icon: 'ticket', show: can('tickets.view') },
+        { name: 'Feedback', href: route('feedback.index'), icon: 'feedback', show: can('feedback.view') },
+      ],
+    },
+    {
+      name: 'Maintenance',
+      items: [
+        { name: 'Reports', href: route('reports.index'), icon: 'report', show: can('reports.view') },
+        { name: 'Support Contact', href: route('support-contact.index'), icon: 'support', show: can('support_contacts.view') },
+      ],
+    },
+    {
+      name: 'Admin Access',
+      items: [
+        { name: 'Collectibles', href: route('collectibles.index'), icon: 'collectible', show: can('collectibles.view') },
+        { name: 'Miscellaneous', href: route('miscellaneous.index'), icon: 'misc', show: can('miscellaneous.view') },
+        { name: 'API Integration', href: route('api-integration.index'), icon: 'api', show: can('api_integrations.view') },
+        { name: 'Logs', href: route('logs.index'), icon: 'log', show: can('activity_logs.view') },
+        { name: 'Users', href: route('users.index'), icon: 'users', show: can('users.view') },
+      ],
+    },
   ];
-  return items.filter(i => i.show);
+
+  return groups
+    .map((group) => ({ ...group, items: group.items.filter((item) => item.show) }))
+    .filter((group) => group.items.length > 0);
 });
 
 const handleClickOutside = (e) => {

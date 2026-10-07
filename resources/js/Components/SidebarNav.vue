@@ -1,7 +1,24 @@
 <template>
   <nav class="flex-1 space-y-1">
-    <ul class="space-y-1">
-      <li v-for="item in navigation" :key="item.name">
+    <template v-for="(group, gi) in navigation" :key="group.name || ('group-' + gi)">
+      <!-- Category header (collapsible) -->
+      <button
+        v-if="group.name"
+        type="button"
+        @click="toggleGroup(group.name)"
+        :class="[
+          'mt-4 flex w-full items-center justify-between rounded-md px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors',
+          groupHasActive(group) ? 'text-white' : 'text-green-200/70 hover:text-white',
+        ]"
+      >
+        <span>{{ group.name }}</span>
+        <svg :class="['w-3 h-3 transition-transform duration-150', isGroupOpen(group.name) ? 'rotate-90' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+
+      <ul v-show="!group.name || isGroupOpen(group.name)" :class="group.name ? 'space-y-1 mt-1' : 'space-y-1'">
+        <li v-for="item in group.items" :key="item.name">
         <Link
           :href="item.href"
           :class="[
@@ -95,12 +112,14 @@
           </svg>
           <span class="ml-3 text-sm font-medium">{{ item.name }}</span>
         </Link>
-      </li>
-    </ul>
+        </li>
+      </ul>
+    </template>
   </nav>
 </template>
 
 <script setup>
+import { ref, computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -123,4 +142,21 @@ const isActive = (href) => {
   if (target === '/') return path === '/';
   return path === target || path.startsWith(target + '/');
 };
+
+// Collapsible category groups. Clean by default: every group starts hidden,
+// except the one that contains the active page so the user sees where they are.
+const collapsedGroups = ref({});
+const activeGroupName = computed(() =>
+  props.navigation?.find((group) => group.name && group.items.some((item) => isActive(item.href)))?.name ?? null
+);
+const isGroupOpen = (name) => {
+  // Once the user manually toggles a group, honour that choice.
+  if (collapsedGroups.value[name] !== undefined) return !collapsedGroups.value[name];
+  return name === activeGroupName.value;
+};
+const toggleGroup = (name) => {
+  // Store the *collapsed* state (true = hidden).
+  collapsedGroups.value = { ...collapsedGroups.value, [name]: isGroupOpen(name) };
+};
+const groupHasActive = (group) => group.items.some((item) => isActive(item.href));
 </script>
