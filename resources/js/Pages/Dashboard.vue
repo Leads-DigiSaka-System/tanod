@@ -240,6 +240,23 @@
         </div>
       </div>
 
+      <!-- Distributions per Month (Full Width) -->
+      <div class="mb-6">
+        <div class="rounded-2xl bg-white dark:bg-gray-800 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Distributions per Month</h3>
+            <div v-if="charts.distributionByMonth?.length" class="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+              <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+              {{ distributionDateRange }}
+            </div>
+          </div>
+          <div v-if="charts.distributionByMonth?.length" style="height: 350px">
+            <canvas ref="distributionChartRef"></canvas>
+          </div>
+          <div v-else class="flex items-center justify-center h-48 text-sm text-gray-400">No distribution data</div>
+        </div>
+      </div>
+
     </template>
 
     <!-- Non-admin fallback -->
@@ -348,22 +365,23 @@ const groupSparkOptions = computed(() => ({
   colors: ['#a78bfa'],
 }))
 
-// Activation per Month — Chart.js
+// Monthly line charts — Chart.js (shared builder)
 const activationChartRef = ref(null)
+const distributionChartRef = ref(null)
 let activationChartInstance = null
+let distributionChartInstance = null
 
-const activationDateRange = computed(() => {
-  const data = props.charts?.activationByMonth || []
-  if (!data.length) return ''
-  return data[0].month + ' – ' + data[data.length - 1].month
-})
+const monthRange = (data) => (!data?.length ? '' : data[0].month + ' – ' + data[data.length - 1].month)
+const activationDateRange = computed(() => monthRange(props.charts?.activationByMonth))
+const distributionDateRange = computed(() => monthRange(props.charts?.distributionByMonth))
 
-function buildActivationChart() {
-  if (!activationChartRef.value) return
-  const data = props.charts?.activationByMonth || []
-  if (!data.length) return
+function hexToRgba(hex, alpha) {
+  const n = parseInt(hex.replace('#', ''), 16)
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`
+}
 
-  if (activationChartInstance) activationChartInstance.destroy()
+function buildMonthLineChart(canvas, data, { color, label }) {
+  if (!canvas || !data?.length) return null
 
   const labels = data.map(d => d.month)
   const values = data.map(d => d.count)
@@ -372,27 +390,27 @@ function buildActivationChart() {
 
   const isDark = document.documentElement.classList.contains('dark')
   const gridColor = isDark ? 'rgba(75,85,99,0.3)' : 'rgba(229,231,235,0.8)'
-  const textColor = isDark ? '#9ca3af' : '#9ca3af'
+  const textColor = '#9ca3af'
 
-  activationChartInstance = new Chart(activationChartRef.value, {
+  return new Chart(canvas, {
     type: 'line',
     data: {
       labels,
       datasets: [{
-        label: 'Activations',
+        label,
         data: values,
-        borderColor: '#2563eb',
+        borderColor: color,
         backgroundColor: (ctx) => {
           const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, ctx.chart.height)
-          gradient.addColorStop(0, 'rgba(37,99,235,0.25)')
-          gradient.addColorStop(1, 'rgba(37,99,235,0.01)')
+          gradient.addColorStop(0, hexToRgba(color, 0.25))
+          gradient.addColorStop(1, hexToRgba(color, 0.01))
           return gradient
         },
         fill: true,
         tension: 0.3,
         borderWidth: 3,
         pointRadius: 6,
-        pointBackgroundColor: '#2563eb',
+        pointBackgroundColor: color,
         pointBorderColor: '#fff',
         pointBorderWidth: 3,
         pointHoverRadius: 9,
@@ -430,7 +448,18 @@ function buildActivationChart() {
   })
 }
 
-onMounted(() => { nextTick(() => buildActivationChart()) })
+function buildActivationChart() {
+  if (activationChartInstance) { activationChartInstance.destroy(); activationChartInstance = null }
+  activationChartInstance = buildMonthLineChart(activationChartRef.value, props.charts?.activationByMonth, { color: '#2563eb', label: 'Activations' })
+}
+
+function buildDistributionChart() {
+  if (distributionChartInstance) { distributionChartInstance.destroy(); distributionChartInstance = null }
+  distributionChartInstance = buildMonthLineChart(distributionChartRef.value, props.charts?.distributionByMonth, { color: '#059669', label: 'Distributions' })
+}
+
+onMounted(() => { nextTick(() => { buildActivationChart(); buildDistributionChart() }) })
 watch(() => props.charts?.activationByMonth, () => { nextTick(() => buildActivationChart()) }, { deep: true })
+watch(() => props.charts?.distributionByMonth, () => { nextTick(() => buildDistributionChart()) }, { deep: true })
 
 </script>

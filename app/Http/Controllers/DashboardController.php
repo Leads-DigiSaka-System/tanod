@@ -10,6 +10,7 @@ use App\Models\GeoFence;
 use App\Models\Maintenance;
 use App\Models\Ticket;
 use App\Models\Tractor;
+use App\Models\TractorDistribution;
 use App\Models\User;
 use App\Services\Jimi\JimiDeviceService;
 use App\Services\Jimi\JimiTrackingService;
@@ -157,6 +158,40 @@ class DashboardController extends Controller
             ];
             $cursor->addMonth();
         }
+
+        // ── Distributions by month (from distribution_date) ──
+        // Count tractors distributed per month (multi-tractor records expand tractor_ids).
+        $distributionRows = TractorDistribution::whereNotNull('distribution_date')
+            ->where('status', '!=', 'cancelled')
+            ->get(['distribution_date', 'tractor_id', 'tractor_ids']);
+
+        $distributionByMonthRaw = [];
+        $earliestDistribution = null;
+        foreach ($distributionRows as $row) {
+            $date = Carbon::parse($row->distribution_date);
+            $key = $date->format('Y-m');
+            $count = is_array($row->tractor_ids) && count($row->tractor_ids) > 0
+                ? count($row->tractor_ids)
+                : ($row->tractor_id ? 1 : 0);
+            $distributionByMonthRaw[$key] = ($distributionByMonthRaw[$key] ?? 0) + $count;
+            if ($earliestDistribution === null || $date->lt($earliestDistribution)) {
+                $earliestDistribution = $date->copy();
+            }
+        }
+
+        $distributionByMonth = [];
+        if ($earliestDistribution !== null) {
+            $cursor = $earliestDistribution->copy()->startOfMonth();
+            while ($cursor->lte($nowMonth)) {
+                $key = $cursor->format('Y-m');
+                $distributionByMonth[] = [
+                    'month' => $cursor->format('M Y'),
+                    'count' => $distributionByMonthRaw[$key] ?? 0,
+                ];
+                $cursor->addMonth();
+            }
+        }
+
         $tractorsByGroup = DB::table('group_tractor')
             ->join('tractor_groups', 'tractor_groups.id', '=', 'group_tractor.tractor_group_id')
             ->join('tractors', 'tractors.id', '=', 'group_tractor.tractor_id')
@@ -285,6 +320,7 @@ class DashboardController extends Controller
                     'due' => $usage['pmsDue'],
                 ],
                 'activationByMonth' => $activationByMonth,
+                'distributionByMonth' => $distributionByMonth,
                 'alertsLast7Days' => $totalAlertsLast7Days,
                 'activeGroups' => $activeTractorGroups,
             ],
