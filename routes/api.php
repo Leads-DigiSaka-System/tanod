@@ -96,6 +96,7 @@ Route::prefix('v1')->group(function () {
         Route::get('tractors/{tractor}', [ApiTractorController::class, 'show']);
         Route::put('tractors/{tractor}/rename', [ApiTractorController::class, 'rename']);
         Route::put('tractors/{tractor}/implements', [ApiTractorController::class, 'updateImplements']);
+        Route::put('tractors/{tractor}/sim', [ApiTractorController::class, 'updateSim']);
         Route::post('tractors/{tractor}/images', [ApiTractorController::class, 'uploadImage']);
         Route::delete('tractors/{tractor}/images/{image}', [ApiTractorController::class, 'deleteImage']);
 
