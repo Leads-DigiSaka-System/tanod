@@ -23,19 +23,23 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class SendScheduledReports extends Command
 {
-    protected $signature = 'reports:send-scheduled';
+    protected $signature = 'reports:send-scheduled {--force : Send all active subscriptions regardless of schedule}';
 
     protected $description = 'Send scheduled Excel reports to subscribed users';
 
     public function handle(): int
     {
-        $subscriptions = ReportSubscription::with('user')
-            ->where('is_active', true)
-            ->where(function ($q) {
+        $query = ReportSubscription::with('user')
+            ->where('is_active', true);
+
+        if (! $this->option('force')) {
+            $query->where(function ($q) {
                 $q->whereNull('next_scheduled_at')
                     ->orWhere('next_scheduled_at', '<=', now());
-            })
-            ->get();
+            });
+        }
+
+        $subscriptions = $query->get();
 
         if ($subscriptions->isEmpty()) {
             $this->info('No reports due for sending.');

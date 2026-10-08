@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\FarmerFeedback;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -79,6 +80,10 @@ class FeedbackController extends Controller
 
         $feedback->delete();
 
+        ActivityLogger::log('FarmerFeedback', $feedback->id, 'deleted', [
+            'tractor_id' => $feedback->tractor_id,
+        ], $user);
+
         return redirect()->route('feedback.index')
             ->with('success', 'Feedback deleted successfully.');
     }
@@ -98,6 +103,10 @@ class FeedbackController extends Controller
             'reviewed_by' => $request->user()->id,
             'reviewed_at' => now(),
         ]);
+
+        ActivityLogger::log('FarmerFeedback', $feedback->id, 'reviewed', [
+            'status' => $request->status,
+        ], $request->user());
 
         return back()->with('success', 'Feedback updated successfully.');
     }

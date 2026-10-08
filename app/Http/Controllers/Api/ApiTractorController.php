@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\TractorResource;
 use App\Models\Tractor;
 use App\Models\TractorImage;
+use App\Services\DeviceSimService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -17,7 +18,7 @@ class ApiTractorController extends Controller
         $user = $request->user();
         $search = trim((string) $request->input('search', ''));
 
-        $tractors = Tractor::with(['device.latestLocation', 'groups', 'assignee', 'images'])
+        $tractors = Tractor::with(['device.latestLocation', 'device.simHistories', 'groups', 'assignee', 'images'])
             ->withSum('trackRecords', 'mileage')
             ->withSum('trackRecords', 'run_time_seconds')
             ->when(! $user->hasAnyRole(['super-admin', 'sub-admin']), fn ($q) => $q->whereIn('tractors.id', $user->accessibleTractorIds()))
@@ -44,6 +45,7 @@ class ApiTractorController extends Controller
         $tractor->loadSum('trackRecords', 'run_time_seconds');
         $tractor->load([
             'device.latestLocation',
+            'device.simHistories',
             'groups',
             'assignee',
             'images',
@@ -86,6 +88,53 @@ class ApiTractorController extends Controller
         return response()->json([
             'message' => 'Implement details updated successfully',
             'data' => new TractorResource($tractor->fresh()),
+        ]);
+    }
+
+    /**
+     * Update the SIM number stored on the tractor's linked device.
+     * The previous value is archived so it can still be viewed later.
+     */
+    public function updateSim(Request $request, Tractor $tractor, DeviceSimService $simService)
+    {
+        abort_unless(in_array($tractor->id, $request->user()->accessibleTractorIds(), true), 403);
+
+        $validated = $request->validate([
+            'sim' => ['required', 'string', 'regex:/^\d{10,20}$/'],
+        ], [
+            'sim.regex' => 'The SIM number must contain 10 to 20 digits.',
+        ]);
+
+        $device = $tractor->device;
+
+        if (! $device) {
+            return response()->json([
+                'message' => 'This tractor has no linked device to update.',
+            ], 422);
+        }
+
+        // The SIM number may only be replaced once.
+        if ($device->sim_overridden) {
+            $tractor->load(['device.latestLocation', 'device.simHistories', 'groups', 'assignee', 'images']);
+
+            return response()->json([
+                'message' => 'The SIM number can only be changed once.',
+                'data' => new TractorResource($tractor),
+            ], 422);
+        }
+
+        $simService->change(
+            $device,
+            $validated['sim'],
+            $request->user()->id,
+            markOverridden: true,
+        );
+
+        $tractor->load(['device.latestLocation', 'device.simHistories', 'groups', 'assignee', 'images']);
+
+        return response()->json([
+            'message' => 'SIM number updated successfully',
+            'data' => new TractorResource($tractor),
         ]);
     }
 

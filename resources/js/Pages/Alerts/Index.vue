@@ -18,6 +18,12 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           Acknowledge All
         </Link>
+        <button @click="purgeOldAlerts" :disabled="purgeProcessing"
+          class="inline-flex items-center gap-2 text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-800 disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg v-if="purgeProcessing" class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          {{ purgeProcessing ? 'Cleaning...' : 'Clean Old Alerts' }}
+        </button>
       </div>
     </div>
 
@@ -314,4 +320,19 @@ function applyFilter() {
     acknowledged: ackFilter.value !== '' ? ackFilter.value : undefined,
   }, { preserveState: true, replace: true });
 }
+
+const purgeProcessing = ref(false);
+
+const purgeOldAlerts = () => {
+  if (!window.confirm('Delete all alerts older than 30 days? This cannot be undone.')) {
+    return;
+  }
+
+  purgeProcessing.value = true;
+  router.post('/alerts/purge', {}, {
+    preserveScroll: true,
+    onSuccess: () => { purgeProcessing.value = false; },
+    onError: () => { purgeProcessing.value = false; },
+  });
+};
 </script>

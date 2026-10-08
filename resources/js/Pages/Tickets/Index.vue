@@ -70,6 +70,10 @@
       <DataTable>
         <template #head>
           <tr class="border-b border-gray-100 dark:border-gray-700/50">
+            <th scope="col" class="px-4 py-3.5 w-10">
+              <input type="checkbox" :checked="isAllSelected" @click="toggleSelectAll($event)"
+                class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600" />
+            </th>
             <th scope="col" class="px-5 py-3.5 w-16 whitespace-nowrap">
               <button @click="toggleSort('id')" class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors group">
                 #
@@ -98,7 +102,12 @@
           </tr>
         </template>
         <template #body>
-          <tr v-for="ticket in tickets.data" :key="ticket.id" class="group hover:bg-gray-50/80 dark:hover:bg-gray-700/30 transition-colors border-b border-gray-100 dark:border-gray-700/50">
+          <tr v-for="ticket in tickets.data" :key="ticket.id" class="group hover:bg-gray-50/80 dark:hover:bg-gray-700/30 transition-colors border-b border-gray-100 dark:border-gray-700/50"
+            :class="{ 'bg-indigo-50/50 dark:bg-indigo-900/10': selectedIsChecked(ticket.id) }">
+            <td class="px-4 py-3.5">
+              <input type="checkbox" :checked="selectedIsChecked(ticket.id)" @click="toggleSelect(ticket.id, $event)"
+                class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600" />
+            </td>
             <td class="px-5 py-3.5 whitespace-nowrap">
               <span class="text-xs font-mono text-gray-400 dark:text-gray-500">#{{ ticket.id }}</span>
             </td>
@@ -108,7 +117,7 @@
               </span>
             </td>
             <td class="px-5 py-3.5 whitespace-nowrap">
-              <p class="text-sm text-gray-700 dark:text-gray-300 truncate max-w-50" :title="ticket.tractor?.name || ticket.organization_name">{{ ticket.tractor?.name || ticket.organization_name || '—' }}</p>
+              <p class="text-sm text-gray-700 dark:text-gray-300 truncate max-w-50" :title="ticket.organization_name || ticket.fca_name">{{ ticket.organization_name || ticket.fca_name || '—' }}</p>
             </td>
             <td class="px-5 py-3.5 max-w-70 whitespace-nowrap">
               <p class="text-sm font-medium text-gray-900 dark:text-white truncate" :title="ticket.subject">{{ ticket.subject }}</p>
@@ -140,7 +149,7 @@
 
           <!-- Empty state -->
           <tr v-if="!tickets.data?.length">
-            <td colspan="9" class="px-5 py-16 text-center">
+            <td colspan="10" class="px-5 py-16 text-center">
               <div class="flex flex-col items-center gap-3">
                 <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
                   <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
@@ -154,7 +163,46 @@
       </DataTable>
     </div>
 
-    <Pagination :links="tickets.links" class="mt-6" />
+    <div class="flex items-center justify-between mt-6">
+      <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+        <span>Show</span>
+        <select v-model="perPage" @change="applyFilter"
+          class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 px-2 py-1.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+          <option :value="15">15</option>
+          <option :value="50">50</option>
+          <option :value="100">100</option>
+          <option :value="200">200</option>
+          <option :value="500">500</option>
+          <option :value="1000">1000</option>
+        </select>
+        <span>entries</span>
+      </div>
+      <Pagination :links="tickets.links" />
+    </div>
+
+    <!-- Floating multi-select bar -->
+    <Transition
+      enter-active-class="transition-all duration-300 ease-out"
+      enter-from-class="translate-y-4 opacity-0"
+      enter-to-class="translate-y-0 opacity-100"
+      leave-active-class="transition-all duration-200 ease-in"
+      leave-from-class="translate-y-0 opacity-100"
+      leave-to-class="translate-y-4 opacity-0">
+      <div v-if="selectedCount > 0" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-4 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 px-5 py-3">
+        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <span class="text-indigo-600 dark:text-indigo-400 font-bold">{{ selectedCount }}</span> ticket{{ selectedCount !== 1 ? 's' : '' }} selected
+        </span>
+        <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+        <button @click="clearSelection" class="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
+          Clear
+        </button>
+        <button @click="exportSelected"
+          class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors bg-emerald-600 hover:bg-emerald-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Export XLSX
+        </button>
+      </div>
+    </Transition>
     </template>
 
     <!-- Old Data Tab -->
@@ -194,7 +242,7 @@
                 </span>
               </td>
               <td class="px-5 py-3.5">
-                <p class="text-sm text-gray-700 dark:text-gray-300 truncate max-w-50" :title="ticket.tractor?.name || ticket.organization_name">{{ ticket.tractor?.name || ticket.organization_name || '—' }}</p>
+                <p class="text-sm text-gray-700 dark:text-gray-300 truncate max-w-50" :title="ticket.organization_name || ticket.fca_name">{{ ticket.organization_name || ticket.fca_name || '—' }}</p>
               </td>
               <td class="px-5 py-3.5 max-w-70">
                 <p class="text-sm font-medium text-gray-900 dark:text-white truncate" :title="ticket.subject">{{ ticket.subject }}</p>
@@ -287,7 +335,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
@@ -304,6 +352,84 @@ const statusFilter = ref(props.filters?.status || '');
 const priorityFilter = ref(props.filters?.priority || '');
 const sort = ref(props.filters?.sort || 'created_at');
 const direction = ref(props.filters?.direction || 'desc');
+const perPage = ref(props.filters?.per_page || 15);
+
+// ── Multi-Select ──
+const STORAGE_KEY = 'ticket_selected_ids';
+const saved = sessionStorage.getItem(STORAGE_KEY);
+const selectedIds = ref(saved ? JSON.parse(saved) : {});
+
+const persistSelection = () => {
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(selectedIds.value));
+};
+
+const selectedCount = computed(() => Object.keys(selectedIds.value).length);
+
+const selectedIsChecked = (id) => !!selectedIds.value[id];
+
+const toggleSelect = (id, event) => {
+  const next = { ...selectedIds.value };
+  if (next[id]) {
+    delete next[id];
+  } else {
+    next[id] = true;
+  }
+  selectedIds.value = next;
+  persistSelection();
+};
+
+const isAllSelected = computed(() => {
+  const data = props.tickets?.data;
+  return data && data.length > 0 && data.every(d => selectedIds.value[d.id]);
+});
+
+const toggleSelectAll = (event) => {
+  const data = props.tickets?.data;
+  if (!data) return;
+  const next = { ...selectedIds.value };
+  if (isAllSelected.value) {
+    data.forEach(d => delete next[d.id]);
+  } else {
+    data.forEach(d => next[d.id] = true);
+  }
+  selectedIds.value = next;
+  persistSelection();
+};
+
+const clearSelection = () => {
+  selectedIds.value = {};
+  sessionStorage.removeItem(STORAGE_KEY);
+};
+
+const exportSelected = () => {
+  const ids = Object.keys(selectedIds.value).map(Number);
+  if (ids.length === 0) return;
+
+  const exportForm = document.createElement('form');
+  exportForm.method = 'POST';
+  exportForm.action = '/tickets/export';
+
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+  if (csrf) {
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_token';
+    csrfInput.value = csrf;
+    exportForm.appendChild(csrfInput);
+  }
+
+  ids.forEach(id => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'ticket_ids[]';
+    input.value = id;
+    exportForm.appendChild(input);
+  });
+
+  document.body.appendChild(exportForm);
+  exportForm.submit();
+  document.body.removeChild(exportForm);
+};
 
 // ── Delete state ──
 const showDeleteModal = ref(false);
@@ -338,6 +464,7 @@ const applyFilter = () => {
     priority: priorityFilter.value || undefined,
     sort: sort.value,
     direction: direction.value,
+    per_page: perPage.value,
   }, { preserveState: true, replace: true });
 };
 

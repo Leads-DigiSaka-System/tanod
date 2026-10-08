@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreGeoFenceRequest;
 use App\Models\GeoFence;
+use App\Services\ActivityLogger;
 use App\Services\Jimi\JimiGeoFenceService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -68,6 +69,10 @@ class GeoFenceController extends Controller
             }
         }
 
+        ActivityLogger::log('GeoFence', $geoFence->id, 'created', [
+            'name' => $geoFence->name,
+        ], $request->user());
+
         return redirect()->route('geofences.index')
             ->with('success', 'Geo-fence created successfully.');
     }
@@ -94,6 +99,10 @@ class GeoFenceController extends Controller
 
         $geoFence->devices()->detach();
         $geoFence->delete();
+
+        ActivityLogger::log('GeoFence', $geoFence->id, 'deleted', [
+            'name' => $geoFence->name,
+        ], request()->user());
 
         return redirect()->route('geofences.index')
             ->with('success', 'Geo-fence deleted.');
