@@ -37,7 +37,7 @@ class TicketController extends Controller
 
         $cutoffDate = '2026-07-09';
 
-        $tickets = Ticket::with(['submitter', 'assignees', 'tractor'])
+        $tickets = Ticket::with(['submitter.fca.fcaProfile', 'assignees', 'tractor'])
             ->where('created_at', '>', $cutoffDate . ' 23:59:59')
             ->when(! $user->hasAnyRole(['super-admin', 'sub-admin']), fn ($q) => $q->where('submitted_by', $user->id))
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
@@ -45,19 +45,40 @@ class TicketController extends Controller
             ->when($request->search, fn ($q, $s) => $q->where('subject', 'like', "%{$s}%"))
             ->orderBy($sort, $direction)
             ->paginate($request->input('per_page', 15))
-            ->withQueryString();
+            ->withQueryString()
+            ->through(fn (Ticket $ticket) => $this->withCooperativeName($ticket));
 
-        $oldTickets = Ticket::with(['submitter', 'assignees', 'tractor'])
+        $oldTickets = Ticket::with(['submitter.fca.fcaProfile', 'assignees', 'tractor'])
             ->where('created_at', '<=', $cutoffDate . ' 23:59:59')
             ->when(! $user->hasAnyRole(['super-admin', 'sub-admin']), fn ($q) => $q->where('submitted_by', $user->id))
             ->orderBy('created_at', 'desc')
-            ->paginate($request->input('per_page', 15));
+            ->paginate($request->input('per_page', 15))
+            ->through(fn (Ticket $ticket) => $this->withCooperativeName($ticket));
 
         return Inertia::render('Tickets/Index', [
             'tickets' => $tickets,
             'oldTickets' => $oldTickets,
             'filters' => $request->only(['search', 'status', 'priority', 'sort', 'direction', 'per_page']),
         ]);
+    }
+
+    /**
+     * Attach the cooperative name for display in ticket listings.
+     * Prefers the submitter's FCA organization, then the FCA profile record,
+     * then the ticket's stored fca_name.
+     */
+    private function withCooperativeName(Ticket $ticket): Ticket
+    {
+        $submitter = $ticket->submitter;
+
+        $ticket->setAttribute('organization_name',
+            $submitter?->organization_name
+            ?: $submitter?->fca?->organization_name
+            ?: $submitter?->fca?->fcaProfile?->organization_name
+            ?: $ticket->fca_name
+        );
+
+        return $ticket;
     }
 
     public function export(Request $request)

@@ -83,7 +83,7 @@
             </th>
             <th v-for="col in [
               { label: 'Type', field: 'category' },
-              { label: 'Name', field: 'tractor_name' },
+              { label: 'Coop Name', field: 'tractor_name' },
               { label: 'Subject', field: 'subject' },
               { label: 'Action Taken', field: 'description' },
               { label: 'Service Charge', field: 'service_charge' },
@@ -217,7 +217,7 @@
               </th>
               <th v-for="col in [
                 { label: 'Type', field: 'category' },
-                { label: 'Name', field: 'tractor_name' },
+                { label: 'Coop Name', field: 'tractor_name' },
                 { label: 'Subject', field: 'subject' },
                 { label: 'Action Taken', field: 'description' },
                 { label: 'Service Charge', field: 'service_charge' },

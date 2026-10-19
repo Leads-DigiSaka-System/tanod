@@ -2,7 +2,7 @@
   <div>
     <!-- Trigger button -->
     <button
-      v-if="!hideTrigger"
+      v-if="!hideTrigger && !inline"
       type="button"
       @click="open()"
       class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
@@ -20,6 +20,62 @@
         {{ count }}
       </span>
     </button>
+
+    <!-- Inline gallery (rendered directly on detail pages) -->
+    <div v-if="inline">
+      <div
+        v-if="!count"
+        class="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 py-8 dark:border-gray-600 dark:bg-gray-700/40"
+      >
+        <svg class="mb-2 h-10 w-10 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <p class="text-sm text-gray-500 dark:text-gray-400">No implement photos uploaded yet.</p>
+        <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Photos are captured from the mobile app (Edit Profile → Tractors &amp; Implements).</p>
+      </div>
+
+      <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div
+          v-for="entry in entries"
+          :key="entry.key"
+          class="rounded-lg border border-gray-200 bg-white p-2 dark:border-gray-600 dark:bg-gray-700/40"
+        >
+          <p
+            class="mb-1.5 truncate text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+            :title="entry.label"
+          >
+            {{ entry.label }}
+          </p>
+
+          <div v-if="entry.image" class="group relative">
+            <img
+              :src="entry.image.url"
+              :alt="entry.label"
+              class="h-28 w-full cursor-zoom-in rounded-md border border-gray-200 object-cover transition-transform duration-200 group-hover:scale-[1.02] dark:border-gray-600"
+              @click="open({ type: entry.key })"
+            />
+            <a
+              :href="entry.image.url"
+              :download="fileName(entry.image)"
+              class="absolute right-1.5 top-1.5 inline-flex items-center justify-center rounded-md bg-gray-900/60 p-1.5 text-white shadow-sm transition-colors hover:bg-gray-900/85 focus:outline-none focus:ring-2 focus:ring-white/70"
+              :title="`Download ${entry.label} photo`"
+              @click.stop
+            >
+              <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </a>
+          </div>
+
+          <div
+            v-else
+            class="flex h-28 w-full items-center justify-center rounded-md border border-dashed border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-700/40"
+          >
+            <span class="text-[11px] text-gray-400 dark:text-gray-500">No photo</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Photos modal -->
     <Modal :show="show" max-width="3xl" @close="close">
@@ -150,6 +206,7 @@ const props = defineProps({
   tractorName: { type: String, default: '' },
   label: { type: String, default: 'View Implement Photos' },
   hideTrigger: { type: Boolean, default: false },
+  inline: { type: Boolean, default: false },
 });
 
 const show = ref(false);
