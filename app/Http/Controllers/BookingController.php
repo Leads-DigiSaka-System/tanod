@@ -20,13 +20,34 @@ class BookingController extends Controller
     {
         $user = $request->user();
 
-        $bookings = Booking::with(['tractor', 'bookedBy', 'approvedBy', 'slot'])
+        $bookings = Booking::with([
+                'tractor.assignee:id,name,organization_name',
+                'tractor.currentDistribution.distributedToUser:id,name,organization_name',
+                'bookedBy:id,name,organization_name,fca_id',
+                'bookedBy.fca:id,name,organization_name',
+                'farmer:id,name,organization_name,fca_id',
+                'farmer.fca:id,name,organization_name',
+                'approvedBy',
+                'slot',
+            ])
             ->when(! $user->hasAnyRole(['super-admin', 'sub-admin', 'fca']), fn ($q) => $q->where('booked_by', $user->id))
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->search, fn ($q, $s) => $q->whereHas('tractor', fn ($q) => $q->where('no_plate', 'like', "%{$s}%")))
             ->latest()
             ->paginate(15)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(function (Booking $booking) {
+                $booking->setAttribute('coop_name',
+                    $booking->bookedBy?->organization_name
+                    ?: $booking->bookedBy?->fca?->organization_name
+                    ?: $booking->farmer?->organization_name
+                    ?: $booking->farmer?->fca?->organization_name
+                    ?: $booking->tractor?->currentDistribution?->distributedToUser?->organization_name
+                    ?: $booking->tractor?->assignee?->organization_name
+                );
+
+                return $booking;
+            });
 
         return Inertia::render('Bookings/Index', [
             'bookings' => $bookings,

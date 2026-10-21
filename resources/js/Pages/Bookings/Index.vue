@@ -35,7 +35,7 @@
       <template #head>
         <tr>
           <th scope="col" class="px-6 py-3 whitespace-nowrap">Tractor</th>
-          <th scope="col" class="px-6 py-3 whitespace-nowrap">Booked By</th>
+          <th scope="col" class="px-6 py-3 whitespace-nowrap">Coop Name</th>
           <th scope="col" class="px-6 py-3 whitespace-nowrap">Date</th>
           <th scope="col" class="px-6 py-3 whitespace-nowrap">Purpose</th>
           <th scope="col" class="px-6 py-3 whitespace-nowrap">Status</th>
@@ -45,7 +45,7 @@
       <template #body>
         <tr v-for="booking in bookings.data" :key="booking.id" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
           <td class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">{{ booking.tractor?.no_plate }}</td>
-          <td class="px-6 py-4 whitespace-nowrap">{{ booking.booked_by?.name }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ booking.coop_name || '—' }}</td>
           <td class="px-6 py-4 whitespace-nowrap">{{ formatDate(booking.booking_date) }}</td>
           <td class="px-6 py-4 whitespace-nowrap max-w-xs truncate">{{ booking.purpose }}</td>
           <td class="px-6 py-4 whitespace-nowrap"><StatusBadge :status="booking.status" /></td>

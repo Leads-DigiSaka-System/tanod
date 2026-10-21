@@ -124,6 +124,16 @@ class Tractor extends Model
         return $this->hasMany(TractorDistribution::class);
     }
 
+    /**
+     * The currently active (not yet returned) distribution of this tractor.
+     */
+    public function currentDistribution()
+    {
+        return $this->hasOne(TractorDistribution::class)
+            ->where('status', 'distributed')
+            ->latestOfMany();
+    }
+
     public function alerts()
     {
         return $this->hasMany(Alert::class);
