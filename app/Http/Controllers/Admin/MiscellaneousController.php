@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\TractorPart;
+use App\Services\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
@@ -42,10 +43,14 @@ class MiscellaneousController extends Controller
         ]);
 
         if ($request->input('amount') === '' || $request->input('amount') === null) {
-            $data['amount'] = 0;
+            $data['amount'] = null;
         }
 
-        TractorPart::create($data);
+        $part = TractorPart::create($data);
+
+        ActivityLogger::log('TractorPart', $part->id, 'created', [
+            'name' => $part->name,
+        ], $request->user());
 
         return Redirect::back()->with('success', 'Part added.');
     }
@@ -59,10 +64,14 @@ class MiscellaneousController extends Controller
         ]);
 
         if ($request->input('amount') === '' || $request->input('amount') === null) {
-            $data['amount'] = 0;
+            $data['amount'] = null;
         }
 
         $part->update($data);
+
+        ActivityLogger::log('TractorPart', $part->id, 'updated', [
+            'name' => $part->name,
+        ], $request->user());
 
         return Redirect::back()->with('success', 'Part updated.');
     }
@@ -70,6 +79,10 @@ class MiscellaneousController extends Controller
     public function destroy(TractorPart $part): RedirectResponse
     {
         $part->delete();
+
+        ActivityLogger::log('TractorPart', $part->id, 'deleted', [
+            'name' => $part->name,
+        ], request()->user());
 
         return Redirect::back()->with('success', 'Part deleted.');
     }

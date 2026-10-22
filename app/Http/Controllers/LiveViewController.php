@@ -6,6 +6,7 @@ use App\Models\Device;
 use App\Models\DeviceLocation;
 use App\Models\DeviceShare;
 use App\Models\TractorGroup;
+use App\Services\ActivityLogger;
 use App\Services\Jimi\JimiDeviceService;
 use App\Services\Jimi\JimiTrackingService;
 use Carbon\Carbon;
@@ -19,6 +20,11 @@ class LiveViewController extends Controller
 {
     /** Speed in km/h below which an online device is considered parked (filters GPS drift). */
     private const MOVING_SPEED_THRESHOLD = 3.0;
+
+    public function __construct()
+    {
+        $this->middleware('permission:live_view.view');
+    }
 
     public function index(Request $request)
     {
@@ -201,6 +207,10 @@ class LiveViewController extends Controller
             'created_by' => auth()->id(),
             'expires_at' => now()->addHours($duration),
         ]);
+
+        ActivityLogger::log('DeviceShare', $share->id, 'share_created', [
+            'device_name' => $share->device_name,
+        ], auth()->user());
 
         return response()->json([
             'success' => true,

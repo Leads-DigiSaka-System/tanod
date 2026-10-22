@@ -5,15 +5,18 @@ namespace App\Http\Controllers;
 use App\Events\TicketCommentAdded;
 use App\Events\TicketCreated;
 use App\Events\TicketStatusUpdated;
+use App\Exports\TicketsExport;
 use App\Http\Requests\StoreTicketRequest;
 use App\Models\Notification;
 use App\Models\Ticket;
 use App\Models\TicketComment;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use App\Services\M360SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
 
 class TicketController extends Controller
 {
@@ -34,27 +37,62 @@ class TicketController extends Controller
 
         $cutoffDate = '2026-07-09';
 
-        $tickets = Ticket::with(['submitter', 'assignees', 'tractor'])
+        $tickets = Ticket::with(['submitter.fca.fcaProfile', 'assignees', 'tractor'])
             ->where('created_at', '>', $cutoffDate . ' 23:59:59')
             ->when(! $user->hasAnyRole(['super-admin', 'sub-admin']), fn ($q) => $q->where('submitted_by', $user->id))
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->priority, fn ($q, $p) => $q->where('priority', $p))
             ->when($request->search, fn ($q, $s) => $q->where('subject', 'like', "%{$s}%"))
             ->orderBy($sort, $direction)
-            ->paginate(15)
-            ->withQueryString();
+            ->paginate($request->input('per_page', 15))
+            ->withQueryString()
+            ->through(fn (Ticket $ticket) => $this->withCooperativeName($ticket));
 
-        $oldTickets = Ticket::with(['submitter', 'assignees', 'tractor'])
+        $oldTickets = Ticket::with(['submitter.fca.fcaProfile', 'assignees', 'tractor'])
             ->where('created_at', '<=', $cutoffDate . ' 23:59:59')
             ->when(! $user->hasAnyRole(['super-admin', 'sub-admin']), fn ($q) => $q->where('submitted_by', $user->id))
             ->orderBy('created_at', 'desc')
-            ->paginate(15);
+            ->paginate($request->input('per_page', 15))
+            ->through(fn (Ticket $ticket) => $this->withCooperativeName($ticket));
 
         return Inertia::render('Tickets/Index', [
             'tickets' => $tickets,
             'oldTickets' => $oldTickets,
-            'filters' => $request->only(['search', 'status', 'priority', 'sort', 'direction']),
+            'filters' => $request->only(['search', 'status', 'priority', 'sort', 'direction', 'per_page']),
         ]);
+    }
+
+    /**
+     * Attach the cooperative name for display in ticket listings.
+     * Prefers the submitter's FCA organization, then the FCA profile record,
+     * then the ticket's stored fca_name.
+     */
+    private function withCooperativeName(Ticket $ticket): Ticket
+    {
+        $submitter = $ticket->submitter;
+
+        $ticket->setAttribute('organization_name',
+            $submitter?->organization_name
+            ?: $submitter?->fca?->organization_name
+            ?: $submitter?->fca?->fcaProfile?->organization_name
+            ?: $ticket->fca_name
+        );
+
+        return $ticket;
+    }
+
+    public function export(Request $request)
+    {
+        $ids = $request->input('ticket_ids', []);
+
+        if (empty($ids)) {
+            return back()->with('error', 'No tickets selected for export.');
+        }
+
+        return Excel::download(
+            new TicketsExport($ids),
+            'tickets-'.now()->format('Y-m-d-His').'.xlsx'
+        );
     }
 
     public function create()
@@ -81,6 +119,12 @@ class TicketController extends Controller
         }
 
         $ticket = Ticket::create($data);
+
+        ActivityLogger::log('Ticket', $ticket->id, 'created', [
+            'subject' => $ticket->subject,
+            'category' => $ticket->category,
+            'status' => $ticket->status,
+        ], $request->user());
 
         $adminIds = User::role(['super-admin', 'sub-admin'])
             ->where('is_active', true)
@@ -230,6 +274,11 @@ class TicketController extends Controller
 
         event($event);
 
+        ActivityLogger::log('Ticket', $ticket->id, 'comment_added', [
+            'subject' => $ticket->subject,
+            'comment' => \Illuminate\Support\Str::limit($comment->body, 80),
+        ], $request->user());
+
         return back()->with('success', 'Comment added.');
     }
 
@@ -238,6 +287,11 @@ class TicketController extends Controller
         $request->validate(['status' => 'required|in:open,in_progress,resolved,closed']);
 
         $ticket->update(['status' => $request->status]);
+
+        ActivityLogger::log('Ticket', $ticket->id, 'status_updated', [
+            'subject' => $ticket->subject,
+            'status' => $request->status,
+        ], $request->user());
 
         if ($ticket->submitted_by !== $request->user()->id) {
             Notification::create([
@@ -265,6 +319,10 @@ class TicketController extends Controller
 
         $ticket->delete(); // soft delete
 
+        ActivityLogger::log('Ticket', $ticket->id, 'deleted', [
+            'subject' => $ticket->subject,
+        ], $user);
+
         return redirect()->route('tickets.index')
             ->with('success', 'Ticket deleted successfully.');
     }
@@ -284,6 +342,12 @@ class TicketController extends Controller
 
         // Also keep the first one in the legacy assigned_to column
         $ticket->update(['assigned_to' => $newIds->first()]);
+
+        $assigneeNames = User::whereIn('id', $newIds->all())->pluck('name')->all();
+        ActivityLogger::log('Ticket', $ticket->id, 'assigned', [
+            'subject' => $ticket->subject,
+            'assignees' => $assigneeNames,
+        ], $request->user());
 
         // Notify newly assigned TPS users
         if ($addedIds->isNotEmpty()) {

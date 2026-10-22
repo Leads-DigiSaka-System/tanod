@@ -456,13 +456,25 @@ const togglePermission = (group, permission) => {
   const groupPermissions = group.permissions.map(item => item.name);
 
   if (hasPermission(permission)) {
+    // Turning a permission OFF
     permissionForm.permissions = permission === accessPermission
       ? permissionForm.permissions.filter(item => !groupPermissions.includes(item))
       : permissionForm.permissions.filter(item => item !== permission);
+
+    // Dependency: if groups.edit is turned OFF, also turn OFF groups.assign
+    if (permission === 'groups.edit' && permissionForm.permissions.includes('groups.assign')) {
+      permissionForm.permissions = permissionForm.permissions.filter(item => item !== 'groups.assign');
+    }
     return;
   }
 
+  // Turning a permission ON
   permissionForm.permissions = [...new Set([...permissionForm.permissions, accessPermission, permission])];
+
+  // Dependency: if groups.assign is turned ON, ensure groups.edit is ON too
+  if (permission === 'groups.assign' && !permissionForm.permissions.includes('groups.edit')) {
+    permissionForm.permissions = [...permissionForm.permissions, 'groups.edit'];
+  }
 };
 
 const saveRolePermissions = () => {

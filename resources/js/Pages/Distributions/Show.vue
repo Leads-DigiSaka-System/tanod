@@ -93,17 +93,24 @@
               </div>
 
               <!-- Implements Section -->
-              <div class="border-t border-gray-100 dark:border-gray-700 pt-3 mt-3">
-                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Implements</p>
-                <div class="flex justify-between">
+              <div class="space-y-3 border-t border-gray-100 pt-3 mt-3 dark:border-gray-700">
+                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Implements</p>
+
+                <ImplementPhotos
+                  inline
+                  :images="distribution.tractor.images || []"
+                  :tractor-name="distribution.tractor.no_plate"
+                />
+
+                <div class="flex items-center justify-between gap-2">
                   <dt class="text-sm text-gray-500 dark:text-gray-400">Front Loader SN</dt>
                   <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ distribution.tractor.front_loader_sn || '—' }}</dd>
                 </div>
-                <div class="flex justify-between mt-2">
+                <div class="flex items-center justify-between gap-2">
                   <dt class="text-sm text-gray-500 dark:text-gray-400">Rotary Tiller SN</dt>
                   <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ distribution.tractor.rotary_tiller_sn || '—' }}</dd>
                 </div>
-                <div class="flex justify-between mt-2">
+                <div class="flex items-center justify-between gap-2">
                   <dt class="text-sm text-gray-500 dark:text-gray-400">Disc Plow SN</dt>
                   <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ distribution.tractor.disc_plow_sn || '—' }}</dd>
                 </div>
@@ -173,6 +180,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
+import ImplementPhotos from '@/Components/ImplementPhotos.vue';
 import { formatDate } from '@/utils/dateFormat';
 
 defineProps({ distribution: Object });

@@ -48,7 +48,14 @@
             </div>
             <div class="p-3 bg-gray-50 rounded-lg dark:bg-gray-700">
               <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">Engine No</dt>
-              <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ tractor.engine_no }}</dd>
+              <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+                <span>{{ tractor.engine_no }}</span>
+                <button v-if="hasImplementPhoto('engine_no')" type="button" @click="viewImplementPhoto('engine_no')"
+                  class="mt-1.5 flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  View Photo
+                </button>
+              </dd>
             </div>
             <div class="p-3 bg-gray-50 rounded-lg dark:bg-gray-700">
               <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">Chassis No</dt>
@@ -56,7 +63,14 @@
             </div>
             <div class="p-3 bg-gray-50 rounded-lg dark:bg-gray-700">
               <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">ID No</dt>
-              <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ tractor.id_no }}</dd>
+              <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+                <span>{{ tractor.id_no }}</span>
+                <button v-if="hasImplementPhoto('id_no')" type="button" @click="viewImplementPhoto('id_no')"
+                  class="mt-1.5 flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  View Photo
+                </button>
+              </dd>
             </div>
             <div class="p-3 bg-gray-50 rounded-lg dark:bg-gray-700">
               <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">Fuel Consumption</dt>
@@ -75,24 +89,48 @@
 
         <!-- Implements Card -->
         <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 dark:bg-gray-800 dark:border-gray-700">
-          <div class="flex items-center mb-5">
-            <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900 mr-3">
-              <svg class="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg>
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+            <div class="flex items-center">
+              <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900 mr-3">
+                <svg class="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg>
+              </div>
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Implements</h2>
             </div>
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Implements</h2>
+            <ImplementPhotos ref="implementPhotos" :images="tractor.images || []" :tractor-name="tractor.no_plate" label="View All Photos" />
           </div>
           <dl class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div class="p-3 bg-gray-50 rounded-lg dark:bg-gray-700">
               <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">Front Loader SN</dt>
-              <dd class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ tractor.front_loader_sn || '—' }}</dd>
+              <dd class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                <span>{{ tractor.front_loader_sn || '—' }}</span>
+                <button v-if="hasImplementPhoto('front_loader_sn')" type="button" @click="viewImplementPhoto('front_loader_sn')"
+                  class="mt-1.5 flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  View Photo
+                </button>
+              </dd>
             </div>
             <div class="p-3 bg-gray-50 rounded-lg dark:bg-gray-700">
               <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">Rotavator SN</dt>
-              <dd class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ tractor.rotary_tiller_sn || '—' }}</dd>
+              <dd class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                <span>{{ tractor.rotary_tiller_sn || '—' }}</span>
+                <button v-if="hasImplementPhoto('rotary_tiller_sn')" type="button" @click="viewImplementPhoto('rotary_tiller_sn')"
+                  class="mt-1.5 flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  View Photo
+                </button>
+              </dd>
             </div>
             <div class="p-3 bg-gray-50 rounded-lg dark:bg-gray-700">
               <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">Disc Plow SN</dt>
-              <dd class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ tractor.disc_plow_sn || '—' }}</dd>
+              <dd class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                <span>{{ tractor.disc_plow_sn || '—' }}</span>
+                <button v-if="hasImplementPhoto('disc_plow_sn')" type="button" @click="viewImplementPhoto('disc_plow_sn')"
+                  class="mt-1.5 flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  View Photo
+                </button>
+              </dd>
             </div>
           </dl>
         </div>
@@ -130,7 +168,10 @@
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Images</h2>
           </div>
           <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <img v-for="img in tractor.images" :key="img.id" :src="`/storage/${img.path}`" class="rounded-lg object-cover h-48 w-full border border-gray-200 dark:border-gray-600" />
+            <figure v-for="img in tractor.images" :key="img.id" class="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-600">
+              <img :src="`/storage/${img.path}`" class="h-48 w-full object-cover" />
+              <figcaption class="px-2 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">{{ imageTypeLabel(img.type) }}</figcaption>
+            </figure>
           </div>
         </div>
 
@@ -292,12 +333,38 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
+import ImplementPhotos from '@/Components/ImplementPhotos.vue';
 import { formatDate } from '@/utils/dateFormat';
 
 const props = defineProps({ tractor: Object });
+
+// ── Implement photos (captured from the mobile app) ──
+const implementPhotos = ref(null);
+
+const IMPLEMENT_IMAGE_LABELS = {
+  id_no: 'Serial Number',
+  engine_no: 'Engine Number',
+  front_loader_sn: 'Front Loader SN',
+  rotary_tiller_sn: 'Rotavator SN',
+  disc_plow_sn: 'Disc Plow SN',
+};
+
+const imageTypeLabel = (type) => IMPLEMENT_IMAGE_LABELS[type] || type || 'Image';
+
+const imagesByType = computed(() => {
+  const map = {};
+  (props.tractor?.images || []).forEach((img) => {
+    if (img?.type && !map[img.type]) map[img.type] = img;
+  });
+  return map;
+});
+
+const hasImplementPhoto = (type) => !!imagesByType.value[type];
+
+const viewImplementPhoto = (type) => implementPhotos.value?.open({ type });
 
 const isOnline = computed(() => {
   if (!props.tractor.device?.latest_location?.heartbeat_at) return false;

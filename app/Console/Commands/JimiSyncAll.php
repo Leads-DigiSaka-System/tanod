@@ -6,6 +6,7 @@ use App\Models\Device;
 use App\Models\DeviceLocation;
 use App\Models\Tractor;
 use App\Models\TractorGroup;
+use App\Services\DeviceSimService;
 use App\Services\Jimi\JimiAuthService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -114,7 +115,6 @@ class JimiSyncAll extends Command
             $attributes = [
                 'device_name' => $deviceData['deviceName'] ?? null,
                 'device_model' => $deviceData['mcType'] ?? null,
-                'sim' => $deviceData['sim'] ?? null,
                 'mc_type' => $deviceData['mcType'] ?? null,
                 'mc_type_use_scope' => $deviceData['mcTypeUseScope'] ?? null,
                 'remark' => $deviceData['reMark'] ?? null,
@@ -128,13 +128,24 @@ class JimiSyncAll extends Command
             $device = Device::withTrashed()->where('imei', $imei)->first();
 
             if ($device) {
-                $device->update($attributes);
                 if ($device->trashed()) {
-                    $device->restore();
+                    // Device was intentionally deleted by the user — skip it
+                    continue;
+                }
+                $simOverridden = (bool) $device->sim_overridden;
+                $device->update($attributes);
+                // Keep a manually-set SIM; otherwise sync from Jimi (and archive
+                // the previous number so it can still be viewed).
+                if (! $simOverridden) {
+                    app(DeviceSimService::class)->change($device, $deviceData['sim'] ?? null);
                 }
                 $this->devicesUpdated++;
             } else {
-                $device = Device::create(array_merge(['imei' => $imei], $attributes));
+                $device = Device::create(array_merge(
+                    ['imei' => $imei],
+                    $attributes,
+                    ['sim' => $deviceData['sim'] ?? null],
+                ));
                 $this->devicesCreated++;
             }
 

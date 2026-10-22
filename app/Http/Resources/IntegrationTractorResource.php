@@ -79,6 +79,10 @@ class IntegrationTractorResource extends JsonResource
                 'id' => $group->id,
                 'name' => $group->name,
             ])),
+            'Last_Position' => $location ? [
+                'Longitude' => $location->lng,
+                'Latitude' => $location->lat,
+            ] : null,
             'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($image): array => [
                 'id' => $image->id,
                 'type' => $image->type,

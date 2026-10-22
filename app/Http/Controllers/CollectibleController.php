@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Ticket;
 use App\Models\TicketPayment;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -166,6 +167,11 @@ class CollectibleController extends Controller
             return $payment;
         });
 
+        ActivityLogger::log('Ticket', $ticket->id, 'payment_added', [
+            'subject' => $ticket->subject,
+            'amount' => $payment->amount,
+        ], $request->user());
+
         return redirect()->back()->with('success', 'Payment recorded successfully.');
     }
 
@@ -182,6 +188,11 @@ class CollectibleController extends Controller
         $status = $totalPaid >= $totalAmount ? 'paid' : 'collectible';
 
         $ticket->update(['collectible_status' => $status]);
+
+        ActivityLogger::log('Ticket', $ticket->id, 'collection_approved', [
+            'subject' => $ticket->subject,
+            'status' => $status,
+        ], request()->user());
 
         return redirect()->back()->with('success', 'Ticket approved for collection.');
     }

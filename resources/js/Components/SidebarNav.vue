@@ -1,7 +1,24 @@
 <template>
   <nav class="flex-1 space-y-1">
-    <ul class="space-y-1">
-      <li v-for="item in navigation" :key="item.name">
+    <template v-for="(group, gi) in navigation" :key="group.name || ('group-' + gi)">
+      <!-- Category header (collapsible) -->
+      <button
+        v-if="group.name"
+        type="button"
+        @click="toggleGroup(group.name)"
+        :class="[
+          'mt-4 flex w-full items-center justify-between rounded-md px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors',
+          groupHasActive(group) ? 'text-white' : 'text-green-200/70 hover:text-white',
+        ]"
+      >
+        <span>{{ group.name }}</span>
+        <svg :class="['w-3 h-3 transition-transform duration-150', isGroupOpen(group.name) ? 'rotate-90' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+
+      <ul v-show="!group.name || isGroupOpen(group.name)" :class="group.name ? 'space-y-1 mt-1' : 'space-y-1'">
+        <li v-for="item in group.items" :key="item.name">
         <Link
           :href="item.href"
           :class="[
@@ -81,6 +98,10 @@
           <svg v-else-if="item.icon === 'users'" class="w-5 h-5 transition duration-75" :class="isActive(item.href) ? 'text-yellow-400' : 'text-green-200 group-hover:text-white'" fill="currentColor" viewBox="0 0 20 20">
             <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
           </svg>
+          <!-- Logs / Activity -->
+          <svg v-else-if="item.icon === 'log'" class="w-5 h-5 transition duration-75" :class="isActive(item.href) ? 'text-yellow-400' : 'text-green-200 group-hover:text-white'" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/>
+          </svg>
           <!-- Fallback -->
           <svg v-else-if="item.icon === 'api'" class="w-5 h-5 transition duration-75" :class="isActive(item.href) ? 'text-yellow-400' : 'text-green-200 group-hover:text-white'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l-3 3 3 3m8-6l3 3-3 3m-5 3l2-12"/>
@@ -91,12 +112,14 @@
           </svg>
           <span class="ml-3 text-sm font-medium">{{ item.name }}</span>
         </Link>
-      </li>
-    </ul>
+        </li>
+      </ul>
+    </template>
   </nav>
 </template>
 
 <script setup>
+import { ref, computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -119,4 +142,21 @@ const isActive = (href) => {
   if (target === '/') return path === '/';
   return path === target || path.startsWith(target + '/');
 };
+
+// Collapsible category groups. Clean by default: every group starts hidden,
+// except the one that contains the active page so the user sees where they are.
+const collapsedGroups = ref({});
+const activeGroupName = computed(() =>
+  props.navigation?.find((group) => group.name && group.items.some((item) => isActive(item.href)))?.name ?? null
+);
+const isGroupOpen = (name) => {
+  // Once the user manually toggles a group, honour that choice.
+  if (collapsedGroups.value[name] !== undefined) return !collapsedGroups.value[name];
+  return name === activeGroupName.value;
+};
+const toggleGroup = (name) => {
+  // Store the *collapsed* state (true = hidden).
+  collapsedGroups.value = { ...collapsedGroups.value, [name]: isGroupOpen(name) };
+};
+const groupHasActive = (group) => group.items.some((item) => isActive(item.href));
 </script>

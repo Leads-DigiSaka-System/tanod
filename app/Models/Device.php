@@ -16,6 +16,7 @@ class Device extends Model
         'device_model',
         'sim',
         'sim_iccid',
+        'sim_overridden',
         'sim_registration_code',
         'mc_type',
         'mc_type_use_scope',
@@ -35,6 +36,7 @@ class Device extends Model
             'sales_time' => 'datetime',
             'expiration_date' => 'datetime',
             'is_active' => 'boolean',
+            'sim_overridden' => 'boolean',
         ];
     }
 
@@ -58,6 +60,14 @@ class Device extends Model
     public function trackRecords()
     {
         return $this->hasMany(DeviceTrackRecord::class);
+    }
+
+    /**
+     * Previous SIM numbers of this device (newest first).
+     */
+    public function simHistories()
+    {
+        return $this->hasMany(DeviceSimHistory::class)->latest();
     }
 
     public function geoFences()

@@ -101,7 +101,7 @@
               </span>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
-                  <span class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ t.brand }} {{ t.model }}</span>
+                  <span class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ t.name }}</span>
                   <span class="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
                     :class="t.is_online
                       ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
