@@ -174,9 +174,8 @@
             </div>
             <div class="hidden sm:block h-12 w-px bg-cyan-200 dark:bg-cyan-800/60"></div>
             <p class="flex-1 text-xs leading-relaxed text-gray-600 dark:text-gray-300">
-              Newly activated GPS &mdash; tractors whose first recorded route starts on or after
-              <span class="font-semibold text-cyan-700 dark:text-cyan-300">{{ newGpsCutoff }}</span>.
-              Units with route history before that date are excluded.
+              Newly activated GPS among <span class="font-semibold">distributed tractors</span> with fresh route data only.
+              Units with previous GPS history are excluded.
             </p>
             <button v-if="newGpsList.length" type="button" @click="showNewGpsModal = true"
               class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-cyan-200 bg-white px-3 py-2 text-xs font-semibold text-cyan-700 shadow-sm transition-colors hover:bg-cyan-50 dark:border-cyan-800 dark:bg-gray-800 dark:text-cyan-300 dark:hover:bg-cyan-950/40">
@@ -290,12 +289,12 @@
 
       <!-- New GPS Data list -->
       <Modal :show="showNewGpsModal" max-width="4xl" @close="showNewGpsModal = false">
-        <template #header>New GPS Data &mdash; {{ newGpsCutoff }} onward</template>
+        <template #header>New GPS Data (Distributed)</template>
 
         <div class="-mx-6 -my-6">
           <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-6 py-3 dark:border-gray-600 dark:bg-gray-800/60">
             <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ newGpsList.length }} newly activated GPS &middot; first route on or after {{ newGpsCutoff }}
+              {{ newGpsList.length }} distributed tractor(s) with newly activated GPS
             </p>
           </div>
           <div class="max-h-[60vh] overflow-y-auto">
@@ -367,7 +366,6 @@ const props = defineProps({
 
 const showNewGpsModal = ref(false)
 const newGpsList = computed(() => props.newGpsTractorList || [])
-const newGpsCutoff = computed(() => props.newGpsCutoff || 'Jul 01, 2026')
 
 const todayDate = computed(() => new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }))
 const formatTitle = (key) => key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim()

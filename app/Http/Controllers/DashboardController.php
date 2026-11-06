@@ -541,12 +541,13 @@ class DashboardController extends Controller
     }
 
     /**
-     * Tractors that only started recording routes on/after the configured cutoff.
+     * Tractors that are currently distributed AND only started reporting GPS
+     * data on/after the configured cutoff.
      *
-     * These are units fitted with a replacement GPS tracker. A tractor is
-     * included only when its OLDEST route (device_track_records.start_time)
-     * falls on/after the cutoff, so units that already had route history
-     * before the cutoff are intentionally left out of the list.
+     * The list is limited to actively distributed tractors so unrelated/old
+     * units cannot slip in. Within that set, a tractor is included only when
+     * its OLDEST GPS data (device_locations.heartbeat_at) falls on/after the
+     * cutoff — any pre-cutoff GPS data excludes it.
      *
      * @return array{count:int, cutoff:string, cutoff_label:string, tractors:array<int, array<string, mixed>>}
      */
@@ -555,19 +556,31 @@ class DashboardController extends Controller
         $timezone = config('jimi.display_timezone', 'Asia/Manila');
 
         // Cutoff is a Philippine calendar date — convert to UTC for comparison
-        // because Jimi trip timestamps are stored in UTC.
+        // because Jimi location heartbeats are stored in UTC.
         $cutoff = Carbon::parse(
             config('jimi.new_tracking_since', '2026-07-01'),
             $timezone
         )->startOfDay();
 
-        $rows = DB::table('device_track_records as tr')
-            ->join('tractors', 'tractors.device_id', '=', 'tr.device_id')
+        $distributedIds = $this->activelyDistributedTractorIds();
+
+        if ($distributedIds === []) {
+            return [
+                'count' => 0,
+                'cutoff' => $cutoff->format('Y-m-d'),
+                'cutoff_label' => $cutoff->format('M d, Y'),
+                'tractors' => [],
+            ];
+        }
+
+        $rows = DB::table('device_locations as dl')
+            ->join('tractors', 'tractors.device_id', '=', 'dl.device_id')
+            ->whereIn('tractors.id', $distributedIds)
             ->whereNull('tractors.deleted_at')
-            ->whereNotNull('tr.start_time')
+            ->whereNotNull('dl.heartbeat_at')
             ->selectRaw('tractors.id, tractors.no_plate, tractors.name')
             ->groupBy('tractors.id', 'tractors.no_plate', 'tractors.name')
-            ->havingRaw('MIN(tr.start_time) >= ?', [$cutoff->copy()->utc()->format('Y-m-d H:i:s')])
+            ->havingRaw('MIN(dl.heartbeat_at) >= ?', [$cutoff->copy()->utc()->format('Y-m-d H:i:s')])
             ->orderBy('tractors.no_plate')
             ->get();
 
@@ -586,6 +599,34 @@ class DashboardController extends Controller
             'cutoff_label' => $cutoff->format('M d, Y'),
             'tractors' => $tractors,
         ];
+    }
+
+    /**
+     * Ids of tractors with an active (status = distributed) distribution.
+     *
+     * Handles both the single `tractor_id` column and multi-tractor records
+     * that only list ids inside the `tractor_ids` JSON array.
+     *
+     * @return array<int, int>
+     */
+    private function activelyDistributedTractorIds(): array
+    {
+        $ids = [];
+
+        TractorDistribution::query()
+            ->where('status', 'distributed')
+            ->get(['id', 'tractor_id', 'tractor_ids'])
+            ->each(function (TractorDistribution $distribution) use (&$ids) {
+                foreach ($distribution->tractor_ids ?: [] as $id) {
+                    $ids[(int) $id] = true;
+                }
+
+                if ($distribution->tractor_id) {
+                    $ids[(int) $distribution->tractor_id] = true;
+                }
+            });
+
+        return array_keys($ids);
     }
 
     /**
