@@ -5,6 +5,7 @@ namespace App\Services\Jimi;
 use App\Models\Device;
 use App\Models\DeviceLocation;
 use App\Models\Tractor;
+use App\Services\DeviceSimService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -46,12 +47,17 @@ class JimiDeviceService
                 continue;
             }
 
+            // Skip devices that were intentionally soft-deleted by the user
+            $existingDevice = Device::withTrashed()->where('imei', $imei)->first();
+            if ($existingDevice && $existingDevice->trashed()) {
+                continue;
+            }
+
             $device = Device::updateOrCreate(
                 ['imei' => $imei],
                 [
                     'device_name' => $deviceData['deviceName'] ?? null,
                     'device_model' => $deviceData['deviceModel'] ?? null,
-                    'sim' => $deviceData['sim'] ?? null,
                     'activation_time' => ! empty($deviceData['activationTime'])
                         ? \Carbon\Carbon::parse($deviceData['activationTime'])
                         : null,
@@ -61,6 +67,18 @@ class JimiDeviceService
                     'is_active' => true,
                 ]
             );
+
+            // Update the SIM only when it was not manually overridden; archive the
+            // previous value so it can still be viewed after a replacement.
+            if (! $existingDevice?->sim_overridden) {
+                app(DeviceSimService::class)->change($device, $deviceData['sim'] ?? null);
+            }
+
+            // Skip tractors that were intentionally soft-deleted by the user
+            $existingTractor = Tractor::withTrashed()->where('imei', $imei)->first();
+            if ($existingTractor && $existingTractor->trashed()) {
+                continue;
+            }
 
             // Find or create tractor by IMEI — the universal unique key
             // This ensures Excel-imported tractors and Jimi-synced tractors merge into one record

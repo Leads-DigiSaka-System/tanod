@@ -101,8 +101,8 @@
               class="w-full px-3 py-2.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:text-white" />
           </div>
           <div>
-            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Amount (₱)</label>
-            <input v-model="form.amount" type="number" step="0.01" min="0"
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Amount (₱) <span class="text-gray-400 font-normal">(optional)</span></label>
+            <input v-model="form.amount" type="number" step="0.01" min="0" placeholder="0.00"
               class="w-full px-3 py-2.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:text-white" />
           </div>
           <div>

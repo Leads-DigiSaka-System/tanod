@@ -8,6 +8,22 @@
       <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Access detailed reports and analytics for your fleet</p>
     </div>
 
+    <!-- Flash Messages -->
+    <div
+      v-if="flashMessage"
+      class="mb-6 flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium border"
+      :class="{
+        'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800/50': flashType === 'success',
+        'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800/50': flashType === 'warning',
+        'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800/50': flashType === 'error',
+      }"
+    >
+      <svg v-if="flashType === 'success'" class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <svg v-else-if="flashType === 'warning'" class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+      <svg v-else class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      {{ flashMessage }}
+    </div>
+
     <!-- Report Cards — neumorphic style matching Dashboard -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
       <!-- Tractor Usage -->
@@ -90,6 +106,31 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
           Add Subscription
         </button>
+        <div class="flex items-center gap-2">
+          <label class="flex items-center gap-1.5 cursor-pointer select-none">
+            <span class="text-[10px] font-medium text-gray-500 dark:text-gray-400">Force all</span>
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="forceAll"
+              @click="forceAll = !forceAll"
+              class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200"
+              :class="forceAll ? 'bg-amber-500' : 'bg-gray-300 dark:bg-gray-600'"
+            >
+              <span class="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform ring-0 transition duration-200" :class="forceAll ? 'translate-x-4' : 'translate-x-0'" />
+            </button>
+          </label>
+          <button
+            @click="sendNow"
+            :disabled="sendingNow"
+            class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Send all due reports immediately"
+          >
+            <svg v-if="sendingNow" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            {{ sendingNow ? 'Sending...' : 'Send Now' }}
+          </button>
+        </div>
       </div>
 
       <!-- Subscriptions Table — one row per user -->
@@ -520,8 +561,8 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { computed, reactive, ref, watch } from 'vue';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ConfirmDialog from '@/Components/ConfirmDialog.vue';
 
@@ -535,8 +576,23 @@ const props = defineProps({
   ticketReports: Object,
 });
 
+const page = usePage();
+
+const flashMessage = computed(() => {
+  return page.props.flash?.success || page.props.flash?.warning || page.props.flash?.error || null;
+});
+
+const flashType = computed(() => {
+  if (page.props.flash?.success) return 'success';
+  if (page.props.flash?.warning) return 'warning';
+  if (page.props.flash?.error) return 'error';
+  return null;
+});
+
 const showModal = ref(false);
 const userSearch = ref('');
+const sendingNow = ref(false);
+const forceAll = ref(false);
 const confirmDialog = ref(null);
 const editingSub = ref(null); // the subscription being edited
 const editForm = reactive({
@@ -624,6 +680,14 @@ const createSubscription = () => {
       userSearch.value = '';
       closeModal();
     },
+  });
+};
+
+const sendNow = () => {
+  sendingNow.value = true;
+  router.post('/reports/send-now', { force: forceAll.value }, {
+    preserveScroll: true,
+    onFinish: () => { sendingNow.value = false; },
   });
 };
 

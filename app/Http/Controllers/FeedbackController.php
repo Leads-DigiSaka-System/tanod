@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\FarmerFeedback;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -12,7 +13,15 @@ class FeedbackController extends Controller
     {
         $user = $request->user();
 
-        $feedback = FarmerFeedback::with(['tractor', 'booking', 'submitter', 'reviewer'])
+        $feedback = FarmerFeedback::with([
+                'tractor.assignee:id,name,organization_name',
+                'tractor.currentDistribution.distributedToUser:id,name,organization_name',
+                'booking.bookedBy:id,name,organization_name,fca_id',
+                'booking.bookedBy.fca:id,name,organization_name',
+                'submitter:id,name,email,organization_name,fca_id',
+                'submitter.fca:id,name,organization_name',
+                'reviewer',
+            ])
             ->when(! $user->hasAnyRole(['super-admin', 'sub-admin']), function ($q) use ($user) {
                 // FCA sees feedback from farmers in their groups
                 if ($user->hasRole('fca')) {
@@ -41,7 +50,23 @@ class FeedbackController extends Controller
             ->when($request->rating, fn ($q, $r) => $q->where('rating', $r))
             ->latest()
             ->paginate(20)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(function (FarmerFeedback $feedback) {
+                $feedback->setAttribute('coop_name',
+                    $feedback->submitter?->organization_name
+                    ?: $feedback->submitter?->fca?->organization_name
+                    ?: $feedback->submitter?->fca?->name
+                    ?: $feedback->tractor?->currentDistribution?->distributedToUser?->organization_name
+                    ?: $feedback->tractor?->currentDistribution?->distributedToUser?->name
+                    ?: $feedback->tractor?->assignee?->organization_name
+                    ?: $feedback->tractor?->assignee?->name
+                    ?: $feedback->booking?->bookedBy?->organization_name
+                    ?: $feedback->booking?->bookedBy?->fca?->organization_name
+                    ?: $feedback->booking?->bookedBy?->fca?->name
+                );
+
+                return $feedback;
+            });
 
         // Summary stats
         $baseQuery = FarmerFeedback::query();
@@ -79,6 +104,10 @@ class FeedbackController extends Controller
 
         $feedback->delete();
 
+        ActivityLogger::log('FarmerFeedback', $feedback->id, 'deleted', [
+            'tractor_id' => $feedback->tractor_id,
+        ], $user);
+
         return redirect()->route('feedback.index')
             ->with('success', 'Feedback deleted successfully.');
     }
@@ -98,6 +127,10 @@ class FeedbackController extends Controller
             'reviewed_by' => $request->user()->id,
             'reviewed_at' => now(),
         ]);
+
+        ActivityLogger::log('FarmerFeedback', $feedback->id, 'reviewed', [
+            'status' => $request->status,
+        ], $request->user());
 
         return back()->with('success', 'Feedback updated successfully.');
     }

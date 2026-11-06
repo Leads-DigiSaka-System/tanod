@@ -10,6 +10,7 @@ use App\Models\GeoFence;
 use App\Models\Maintenance;
 use App\Models\Ticket;
 use App\Models\Tractor;
+use App\Models\TractorDistribution;
 use App\Models\User;
 use App\Services\Jimi\JimiDeviceService;
 use App\Services\Jimi\JimiTrackingService;
@@ -31,7 +32,7 @@ class DashboardController extends Controller
 
         $data = [];
 
-        if ($user->hasAnyRole(['super-admin', 'sub-admin'])) {
+        if ($user->hasAnyRole(['super-admin', 'sub-admin', 'philmech'])) {
             $data = $this->adminDashboard();
         } elseif ($user->hasRole('tsr')) {
             $data = $this->tsrDashboard($user);
@@ -53,11 +54,15 @@ class DashboardController extends Controller
         $onlineTractors = $tractorStatus['onlineTractors'];
         $offlineTractors = $tractorStatus['offlineTractors'];
         $inactiveTractors = $tractorStatus['inactiveTractors'];
+        $tractorStatusBreakdown = $this->tractorStatusBreakdown($liveLocations);
 
         // ── Tractor usage & PMS (report-style 100‑hr schedule) ──
         $usage = $this->tractorUsageSummary();
         $maintenanceDueCount = $usage['pmsDue'];
         $maintenanceDueTractors = $usage['pmsDueList'];
+
+        // ── Newly tracked tractors (replaced GPS) ──
+        $newGpsTracking = $this->newGpsTrackingSummary();
 
         $maintenanceByStatus = Maintenance::select('status', DB::raw('count(*) as count'))
             ->groupBy('status')->pluck('count', 'status')->toArray();
@@ -156,6 +161,40 @@ class DashboardController extends Controller
             ];
             $cursor->addMonth();
         }
+
+        // ── Distributions by month (from distribution_date) ──
+        // Count tractors distributed per month (multi-tractor records expand tractor_ids).
+        $distributionRows = TractorDistribution::whereNotNull('distribution_date')
+            ->where('status', '!=', 'cancelled')
+            ->get(['distribution_date', 'tractor_id', 'tractor_ids']);
+
+        $distributionByMonthRaw = [];
+        $earliestDistribution = null;
+        foreach ($distributionRows as $row) {
+            $date = Carbon::parse($row->distribution_date);
+            $key = $date->format('Y-m');
+            $count = is_array($row->tractor_ids) && count($row->tractor_ids) > 0
+                ? count($row->tractor_ids)
+                : ($row->tractor_id ? 1 : 0);
+            $distributionByMonthRaw[$key] = ($distributionByMonthRaw[$key] ?? 0) + $count;
+            if ($earliestDistribution === null || $date->lt($earliestDistribution)) {
+                $earliestDistribution = $date->copy();
+            }
+        }
+
+        $distributionByMonth = [];
+        if ($earliestDistribution !== null) {
+            $cursor = $earliestDistribution->copy()->startOfMonth();
+            while ($cursor->lte($nowMonth)) {
+                $key = $cursor->format('Y-m');
+                $distributionByMonth[] = [
+                    'month' => $cursor->format('M Y'),
+                    'count' => $distributionByMonthRaw[$key] ?? 0,
+                ];
+                $cursor->addMonth();
+            }
+        }
+
         $tractorsByGroup = DB::table('group_tractor')
             ->join('tractor_groups', 'tractor_groups.id', '=', 'group_tractor.tractor_group_id')
             ->join('tractors', 'tractors.id', '=', 'group_tractor.tractor_id')
@@ -225,7 +264,7 @@ class DashboardController extends Controller
                 'totalMaintenanceRecords' => $usage['totalMaintenanceRecords'],
                 'totalDevices' => $totalDevices,
                 'onlineDevices' => $onlineDevices,
-                'totalUsers' => User::count(),
+                'totalUsers' => User::role('fca')->count(),
                 'pendingBookings' => $bookingsByStatus['pending'] ?? 0,
                 'maintenanceDue' => $maintenanceDueCount,
                 'unacknowledgedAlerts' => $unacknowledgedAlerts,
@@ -240,6 +279,7 @@ class DashboardController extends Controller
                 'inactivatedDevices' => $inactivatedDevices,
                 'usageHwData' => $usage['tractorsWithUsageData'],
                 'usageGrowthPercent' => $usageGrowthPercent,
+                'newGpsTractors' => $newGpsTracking['count'],
                 'totalAlertsLast7Days' => $totalAlertsLast7Days,
                 'activeGroups' => $activeTractorGroups,
                 'offlineLessThanDay' => $offlineBreakdown['lessThanDay'],
@@ -254,6 +294,7 @@ class DashboardController extends Controller
                     'offline' => $offlineTractors,
                     'inactive' => $inactiveTractors,
                 ],
+                'tractorStatusBreakdown' => $tractorStatusBreakdown,
                 'offlineBreakdown' => [
                     'lessThanDay' => $offlineBreakdown['lessThanDay'],
                     'oneToSevenDays' => $offlineBreakdown['oneToSevenDays'],
@@ -283,6 +324,7 @@ class DashboardController extends Controller
                     'due' => $usage['pmsDue'],
                 ],
                 'activationByMonth' => $activationByMonth,
+                'distributionByMonth' => $distributionByMonth,
                 'alertsLast7Days' => $totalAlertsLast7Days,
                 'activeGroups' => $activeTractorGroups,
             ],
@@ -296,6 +338,8 @@ class DashboardController extends Controller
                 ->take(5)
                 ->get(),
             'maintenanceDueList' => $maintenanceDueTractors->take(5)->values(),
+            'newGpsTractorList' => $newGpsTracking['tractors'],
+            'newGpsCutoff' => $newGpsTracking['cutoff_label'],
         ];
     }
 
@@ -337,6 +381,80 @@ class DashboardController extends Controller
             'inactiveTractors' => max($totalTractors - $activeTractorCount, 0),
             'onlineDevices' => $onlineDevices,
         ];
+    }
+
+    /**
+     * Classify tracked tractors into Parked / Idle / Moving / Offline using the
+     * same rules as LiveView, then roll up Active (parked+idle+moving) vs Offline.
+     *
+     * @return array{parked:int, idling:int, moving:int, offline:int, active:int}
+     */
+    private function tractorStatusBreakdown(array $liveLocations): array
+    {
+        $counts = ['parked' => 0, 'idling' => 0, 'moving' => 0, 'offline' => 0];
+
+        $devices = Device::query()
+            ->select(['id', 'imei'])
+            ->with('tractor:id,device_id')
+            ->whereHas('tractor')
+            ->notStale()
+            ->get();
+
+        foreach ($devices as $device) {
+            $status = $this->resolveTractorStatus($liveLocations[$device->imei] ?? null);
+            $counts[$status]++;
+        }
+
+        $counts['active'] = $counts['parked'] + $counts['idling'] + $counts['moving'];
+
+        return $counts;
+    }
+
+    /**
+     * Resolve a tractor's live status from JIMI location data.
+     *
+     * @param  array<string, mixed>|null  $apiData
+     */
+    private function resolveTractorStatus(?array $apiData): string
+    {
+        if (! $apiData) {
+            return 'offline';
+        }
+
+        $heartbeatAt = $this->parseHeartbeat($apiData['hbTime'] ?? null);
+        $minutesAgo = $heartbeatAt
+            ? (int) floor($heartbeatAt->diffInMinutes(now()->utc()))
+            : 999;
+
+        // Prefer JIMI's own online/offline determination (status=1 → online).
+        // Fall back to heartbeat age only when status is missing.
+        $jimiStatus = array_key_exists('status', $apiData) ? (int) $apiData['status'] : null;
+
+        $isOnline = match ($jimiStatus) {
+            1 => true,
+            0 => false,
+            default => $minutesAgo <= $this->onlineThresholdMinutes(),
+        };
+
+        if (! $isOnline) {
+            return 'offline';
+        }
+
+        if (! (bool) ($apiData['accStatus'] ?? false)) {
+            return 'parked';
+        }
+
+        $speed = (float) ($apiData['speed'] ?? 0);
+
+        $gpsAt = $this->parseHeartbeat($apiData['gpsTime'] ?? null);
+        $gpsMinutesAgo = $gpsAt
+            ? max((int) floor($gpsAt->diffInMinutes(now()->utc())), 0)
+            : $minutesAgo;
+
+        $movementFreshness = max((int) config('jimi.movement_freshness_minutes', 5), 1);
+        $hasFreshMovement = $speed >= 3.0 && $gpsMinutesAgo <= $movementFreshness;
+
+        return $hasFreshMovement ? 'moving' : 'idling';
     }
 
     /**
@@ -420,6 +538,174 @@ class DashboardController extends Controller
             'totalMaintenanceRecords' => Maintenance::count(),
             'pmsDueList' => $pmsDueList,
         ];
+    }
+
+    /**
+     * Tractors that are currently distributed AND only started reporting GPS
+     * data on/after the configured cutoff.
+     *
+     * The list is limited to actively distributed tractors so unrelated/old
+     * units cannot slip in. Within that set, a tractor is included only when
+     * its OLDEST GPS data (device_locations.heartbeat_at) falls on/after the
+     * cutoff — any pre-cutoff GPS data excludes it.
+     *
+     * @return array{count:int, cutoff:string, cutoff_label:string, tractors:array<int, array<string, mixed>>}
+     */
+    private function newGpsTrackingSummary(): array
+    {
+        $timezone = config('jimi.display_timezone', 'Asia/Manila');
+
+        // Cutoff is a Philippine calendar date — convert to UTC for comparison
+        // because Jimi location heartbeats are stored in UTC.
+        $cutoff = Carbon::parse(
+            config('jimi.new_tracking_since', '2026-07-01'),
+            $timezone
+        )->startOfDay();
+
+        $distributedIds = $this->activelyDistributedTractorIds();
+
+        if ($distributedIds === []) {
+            return [
+                'count' => 0,
+                'cutoff' => $cutoff->format('Y-m-d'),
+                'cutoff_label' => $cutoff->format('M d, Y'),
+                'tractors' => [],
+            ];
+        }
+
+        $rows = DB::table('device_locations as dl')
+            ->join('tractors', 'tractors.device_id', '=', 'dl.device_id')
+            ->whereIn('tractors.id', $distributedIds)
+            ->whereNull('tractors.deleted_at')
+            ->whereNotNull('dl.heartbeat_at')
+            ->selectRaw('tractors.id, tractors.no_plate, tractors.name')
+            ->groupBy('tractors.id', 'tractors.no_plate', 'tractors.name')
+            ->havingRaw('MIN(dl.heartbeat_at) >= ?', [$cutoff->copy()->utc()->format('Y-m-d H:i:s')])
+            ->orderBy('tractors.no_plate')
+            ->get();
+
+        $coopNames = $this->tractorCoopNames($rows->pluck('id')->all());
+
+        $tractors = $rows->map(fn ($row) => [
+            'id' => $row->id,
+            'no_plate' => $row->no_plate,
+            'name' => $row->name,
+            'coop_name' => $coopNames[(int) $row->id] ?? null,
+        ])->values()->all();
+
+        return [
+            'count' => count($tractors),
+            'cutoff' => $cutoff->format('Y-m-d'),
+            'cutoff_label' => $cutoff->format('M d, Y'),
+            'tractors' => $tractors,
+        ];
+    }
+
+    /**
+     * Ids of tractors with an active (status = distributed) distribution.
+     *
+     * Handles both the single `tractor_id` column and multi-tractor records
+     * that only list ids inside the `tractor_ids` JSON array.
+     *
+     * @return array<int, int>
+     */
+    private function activelyDistributedTractorIds(): array
+    {
+        $ids = [];
+
+        TractorDistribution::query()
+            ->where('status', 'distributed')
+            ->get(['id', 'tractor_id', 'tractor_ids'])
+            ->each(function (TractorDistribution $distribution) use (&$ids) {
+                foreach ($distribution->tractor_ids ?: [] as $id) {
+                    $ids[(int) $id] = true;
+                }
+
+                if ($distribution->tractor_id) {
+                    $ids[(int) $distribution->tractor_id] = true;
+                }
+            });
+
+        return array_keys($ids);
+    }
+
+    /**
+     * Map tractor id => cooperative (FCA organization) name.
+     *
+     * Prefers the recipient of the active distribution — checking both the
+     * single `tractor_id` column and the multi-tractor `tractor_ids` JSON —
+     * then falls back to the tractor's assigned FCA organization.
+     *
+     * @param  array<int, int|string>  $tractorIds
+     * @return array<int, string>
+     */
+    private function tractorCoopNames(array $tractorIds): array
+    {
+        if ($tractorIds === []) {
+            return [];
+        }
+
+        $wanted = array_flip(array_map('intval', $tractorIds));
+        $coopNames = [];
+
+        $distributions = TractorDistribution::query()
+            ->where('status', 'distributed')
+            ->with('distributedToUser:id,name,organization_name')
+            ->orderBy('distribution_date')
+            ->get(['id', 'tractor_id', 'tractor_ids', 'distributed_to', 'distribution_date']);
+
+        foreach ($distributions as $distribution) {
+            $name = $distribution->distributedToUser?->organization_name
+                ?: $distribution->distributedToUser?->name;
+
+            if (! $name) {
+                continue;
+            }
+
+            $ids = $distribution->tractor_ids ?: array_filter([$distribution->tractor_id]);
+
+            foreach ($ids as $id) {
+                $tractorId = (int) $id;
+
+                if (isset($wanted[$tractorId])) {
+                    // Ordered by date, so the latest active distribution wins.
+                    $coopNames[$tractorId] = $name;
+                }
+            }
+        }
+
+        $assignees = Tractor::query()
+            ->whereIn('id', $tractorIds)
+            ->with(['assignee:id,name,organization_name', 'device:id,device_name'])
+            ->get(['id', 'assigned_to', 'device_id', 'no_plate']);
+
+        foreach ($assignees as $tractor) {
+            $coopNames[$tractor->id] ??= $tractor->assignee?->organization_name;
+            $coopNames[$tractor->id] ??= $this->coopFromDeviceName($tractor->device?->device_name, $tractor->no_plate);
+        }
+
+        return array_filter($coopNames);
+    }
+
+    /**
+     * Pull the cooperative name out of a Jimi device name such as
+     * "Hacienderos Agragarian Reform Cooperative VL103D-46015".
+     * Returns null when the device name is only the plate/serial.
+     */
+    private function coopFromDeviceName(?string $deviceName, ?string $noPlate): ?string
+    {
+        if (! $deviceName) {
+            return null;
+        }
+
+        $name = preg_replace('/(?:VL103[MD]|VT100\+?)\s*-?\s*\d{4,6}/i', ' ', $deviceName);
+        $name = trim(preg_replace('/\s+/', ' ', $name), " \t\n\r\0\x0B-–—,./");
+
+        if ($name === '' || ($noPlate && strcasecmp($name, trim($noPlate)) === 0)) {
+            return null;
+        }
+
+        return $name;
     }
 
     /**

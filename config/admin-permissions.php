@@ -17,7 +17,7 @@ return [
         'key' => 'tractors',
         'label' => 'Tractors',
         'description' => 'Fleet records, assignments, imports, and exports.',
-        'permissions' => ['tractors.view', 'tractors.create', 'tractors.edit', 'tractors.delete', 'tractors.assign', 'tractors.import', 'tractors.export'],
+        'permissions' => ['tractors.view', 'tractors.create', 'tractors.edit', 'tractors.delete', 'tractors.assign', 'tractors.import', 'tractors.export', 'tractors.view_deleted'],
     ],
     [
         'key' => 'devices',

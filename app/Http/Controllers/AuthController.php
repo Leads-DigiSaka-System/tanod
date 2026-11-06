@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -80,6 +81,11 @@ class AuthController extends Controller
 
         $user->update($data);
 
+        ActivityLogger::log('User', $user->id, 'profile_updated', [
+            'name' => $user->name,
+            'email' => $user->email,
+        ], $user);
+
         return back()->with('success', 'Profile updated successfully.');
     }
 
@@ -99,6 +105,8 @@ class AuthController extends Controller
         }
 
         $user->update(['password' => Hash::make($request->password)]);
+
+        ActivityLogger::log('User', $user->id, 'password_changed', null, $user);
 
         return back()->with('success', 'Password changed successfully.');
     }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreIntegrationTokenRequest;
+use App\Services\ActivityLogger;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -65,6 +66,10 @@ class ApiIntegrationController extends Controller
             'encrypted_secret' => Crypt::encryptString($token->plainTextToken),
         ])->save();
 
+        ActivityLogger::log('IntegrationToken', $token->accessToken->id, 'created', [
+            'name' => $validated['name'],
+        ], $request->user());
+
         return Redirect::back()
             ->with('success', 'Integration token generated. Copy it now; it will not be shown again.')
             ->with('newIntegrationToken', $token->plainTextToken);
@@ -77,6 +82,10 @@ class ApiIntegrationController extends Controller
         abort_unless(in_array('integration:read', $personalAccessToken->abilities ?? [], true), 404);
 
         $personalAccessToken->delete();
+
+        ActivityLogger::log('IntegrationToken', $personalAccessToken->id, 'deleted', [
+            'name' => $personalAccessToken->name,
+        ], $request->user());
 
         return Redirect::back()->with('success', 'Integration token revoked.');
     }

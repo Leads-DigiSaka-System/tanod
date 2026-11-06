@@ -21,9 +21,9 @@ class PurgeOldAlertsCommandTest extends TestCase
     public function test_it_deletes_only_alerts_older_than_the_retention_period_in_chunks(): void
     {
         Carbon::setTestNow('2026-07-25 12:00:00');
-        $oldest = $this->createAlertAt(now()->subMonths(2));
-        $old = $this->createAlertAt(now()->subMonth()->subSecond());
-        $atCutoff = $this->createAlertAt(now()->subMonth());
+        $oldest = $this->createAlertAt(now()->subDays(60));
+        $old = $this->createAlertAt(now()->subDays(31));
+        $atCutoff = $this->createAlertAt(now()->subDays(30));
         $recent = $this->createAlertAt(now()->subDays(10));
 
         $this->artisan('alerts:purge', ['--chunk' => 1])
@@ -39,7 +39,7 @@ class PurgeOldAlertsCommandTest extends TestCase
     public function test_dry_run_reports_without_deleting_alerts(): void
     {
         Carbon::setTestNow('2026-07-25 12:00:00');
-        $old = $this->createAlertAt(now()->subMonths(2));
+        $old = $this->createAlertAt(now()->subDays(60));
 
         $this->artisan('alerts:purge', ['--dry-run' => true])
             ->expectsOutput('Dry run: 1 alert(s) older than 2026-06-25 12:00:00 would be deleted.')
@@ -50,8 +50,8 @@ class PurgeOldAlertsCommandTest extends TestCase
 
     public function test_it_rejects_invalid_retention_and_chunk_options(): void
     {
-        $this->artisan('alerts:purge', ['--months' => 0])
-            ->expectsOutput('The --months option must be a positive integer.')
+        $this->artisan('alerts:purge', ['--days' => 0])
+            ->expectsOutput('The --days option must be a positive integer.')
             ->assertExitCode(2);
 
         $this->artisan('alerts:purge', ['--chunk' => 'invalid'])

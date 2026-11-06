@@ -3,12 +3,14 @@
 namespace App\Console\Commands;
 
 use App\Models\Alert;
+use App\Services\AlertPurgeService;
+use App\Services\AlertSummaryService;
 use Illuminate\Console\Command;
 
 class PurgeOldAlerts extends Command
 {
     protected $signature = 'alerts:purge
-                            {--months=1 : Delete alerts older than this many months}
+                            {--days=30 : Delete alerts older than this many days}
                             {--chunk=1000 : Number of alerts to delete per batch}
                             {--dry-run : Show how many alerts would be deleted}';
 
@@ -16,37 +18,25 @@ class PurgeOldAlerts extends Command
 
     public function handle(): int
     {
-        $months = $this->positiveIntegerOption('months');
+        $days = $this->positiveIntegerOption('days');
         $chunkSize = $this->positiveIntegerOption('chunk');
 
-        if ($months === null || $chunkSize === null) {
+        if ($days === null || $chunkSize === null) {
             return self::INVALID;
         }
 
-        $cutoff = now()->subMonthsNoOverflow($months);
-        $query = Alert::query()->where('created_at', '<', $cutoff);
+        $cutoff = now()->subDays($days);
 
         if ($this->option('dry-run')) {
-            $count = (clone $query)->count();
+            $count = Alert::query()->where('created_at', '<', $cutoff)->count();
             $this->info("Dry run: {$count} alert(s) older than {$cutoff->toDateTimeString()} would be deleted.");
 
             return self::SUCCESS;
         }
 
-        $deleted = 0;
+        $deleted = AlertPurgeService::purge($days, $chunkSize);
 
-        do {
-            $ids = (clone $query)
-                ->orderBy('id')
-                ->limit($chunkSize)
-                ->pluck('id');
-
-            if ($ids->isEmpty()) {
-                break;
-            }
-
-            $deleted += Alert::query()->whereKey($ids)->delete();
-        } while ($ids->count() === $chunkSize);
+        AlertSummaryService::recalculate();
 
         $this->info("Deleted {$deleted} alert(s) older than {$cutoff->toDateTimeString()}.");
 

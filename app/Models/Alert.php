@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Observers\AlertObserver;
 use Illuminate\Database\Eloquent\Model;
 
 class Alert extends Model
@@ -26,6 +27,11 @@ class Alert extends Model
             'is_acknowledged' => 'boolean',
             'acknowledged_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::observe(AlertObserver::class);
     }
 
     public function device()

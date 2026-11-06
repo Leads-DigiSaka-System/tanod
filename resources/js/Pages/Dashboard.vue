@@ -149,9 +149,39 @@
             <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
           </div>
           <div class="min-w-0">
-            <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Users</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">FCA Users</p>
             <p class="text-xl font-bold text-gray-900 dark:text-white">{{ Number(stats.totalUsers || 0).toLocaleString() }} <span class="text-sm font-normal text-gray-400">total</span></p>
-            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Registered users</p>
+            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Registered FCA users</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- New GPS Data (replacement trackers) -->
+      <div class="mb-6">
+        <div class="rounded-2xl bg-linear-to-r from-cyan-50 to-sky-50 dark:from-cyan-950/40 dark:to-sky-950/30 px-5 py-4 border border-cyan-200/60 dark:border-cyan-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div class="flex shrink-0 items-center gap-3">
+              <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-cyan-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+              </div>
+              <div class="min-w-0">
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">New GPS Data</p>
+                <p class="text-2xl font-bold leading-tight text-gray-900 dark:text-white">
+                  {{ Number(stats.newGpsTractors || 0).toLocaleString() }}
+                  <span class="text-sm font-medium text-gray-500 dark:text-gray-400">tractors</span>
+                </p>
+              </div>
+            </div>
+            <div class="hidden sm:block h-12 w-px bg-cyan-200 dark:bg-cyan-800/60"></div>
+            <p class="flex-1 text-xs leading-relaxed text-gray-600 dark:text-gray-300">
+              Newly activated GPS among <span class="font-semibold">distributed tractors</span> with fresh route data only.
+              Units with previous GPS history are excluded.
+            </p>
+            <button v-if="newGpsList.length" type="button" @click="showNewGpsModal = true"
+              class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-cyan-200 bg-white px-3 py-2 text-xs font-semibold text-cyan-700 shadow-sm transition-colors hover:bg-cyan-50 dark:border-cyan-800 dark:bg-gray-800 dark:text-cyan-300 dark:hover:bg-cyan-950/40">
+              View list
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </button>
           </div>
         </div>
       </div>
@@ -163,26 +193,26 @@
         <div class="rounded-2xl bg-gray-100 dark:bg-gray-800/60 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
           <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-6">Tractor Status</h3>
           <div class="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-0 sm:divide-x divide-gray-200 dark:divide-gray-700">
-            <!-- Activated -->
+            <!-- Active (parked + idle + moving) -->
             <div class="flex-1 flex flex-col items-center px-3">
-              <span class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Activated</span>
+              <span class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Active</span>
               <div class="relative w-full max-w-[160px] mx-auto flex justify-center mb-3">
-                <apexchart type="donut" height="120" :options="activatedDonutOptions" :series="activatedDonutSeries" />
+                <apexchart type="donut" height="120" :options="activeDonutOptions" :series="activeDonutSeries" />
               </div>
               <div class="flex items-center gap-2 mt-1">
-                <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Activated {{ deviceActivation.activated.toLocaleString() }}</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Active {{ activeCount.toLocaleString() }}</span>
               </div>
             </div>
-            <!-- Inactive -->
+            <!-- Inactive (offline) -->
             <div class="flex-1 flex flex-col items-center px-3">
               <span class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Inactive</span>
               <div class="relative w-full max-w-[160px] mx-auto flex justify-center mb-3">
-                <apexchart type="donut" height="120" :options="inactivatedDonutOptions" :series="inactivatedDonutSeries" />
+                <apexchart type="donut" height="120" :options="offlineDonutOptions" :series="offlineDonutSeries" />
               </div>
               <div class="flex items-center gap-2 mt-1">
                 <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
-                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Inactive {{ deviceActivation.inactivated.toLocaleString() }}</span>
+                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Inactive {{ offlineCount.toLocaleString() }}</span>
               </div>
             </div>
           </div>
@@ -240,6 +270,52 @@
         </div>
       </div>
 
+      <!-- Distributions per Month (Full Width) -->
+      <div class="mb-6">
+        <div class="rounded-2xl bg-white dark:bg-gray-800 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Distributions per Month</h3>
+            <div v-if="charts.distributionByMonth?.length" class="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+              <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+              {{ distributionDateRange }}
+            </div>
+          </div>
+          <div v-if="charts.distributionByMonth?.length" style="height: 350px">
+            <canvas ref="distributionChartRef"></canvas>
+          </div>
+          <div v-else class="flex items-center justify-center h-48 text-sm text-gray-400">No distribution data</div>
+        </div>
+      </div>
+
+      <!-- New GPS Data list -->
+      <Modal :show="showNewGpsModal" max-width="4xl" @close="showNewGpsModal = false">
+        <template #header>New GPS Data (Distributed)</template>
+
+        <div class="-mx-6 -my-6">
+          <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-6 py-3 dark:border-gray-600 dark:bg-gray-800/60">
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              {{ newGpsList.length }} distributed tractor(s) with newly activated GPS
+            </p>
+          </div>
+          <div class="max-h-[60vh] overflow-y-auto">
+            <div class="sticky top-0 z-10 grid grid-cols-1 gap-2 border-b border-gray-200 bg-white px-6 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 sm:grid-cols-2">
+              <span>Tractor</span>
+              <span class="sm:text-right">Cooperative</span>
+            </div>
+            <ul class="divide-y divide-gray-100 dark:divide-gray-600">
+              <li v-for="t in newGpsList" :key="t.id" class="grid grid-cols-1 gap-1 px-6 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 sm:grid-cols-2 sm:gap-2">
+                <div class="flex items-center gap-3">
+                  <span class="h-2 w-2 shrink-0 rounded-full bg-cyan-500"></span>
+                  <p class="font-medium text-gray-900 dark:text-white">{{ t.no_plate }}</p>
+                </div>
+                <p class="truncate pl-5 text-xs text-gray-500 dark:text-gray-400 sm:pl-0 sm:text-right" :title="t.coop_name || ''">{{ t.coop_name || '—' }}</p>
+              </li>
+            </ul>
+            <div v-if="!newGpsList.length" class="px-6 py-10 text-center text-sm text-gray-400">No tractors with new GPS data yet.</div>
+          </div>
+        </div>
+      </Modal>
+
     </template>
 
     <!-- Non-admin fallback -->
@@ -275,6 +351,7 @@ import { Head, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import StatCard from '@/Components/StatCard.vue'
 import StatusBadge from '@/Components/StatusBadge.vue'
+import Modal from '@/Components/Modal.vue'
 import VueApexCharts from 'vue3-apexcharts'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
@@ -284,7 +361,11 @@ const props = defineProps({
   stats: Object, charts: Object, recentAlerts: Array, recentBookings: Array,
   maintenanceDueList: Array, pendingBookings: Array, myTractors: Array,
   pendingTasks: Array, myBookings: Array, availableTractors: Array, recentFeedback: Array,
+  newGpsTractorList: Array, newGpsCutoff: String,
 })
+
+const showNewGpsModal = ref(false)
+const newGpsList = computed(() => props.newGpsTractorList || [])
 
 const todayDate = computed(() => new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }))
 const formatTitle = (key) => key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim()
@@ -296,10 +377,13 @@ const getStatColor = (key) => {
 }
 
 
-// Activation
-const deviceActivation = computed(() => props.charts?.deviceActivation || { total: 0, activated: 0, inactivated: 0 })
-const activationActivatedPercent = computed(() => deviceActivation.value.total > 0 ? Math.round((deviceActivation.value.activated / deviceActivation.value.total) * 100 * 100) / 100 : 0)
-const activationInactivatedPercent = computed(() => deviceActivation.value.total > 0 ? Math.round((deviceActivation.value.inactivated / deviceActivation.value.total) * 100 * 100) / 100 : 0)
+// Tractor Status (Active = parked + idle + moving, Inactive = offline)
+const tractorStatusBreakdown = computed(() => props.charts?.tractorStatusBreakdown || { active: 0, offline: 0 })
+const activeCount = computed(() => tractorStatusBreakdown.value.active || 0)
+const offlineCount = computed(() => tractorStatusBreakdown.value.offline || 0)
+const statusTotal = computed(() => activeCount.value + offlineCount.value || 1)
+const activePercent = computed(() => Math.round((activeCount.value / statusTotal.value) * 1000) / 10)
+const offlinePercent = computed(() => Math.round((offlineCount.value / statusTotal.value) * 1000) / 10)
 
 // Tractor Status donut charts
 const buildStatusDonut = (percent, color) => ({
@@ -311,10 +395,10 @@ const buildStatusDonut = (percent, color) => ({
   legend: { show: false },
   tooltip: { enabled: false },
 })
-const activatedDonutSeries = computed(() => [activationActivatedPercent.value, 100 - activationActivatedPercent.value])
-const activatedDonutOptions = computed(() => buildStatusDonut(activationActivatedPercent.value, '#3b82f6'))
-const inactivatedDonutSeries = computed(() => [activationInactivatedPercent.value, 100 - activationInactivatedPercent.value])
-const inactivatedDonutOptions = computed(() => buildStatusDonut(activationInactivatedPercent.value, '#f43f5e'))
+const activeDonutSeries = computed(() => [activePercent.value, 100 - activePercent.value])
+const activeDonutOptions = computed(() => buildStatusDonut(activePercent.value, '#22c55e'))
+const offlineDonutSeries = computed(() => [offlinePercent.value, 100 - offlinePercent.value])
+const offlineDonutOptions = computed(() => buildStatusDonut(offlinePercent.value, '#ef4444'))
 
 // PMS Schedule
 const pmsSchedule = computed(() => props.charts?.pmsScheduleBreakdown || { finished: 0, upcoming: 0, due: 0 })
@@ -345,22 +429,23 @@ const groupSparkOptions = computed(() => ({
   colors: ['#a78bfa'],
 }))
 
-// Activation per Month — Chart.js
+// Monthly line charts — Chart.js (shared builder)
 const activationChartRef = ref(null)
+const distributionChartRef = ref(null)
 let activationChartInstance = null
+let distributionChartInstance = null
 
-const activationDateRange = computed(() => {
-  const data = props.charts?.activationByMonth || []
-  if (!data.length) return ''
-  return data[0].month + ' – ' + data[data.length - 1].month
-})
+const monthRange = (data) => (!data?.length ? '' : data[0].month + ' – ' + data[data.length - 1].month)
+const activationDateRange = computed(() => monthRange(props.charts?.activationByMonth))
+const distributionDateRange = computed(() => monthRange(props.charts?.distributionByMonth))
 
-function buildActivationChart() {
-  if (!activationChartRef.value) return
-  const data = props.charts?.activationByMonth || []
-  if (!data.length) return
+function hexToRgba(hex, alpha) {
+  const n = parseInt(hex.replace('#', ''), 16)
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`
+}
 
-  if (activationChartInstance) activationChartInstance.destroy()
+function buildMonthLineChart(canvas, data, { color, label }) {
+  if (!canvas || !data?.length) return null
 
   const labels = data.map(d => d.month)
   const values = data.map(d => d.count)
@@ -369,27 +454,27 @@ function buildActivationChart() {
 
   const isDark = document.documentElement.classList.contains('dark')
   const gridColor = isDark ? 'rgba(75,85,99,0.3)' : 'rgba(229,231,235,0.8)'
-  const textColor = isDark ? '#9ca3af' : '#9ca3af'
+  const textColor = '#9ca3af'
 
-  activationChartInstance = new Chart(activationChartRef.value, {
+  return new Chart(canvas, {
     type: 'line',
     data: {
       labels,
       datasets: [{
-        label: 'Activations',
+        label,
         data: values,
-        borderColor: '#2563eb',
+        borderColor: color,
         backgroundColor: (ctx) => {
           const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, ctx.chart.height)
-          gradient.addColorStop(0, 'rgba(37,99,235,0.25)')
-          gradient.addColorStop(1, 'rgba(37,99,235,0.01)')
+          gradient.addColorStop(0, hexToRgba(color, 0.25))
+          gradient.addColorStop(1, hexToRgba(color, 0.01))
           return gradient
         },
         fill: true,
         tension: 0.3,
         borderWidth: 3,
         pointRadius: 6,
-        pointBackgroundColor: '#2563eb',
+        pointBackgroundColor: color,
         pointBorderColor: '#fff',
         pointBorderWidth: 3,
         pointHoverRadius: 9,
@@ -427,7 +512,18 @@ function buildActivationChart() {
   })
 }
 
-onMounted(() => { nextTick(() => buildActivationChart()) })
+function buildActivationChart() {
+  if (activationChartInstance) { activationChartInstance.destroy(); activationChartInstance = null }
+  activationChartInstance = buildMonthLineChart(activationChartRef.value, props.charts?.activationByMonth, { color: '#2563eb', label: 'Activations' })
+}
+
+function buildDistributionChart() {
+  if (distributionChartInstance) { distributionChartInstance.destroy(); distributionChartInstance = null }
+  distributionChartInstance = buildMonthLineChart(distributionChartRef.value, props.charts?.distributionByMonth, { color: '#059669', label: 'Distributions' })
+}
+
+onMounted(() => { nextTick(() => { buildActivationChart(); buildDistributionChart() }) })
 watch(() => props.charts?.activationByMonth, () => { nextTick(() => buildActivationChart()) }, { deep: true })
+watch(() => props.charts?.distributionByMonth, () => { nextTick(() => buildDistributionChart()) }, { deep: true })
 
 </script>

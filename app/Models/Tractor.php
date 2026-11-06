@@ -60,6 +60,27 @@ class Tractor extends Model
         ];
     }
 
+    /**
+     * Resolve route binding by ID, IMEI, id_no (serial number), or exact name.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        // Try id_no (serial number) first
+        $tractor = static::where('id_no', $value)->first();
+        if ($tractor) return $tractor;
+
+        // Try default (ID)
+        $tractor = parent::resolveRouteBinding($value, $field);
+        if ($tractor) return $tractor;
+
+        // Try IMEI
+        $tractor = static::where('imei', $value)->first();
+        if ($tractor) return $tractor;
+
+        // Try exact name
+        return static::where('name', $value)->first();
+    }
+
     /* ── Relationships ── */
 
     public function device()
@@ -101,6 +122,16 @@ class Tractor extends Model
     public function distributions()
     {
         return $this->hasMany(TractorDistribution::class);
+    }
+
+    /**
+     * The currently active (not yet returned) distribution of this tractor.
+     */
+    public function currentDistribution()
+    {
+        return $this->hasOne(TractorDistribution::class)
+            ->where('status', 'distributed')
+            ->latestOfMany();
     }
 
     public function alerts()
