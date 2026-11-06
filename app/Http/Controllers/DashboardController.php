@@ -61,6 +61,9 @@ class DashboardController extends Controller
         $maintenanceDueCount = $usage['pmsDue'];
         $maintenanceDueTractors = $usage['pmsDueList'];
 
+        // ── Newly tracked tractors (replaced GPS) ──
+        $newGpsTracking = $this->newGpsTrackingSummary();
+
         $maintenanceByStatus = Maintenance::select('status', DB::raw('count(*) as count'))
             ->groupBy('status')->pluck('count', 'status')->toArray();
 
@@ -276,6 +279,7 @@ class DashboardController extends Controller
                 'inactivatedDevices' => $inactivatedDevices,
                 'usageHwData' => $usage['tractorsWithUsageData'],
                 'usageGrowthPercent' => $usageGrowthPercent,
+                'newGpsTractors' => $newGpsTracking['count'],
                 'totalAlertsLast7Days' => $totalAlertsLast7Days,
                 'activeGroups' => $activeTractorGroups,
                 'offlineLessThanDay' => $offlineBreakdown['lessThanDay'],
@@ -334,6 +338,8 @@ class DashboardController extends Controller
                 ->take(5)
                 ->get(),
             'maintenanceDueList' => $maintenanceDueTractors->take(5)->values(),
+            'newGpsTractorList' => $newGpsTracking['tractors'],
+            'newGpsCutoff' => $newGpsTracking['cutoff_label'],
         ];
     }
 
@@ -532,6 +538,133 @@ class DashboardController extends Controller
             'totalMaintenanceRecords' => Maintenance::count(),
             'pmsDueList' => $pmsDueList,
         ];
+    }
+
+    /**
+     * Tractors that only started recording routes on/after the configured cutoff.
+     *
+     * These are units fitted with a replacement GPS tracker. A tractor is
+     * included only when its OLDEST route (device_track_records.start_time)
+     * falls on/after the cutoff, so units that already had route history
+     * before the cutoff are intentionally left out of the list.
+     *
+     * @return array{count:int, cutoff:string, cutoff_label:string, tractors:array<int, array<string, mixed>>}
+     */
+    private function newGpsTrackingSummary(): array
+    {
+        $timezone = config('jimi.display_timezone', 'Asia/Manila');
+
+        // Cutoff is a Philippine calendar date — convert to UTC for comparison
+        // because Jimi trip timestamps are stored in UTC.
+        $cutoff = Carbon::parse(
+            config('jimi.new_tracking_since', '2026-07-01'),
+            $timezone
+        )->startOfDay();
+
+        $rows = DB::table('device_track_records as tr')
+            ->join('tractors', 'tractors.device_id', '=', 'tr.device_id')
+            ->whereNull('tractors.deleted_at')
+            ->whereNotNull('tr.start_time')
+            ->selectRaw('tractors.id, tractors.no_plate, tractors.name')
+            ->groupBy('tractors.id', 'tractors.no_plate', 'tractors.name')
+            ->havingRaw('MIN(tr.start_time) >= ?', [$cutoff->copy()->utc()->format('Y-m-d H:i:s')])
+            ->orderBy('tractors.no_plate')
+            ->get();
+
+        $coopNames = $this->tractorCoopNames($rows->pluck('id')->all());
+
+        $tractors = $rows->map(fn ($row) => [
+            'id' => $row->id,
+            'no_plate' => $row->no_plate,
+            'name' => $row->name,
+            'coop_name' => $coopNames[(int) $row->id] ?? null,
+        ])->values()->all();
+
+        return [
+            'count' => count($tractors),
+            'cutoff' => $cutoff->format('Y-m-d'),
+            'cutoff_label' => $cutoff->format('M d, Y'),
+            'tractors' => $tractors,
+        ];
+    }
+
+    /**
+     * Map tractor id => cooperative (FCA organization) name.
+     *
+     * Prefers the recipient of the active distribution — checking both the
+     * single `tractor_id` column and the multi-tractor `tractor_ids` JSON —
+     * then falls back to the tractor's assigned FCA organization.
+     *
+     * @param  array<int, int|string>  $tractorIds
+     * @return array<int, string>
+     */
+    private function tractorCoopNames(array $tractorIds): array
+    {
+        if ($tractorIds === []) {
+            return [];
+        }
+
+        $wanted = array_flip(array_map('intval', $tractorIds));
+        $coopNames = [];
+
+        $distributions = TractorDistribution::query()
+            ->where('status', 'distributed')
+            ->with('distributedToUser:id,name,organization_name')
+            ->orderBy('distribution_date')
+            ->get(['id', 'tractor_id', 'tractor_ids', 'distributed_to', 'distribution_date']);
+
+        foreach ($distributions as $distribution) {
+            $name = $distribution->distributedToUser?->organization_name
+                ?: $distribution->distributedToUser?->name;
+
+            if (! $name) {
+                continue;
+            }
+
+            $ids = $distribution->tractor_ids ?: array_filter([$distribution->tractor_id]);
+
+            foreach ($ids as $id) {
+                $tractorId = (int) $id;
+
+                if (isset($wanted[$tractorId])) {
+                    // Ordered by date, so the latest active distribution wins.
+                    $coopNames[$tractorId] = $name;
+                }
+            }
+        }
+
+        $assignees = Tractor::query()
+            ->whereIn('id', $tractorIds)
+            ->with(['assignee:id,name,organization_name', 'device:id,device_name'])
+            ->get(['id', 'assigned_to', 'device_id', 'no_plate']);
+
+        foreach ($assignees as $tractor) {
+            $coopNames[$tractor->id] ??= $tractor->assignee?->organization_name;
+            $coopNames[$tractor->id] ??= $this->coopFromDeviceName($tractor->device?->device_name, $tractor->no_plate);
+        }
+
+        return array_filter($coopNames);
+    }
+
+    /**
+     * Pull the cooperative name out of a Jimi device name such as
+     * "Hacienderos Agragarian Reform Cooperative VL103D-46015".
+     * Returns null when the device name is only the plate/serial.
+     */
+    private function coopFromDeviceName(?string $deviceName, ?string $noPlate): ?string
+    {
+        if (! $deviceName) {
+            return null;
+        }
+
+        $name = preg_replace('/(?:VL103[MD]|VT100\+?)\s*-?\s*\d{4,6}/i', ' ', $deviceName);
+        $name = trim(preg_replace('/\s+/', ' ', $name), " \t\n\r\0\x0B-–—,./");
+
+        if ($name === '' || ($noPlate && strcasecmp($name, trim($noPlate)) === 0)) {
+            return null;
+        }
+
+        return $name;
     }
 
     /**

@@ -100,14 +100,14 @@
           </thead>
           <tbody>
             <tr v-for="fb in feedback.data" :key="fb.id" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-              <!-- Submitted By -->
+              <!-- Submitted By (shows coop name) -->
               <td class="px-6 py-4">
                 <div class="flex items-center gap-3">
                   <div class="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 shrink-0">
-                    <span class="text-xs font-bold text-indigo-700 dark:text-indigo-300">{{ getInitials(fb.submitter?.name) }}</span>
+                    <span class="text-xs font-bold text-indigo-700 dark:text-indigo-300">{{ getInitials(fb.coop_name || fb.submitter?.name) }}</span>
                   </div>
                   <div class="min-w-0">
-                    <div class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ fb.submitter?.name || 'Unknown' }}</div>
+                    <div class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ fb.coop_name || '—' }}</div>
                     <div class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ fb.submitter?.email }}</div>
                   </div>
                 </div>

@@ -37,10 +37,14 @@ class TicketController extends Controller
 
         $cutoffDate = '2026-07-09';
 
+        // Default to showing open tickets on first visit unless a status was explicitly chosen.
+        $status = $request->input('status', 'open');
+        $statusFilter = in_array($status, ['all', ''], true) ? null : $status;
+
         $tickets = Ticket::with(['submitter.fca.fcaProfile', 'assignees', 'tractor'])
             ->where('created_at', '>', $cutoffDate . ' 23:59:59')
             ->when(! $user->hasAnyRole(['super-admin', 'sub-admin']), fn ($q) => $q->where('submitted_by', $user->id))
-            ->when($request->status, fn ($q, $s) => $q->where('status', $s))
+            ->when($statusFilter, fn ($q, $s) => $q->where('status', $s))
             ->when($request->priority, fn ($q, $p) => $q->where('priority', $p))
             ->when($request->search, fn ($q, $s) => $q->where('subject', 'like', "%{$s}%"))
             ->orderBy($sort, $direction)
@@ -58,7 +62,10 @@ class TicketController extends Controller
         return Inertia::render('Tickets/Index', [
             'tickets' => $tickets,
             'oldTickets' => $oldTickets,
-            'filters' => $request->only(['search', 'status', 'priority', 'sort', 'direction', 'per_page']),
+            'filters' => array_merge(
+                $request->only(['search', 'priority', 'sort', 'direction', 'per_page']),
+                ['status' => $statusFilter ?? 'all']
+            ),
         ]);
     }
 

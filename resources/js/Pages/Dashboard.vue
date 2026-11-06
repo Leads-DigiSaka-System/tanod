@@ -156,6 +156,37 @@
         </div>
       </div>
 
+      <!-- New GPS Data (replacement trackers) -->
+      <div class="mb-6">
+        <div class="rounded-2xl bg-linear-to-r from-cyan-50 to-sky-50 dark:from-cyan-950/40 dark:to-sky-950/30 px-5 py-4 border border-cyan-200/60 dark:border-cyan-800/30 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div class="flex shrink-0 items-center gap-3">
+              <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-cyan-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.12)]">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+              </div>
+              <div class="min-w-0">
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">New GPS Data</p>
+                <p class="text-2xl font-bold leading-tight text-gray-900 dark:text-white">
+                  {{ Number(stats.newGpsTractors || 0).toLocaleString() }}
+                  <span class="text-sm font-medium text-gray-500 dark:text-gray-400">tractors</span>
+                </p>
+              </div>
+            </div>
+            <div class="hidden sm:block h-12 w-px bg-cyan-200 dark:bg-cyan-800/60"></div>
+            <p class="flex-1 text-xs leading-relaxed text-gray-600 dark:text-gray-300">
+              Newly activated GPS &mdash; tractors whose first recorded route starts on or after
+              <span class="font-semibold text-cyan-700 dark:text-cyan-300">{{ newGpsCutoff }}</span>.
+              Units with route history before that date are excluded.
+            </p>
+            <button v-if="newGpsList.length" type="button" @click="showNewGpsModal = true"
+              class="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-cyan-200 bg-white px-3 py-2 text-xs font-semibold text-cyan-700 shadow-sm transition-colors hover:bg-cyan-50 dark:border-cyan-800 dark:bg-gray-800 dark:text-cyan-300 dark:hover:bg-cyan-950/40">
+              View list
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Status Row: Activation + PMS Schedule (Neumorphic cards) -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
 
@@ -257,6 +288,35 @@
         </div>
       </div>
 
+      <!-- New GPS Data list -->
+      <Modal :show="showNewGpsModal" max-width="4xl" @close="showNewGpsModal = false">
+        <template #header>New GPS Data &mdash; {{ newGpsCutoff }} onward</template>
+
+        <div class="-mx-6 -my-6">
+          <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-6 py-3 dark:border-gray-600 dark:bg-gray-800/60">
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              {{ newGpsList.length }} newly activated GPS &middot; first route on or after {{ newGpsCutoff }}
+            </p>
+          </div>
+          <div class="max-h-[60vh] overflow-y-auto">
+            <div class="sticky top-0 z-10 grid grid-cols-1 gap-2 border-b border-gray-200 bg-white px-6 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 sm:grid-cols-2">
+              <span>Tractor</span>
+              <span class="sm:text-right">Cooperative</span>
+            </div>
+            <ul class="divide-y divide-gray-100 dark:divide-gray-600">
+              <li v-for="t in newGpsList" :key="t.id" class="grid grid-cols-1 gap-1 px-6 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 sm:grid-cols-2 sm:gap-2">
+                <div class="flex items-center gap-3">
+                  <span class="h-2 w-2 shrink-0 rounded-full bg-cyan-500"></span>
+                  <p class="font-medium text-gray-900 dark:text-white">{{ t.no_plate }}</p>
+                </div>
+                <p class="truncate pl-5 text-xs text-gray-500 dark:text-gray-400 sm:pl-0 sm:text-right" :title="t.coop_name || ''">{{ t.coop_name || '—' }}</p>
+              </li>
+            </ul>
+            <div v-if="!newGpsList.length" class="px-6 py-10 text-center text-sm text-gray-400">No tractors with new GPS data yet.</div>
+          </div>
+        </div>
+      </Modal>
+
     </template>
 
     <!-- Non-admin fallback -->
@@ -292,6 +352,7 @@ import { Head, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import StatCard from '@/Components/StatCard.vue'
 import StatusBadge from '@/Components/StatusBadge.vue'
+import Modal from '@/Components/Modal.vue'
 import VueApexCharts from 'vue3-apexcharts'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
@@ -301,7 +362,12 @@ const props = defineProps({
   stats: Object, charts: Object, recentAlerts: Array, recentBookings: Array,
   maintenanceDueList: Array, pendingBookings: Array, myTractors: Array,
   pendingTasks: Array, myBookings: Array, availableTractors: Array, recentFeedback: Array,
+  newGpsTractorList: Array, newGpsCutoff: String,
 })
+
+const showNewGpsModal = ref(false)
+const newGpsList = computed(() => props.newGpsTractorList || [])
+const newGpsCutoff = computed(() => props.newGpsCutoff || 'Jul 01, 2026')
 
 const todayDate = computed(() => new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }))
 const formatTitle = (key) => key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim()

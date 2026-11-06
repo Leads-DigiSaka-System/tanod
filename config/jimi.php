@@ -39,6 +39,11 @@ return [
     // Track history is selected by Philippine calendar date, then converted
     // to UTC for JIMI. Long gaps and impossible jumps start a new map segment.
     'display_timezone' => env('JIMI_DISPLAY_TIMEZONE', 'Asia/Manila'),
+
+    // Dashboard "New GPS Data" cutoff. A tractor counts as newly tracked when
+    // its OLDEST recorded route starts on/after this date; units that already
+    // have route history before the cutoff are excluded (old GPS).
+    'new_tracking_since' => env('JIMI_NEW_TRACKING_SINCE', '2026-07-01'),
     'track_gap_minutes' => env('JIMI_TRACK_GAP_MINUTES', 10),
     'track_max_plausible_speed_kph' => env('JIMI_TRACK_MAX_PLAUSIBLE_SPEED_KPH', 120),
     'track_stop_minutes' => env('JIMI_TRACK_STOP_MINUTES', 5),

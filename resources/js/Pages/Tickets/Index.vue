@@ -23,7 +23,7 @@
           <label class="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</label>
           <select v-model="statusFilter" @change="applyFilter"
             class="bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 block w-full p-2.5 dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:ring-indigo-500/20 dark:focus:border-indigo-500 transition-shadow">
-            <option value="">All Status</option>
+            <option value="all">All Status</option>
             <option value="open">Open</option>
             <option value="in_progress">In Progress</option>
             <option value="resolved">Resolved</option>
@@ -348,7 +348,7 @@ const props = defineProps({ tickets: Object, oldTickets: Object, filters: Object
 const activeTab = ref('current');
 
 const search = ref(props.filters?.search || '');
-const statusFilter = ref(props.filters?.status || '');
+const statusFilter = ref(props.filters?.status || 'open');
 const priorityFilter = ref(props.filters?.priority || '');
 const sort = ref(props.filters?.sort || 'created_at');
 const direction = ref(props.filters?.direction || 'desc');
@@ -460,7 +460,7 @@ const debouncedFilter = () => { clearTimeout(timer); timer = setTimeout(applyFil
 const applyFilter = () => {
   router.get('/tickets', {
     search: search.value || undefined,
-    status: statusFilter.value || undefined,
+    status: statusFilter.value || 'all',
     priority: priorityFilter.value || undefined,
     sort: sort.value,
     direction: direction.value,
