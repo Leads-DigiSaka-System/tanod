@@ -243,8 +243,9 @@ class DashboardController extends Controller
         // ── Machine hours: use cached value only, never block the page load ──
         $totalMachineHours = (float) \Illuminate\Support\Facades\Cache::get('jimi_total_machine_hours', 0);
 
-        // ── Offline breakdown by duration ──
-        $offlineBreakdown = $this->offlineBreakdown($liveLocations);
+        // ── Fleet connectivity (online + offline duration buckets, with lists) ──
+        $fleetLists = $this->tractorConnectivityBreakdown($liveLocations);
+        $offlineBreakdown = $fleetLists['counts'];
 
         return [
             'stats' => [
@@ -340,7 +341,64 @@ class DashboardController extends Controller
             'maintenanceDueList' => $maintenanceDueTractors->take(5)->values(),
             'newGpsTractorList' => $newGpsTracking['tractors'],
             'newGpsCutoff' => $newGpsTracking['cutoff_label'],
+            'fleetTractorLists' => [
+                'online' => $fleetLists['online'],
+                'offlineLessThanDay' => $fleetLists['offline']['lessThanDay'],
+                'offline1to7Days' => $fleetLists['offline']['oneToSevenDays'],
+                'offline7to30Days' => $fleetLists['offline']['sevenToThirtyDays'],
+                'offline30to100Days' => $fleetLists['offline']['thirtyToHundredDays'],
+                'offlineMoreThan100Days' => $fleetLists['offline']['moreThanHundredDays'],
+                'pmsDue' => $this->pmsDueTractorRows($usage['pmsDueList']),
+            ],
         ];
+    }
+
+    /**
+     * Map the PMS-due tractors to display rows (plate, cooperative, hours).
+     *
+     * @param  \Illuminate\Support\Collection<int, Tractor>  $tractors
+     * @return array<int, array<string, mixed>>
+     */
+    private function pmsDueTractorRows($tractors): array
+    {
+        if ($tractors->isEmpty()) {
+            return [];
+        }
+
+        $coopNames = $this->tractorCoopNames($tractors->pluck('id')->all());
+        $rows = [];
+
+        foreach ($tractors as $tractor) {
+            $distance = (float) ($tractor->total_distance ?? 0);
+            $hours = (float) ($tractor->running_hours ?? 0);
+
+            // Same estimation rule as tractorUsageSummary().
+            if ($distance > 0 && ($hours <= 0 || $distance / $hours > 40)) {
+                $hours = round($distance / 15, 2);
+            }
+
+            $maintenancesDone = $tractor->maintenances->count();
+            $nextPms = ($maintenancesDone + 1) * 100;
+            $lastService = $tractor->maintenances->first();
+
+            $rows[] = [
+                'id' => $tractor->id,
+                'no_plate' => $tractor->no_plate,
+                'name' => $tractor->name,
+                'coop_name' => $coopNames[(int) $tractor->id] ?? null,
+                'running_hours' => round($hours, 1),
+                'next_pms_hours' => $nextPms,
+                'overdue_hours' => round(max($hours - $nextPms, 0), 1),
+                'pms_completed' => $maintenancesDone,
+                'last_service_at' => $lastService?->maintenance_date
+                    ? Carbon::parse($lastService->maintenance_date)->format('M d, Y')
+                    : null,
+            ];
+        }
+
+        usort($rows, fn ($a, $b) => strnatcasecmp((string) $a['no_plate'], (string) $b['no_plate']));
+
+        return $rows;
     }
 
     /**
@@ -709,64 +767,122 @@ class DashboardController extends Controller
     }
 
     /**
-     * Categorize offline tractors by how long since their last heartbeat.
+     * Categorize tracked tractors as online or offline-by-duration and return
+     * the actual tractors (plate + cooperative) for each bucket so the
+     * dashboard numbers can be drilled into.
      *
-     * @return array{lessThanDay:int, oneToSevenDays:int,
-     *               sevenToThirtyDays:int, thirtyToHundredDays:int,
-     *               moreThanHundredDays:int}
+     * @return array{
+     *     online: array<int, array<string, mixed>>,
+     *     offline: array<string, array<int, array<string, mixed>>>,
+     *     counts: array{online:int, lessThanDay:int, oneToSevenDays:int,
+     *                   sevenToThirtyDays:int, thirtyToHundredDays:int,
+     *                   moreThanHundredDays:int}
+     * }
      */
-    private function offlineBreakdown(array $liveLocations): array
+    private function tractorConnectivityBreakdown(array $liveLocations): array
     {
-        $result = [
-            'lessThanDay' => 0,
-            'oneToSevenDays' => 0,
-            'sevenToThirtyDays' => 0,
-            'thirtyToHundredDays' => 0,
-            'moreThanHundredDays' => 0,
+        $online = [];
+        $offline = [
+            'lessThanDay' => [],
+            'oneToSevenDays' => [],
+            'sevenToThirtyDays' => [],
+            'thirtyToHundredDays' => [],
+            'moreThanHundredDays' => [],
         ];
 
         $activeDevices = Device::query()
             ->select(['id', 'imei'])
-            ->with(['tractor:id,device_id', 'latestLocation'])
+            ->with(['tractor:id,device_id,no_plate,name', 'latestLocation'])
             ->where('is_active', true)
             ->notStale()
             ->get();
 
-        foreach ($activeDevices as $device) {
-            if (! $device->tractor) {
-                continue;
-            }
+        $displayTimezone = config('jimi.display_timezone', 'Asia/Manila');
 
-            // Already counted as online? Skip.
-            if ($this->isLiveLocationOnline($liveLocations[$device->imei] ?? null)) {
+        foreach ($activeDevices as $device) {
+            $tractor = $device->tractor;
+
+            if (! $tractor) {
                 continue;
             }
 
             $heartbeatAt = $device->latestLocation?->heartbeat_at;
+            $row = [
+                'id' => $tractor->id,
+                'no_plate' => $tractor->no_plate,
+                'name' => $tractor->name,
+                'last_seen_at' => $heartbeatAt
+                    ? $heartbeatAt->copy()->timezone($displayTimezone)->format('M d, Y g:i A')
+                    : null,
+            ];
 
-            if (! $heartbeatAt) {
-                // No heartbeat ever recorded — treat as long-term offline (>100 days)
-                $result['moreThanHundredDays']++;
+            // Online (live JIMI status) — not part of the offline buckets.
+            if ($this->isLiveLocationOnline($liveLocations[$device->imei] ?? null)) {
+                $online[$tractor->id] = $row;
 
                 continue;
             }
 
-            $daysAgo = (int) $heartbeatAt->diffInDays(now()->utc());
+            $bucket = 'moreThanHundredDays';
 
-            if ($daysAgo < 1) {
-                $result['lessThanDay']++;
-            } elseif ($daysAgo < 7) {
-                $result['oneToSevenDays']++;
-            } elseif ($daysAgo < 30) {
-                $result['sevenToThirtyDays']++;
-            } elseif ($daysAgo < 100) {
-                $result['thirtyToHundredDays']++;
-            } else {
-                $result['moreThanHundredDays']++;
+            if ($heartbeatAt) {
+                $daysAgo = (int) $heartbeatAt->diffInDays(now()->utc());
+
+                $bucket = match (true) {
+                    $daysAgo < 1 => 'lessThanDay',
+                    $daysAgo < 7 => 'oneToSevenDays',
+                    $daysAgo < 30 => 'sevenToThirtyDays',
+                    $daysAgo < 100 => 'thirtyToHundredDays',
+                    default => 'moreThanHundredDays',
+                };
+            }
+
+            $offline[$bucket][$tractor->id] = $row;
+        }
+
+        // Resolve cooperative names for every tractor in one pass.
+        $ids = array_keys($online);
+
+        foreach ($offline as $rows) {
+            foreach ($rows as $row) {
+                $ids[] = (int) $row['id'];
             }
         }
 
-        return $result;
+        $coopNames = $this->tractorCoopNames($ids);
+
+        $applyCoops = function (array $rows) use ($coopNames): array {
+            $result = [];
+
+            foreach ($rows as $row) {
+                $row['coop_name'] = $coopNames[(int) $row['id']] ?? null;
+                $result[] = $row;
+            }
+
+            usort($result, fn ($a, $b) => strnatcasecmp((string) $a['no_plate'], (string) $b['no_plate']));
+
+            return $result;
+        };
+
+        $onlineList = $applyCoops($online);
+        $offlineLists = [];
+
+        foreach ($offline as $key => $rows) {
+            $offlineLists[$key] = $applyCoops($rows);
+        }
+
+        return [
+            'online' => $onlineList,
+            'offline' => $offlineLists,
+            'counts' => [
+                'online' => count($onlineList),
+                'lessThanDay' => count($offlineLists['lessThanDay']),
+                'oneToSevenDays' => count($offlineLists['oneToSevenDays']),
+                'sevenToThirtyDays' => count($offlineLists['sevenToThirtyDays']),
+                'thirtyToHundredDays' => count($offlineLists['thirtyToHundredDays']),
+                'moreThanHundredDays' => count($offlineLists['moreThanHundredDays']),
+            ],
+        ];
     }
 
     /**
