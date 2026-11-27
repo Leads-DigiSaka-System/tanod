@@ -248,7 +248,7 @@
             <div v-if="trackWarnings.length" class="border-b border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300" role="status">
               <p class="font-semibold">Partial track data</p>
               <p class="mt-0.5">{{ trackWarnings.length }} JIMI time range{{ trackWarnings.length === 1 ? '' : 's' }} could not be loaded.</p>
-              <p class="mt-1 text-[11px] opacity-80">The available route is shown, but distance and activity totals may be incomplete.</p>
+              <p v-if="trackData.totalPoints" class="mt-1 text-[11px] opacity-80">Distance, activity, and service area use the available track segments.</p>
             </div>
 
             <div class="flex flex-wrap gap-x-3 gap-y-1 border-b border-gray-200 bg-white px-3 py-2 text-[11px] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400" aria-label="Track marker legend">
@@ -259,7 +259,7 @@
             </div>
 
             <!-- Summary Stats -->
-            <div class="grid grid-cols-2 gap-px bg-gray-200 dark:bg-gray-700">
+            <div v-if="trackData.totalPoints" class="grid grid-cols-2 gap-px bg-gray-200 dark:bg-gray-700">
               <div class="bg-white dark:bg-gray-800 p-3 text-center">
                 <p class="text-xs text-gray-500 dark:text-gray-400">Distance</p>
                 <p class="text-lg font-bold text-indigo-600 dark:text-indigo-400">{{ trackData.distance }} <span class="text-xs font-normal text-gray-400">km</span></p>
@@ -293,12 +293,23 @@
                 <p class="text-base font-bold" :class="trackData.gapCount ? 'text-amber-600 dark:text-amber-400' : 'text-gray-800 dark:text-gray-200'">{{ trackData.gapCount }}</p>
               </div>
             </div>
+            <p v-else class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">No GPS route was returned for this period.</p>
 
             <!-- GPS Points count & time -->
             <div class="p-3 border-b border-gray-200 dark:border-gray-700 space-y-1.5">
               <div class="flex justify-between text-sm">
                 <span class="text-gray-500 dark:text-gray-400">Parked (TrackSolid)</span>
                 <span class="font-medium text-gray-900 dark:text-white">{{ trackData.parkingAvailable ? formatDuration(trackData.parkedDuration) : 'Unavailable' }}</span>
+              </div>
+              <div v-if="trackData.serviceArea" class="rounded-lg bg-emerald-50 p-2.5 text-xs dark:bg-emerald-950/40">
+                <div class="flex items-center justify-between gap-2 text-emerald-900 dark:text-emerald-300">
+                  <span class="font-medium" title="Estimates field work from short stops and slow turns within 1-hectare cells.">Estimated service area</span>
+                  <strong>{{ trackData.serviceArea.available ? `${trackData.serviceArea.hectares.toLocaleString()} ha` : 'Insufficient GPS data' }}</strong>
+                </div>
+                <label v-if="trackData.serviceArea.cells.length" class="mt-1.5 flex items-center gap-2 text-gray-600 dark:text-gray-300">
+                  <input v-model="showServiceArea" type="checkbox" class="h-3.5 w-3.5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-900" />
+                  Show 1 ha cells on map
+                </label>
               </div>
               <div class="flex justify-between text-sm">
                 <span class="text-gray-500 dark:text-gray-400">GPS Points</span>
@@ -730,6 +741,7 @@ const trackLoading = ref(false);
 const trackData = ref(null);
 const trackError = ref('');
 const trackWarnings = ref([]);
+const showServiceArea = ref(true);
 
 // Playback
 const isPlaying = ref(false);
@@ -759,6 +771,7 @@ let trackSegmentPaths = [];
 let trackSegmentRanges = [];
 let trackProgressLengths = [];
 let trackMarkers = [];
+let serviceAreaRectangles = [];
 let trackRequest = null;
 let playbackMarker = null;
 let playbackMarkerImage = null;
@@ -1753,6 +1766,17 @@ async function searchTracks() {
 function drawTrack(points) {
   if (!map || !AdvancedMarkerElementClass) return;
 
+  serviceAreaRectangles = (trackData.value.serviceArea?.cells || []).map(cell => new google.maps.Rectangle({
+    bounds: cell.bounds,
+    map: showServiceArea.value ? map : null,
+    fillColor: '#10b981',
+    fillOpacity: 0.25,
+    strokeColor: '#10b981',
+    strokeOpacity: 0.95,
+    strokeWeight: 2,
+    clickable: false,
+  }));
+
   (trackData.value.parkingEvents || []).forEach((event) => {
     const tooltip = `Parked for ${formatDuration(event.duration)} · ${formatDateTime(event.startTime)} to ${formatDateTime(event.endTime)} (PH)`;
     trackMarkers.push(createAdvancedMarker({
@@ -1834,6 +1858,12 @@ function fitTrackBounds() {
   if (!positions.length) return;
   const bounds = new google.maps.LatLngBounds();
   positions.forEach(p => bounds.extend(new google.maps.LatLng(p.lat, p.lng)));
+  if (showServiceArea.value) {
+    for (const cell of trackData.value.serviceArea?.cells || []) {
+      bounds.extend({ lat: cell.bounds.south, lng: cell.bounds.west });
+      bounds.extend({ lat: cell.bounds.north, lng: cell.bounds.east });
+    }
+  }
   if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
     map.setCenter(bounds.getCenter());
     map.setZoom(16);
@@ -1855,6 +1885,8 @@ function clearTracks() {
 }
 
 function removeTrackOverlays() {
+  serviceAreaRectangles.forEach(rectangle => rectangle.setMap(null));
+  serviceAreaRectangles = [];
   trackPolylines.forEach(polyline => polyline.setMap(null));
   trackProgressPolylines.forEach(polyline => polyline.setMap(null));
   trackPolylines = [];
@@ -1990,6 +2022,10 @@ watch(activeTab, (tab) => {
     removeTrackOverlays();
     createMarkers();
   }
+});
+
+watch(showServiceArea, (visible) => {
+  serviceAreaRectangles.forEach(rectangle => rectangle.setMap(visible ? map : null));
 });
 
 // ═══════════════ SHARE ═══════════════

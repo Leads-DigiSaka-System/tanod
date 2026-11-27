@@ -43,6 +43,17 @@ return [
     'track_max_plausible_speed_kph' => env('JIMI_TRACK_MAX_PLAUSIBLE_SPEED_KPH', 120),
     'track_stop_minutes' => env('JIMI_TRACK_STOP_MINUTES', 5),
 
+    // Initial field-work thresholds for the 100 m equal-area grid.
+    'service_area' => [
+        'max_sample_seconds' => 120,
+        'max_speed_kph' => 10,
+        'min_stop_seconds' => 15,
+        'max_stop_seconds' => 180,
+        'min_stops_per_cell' => 2,
+        'min_movement_metres' => 60,
+        'min_moving_seconds' => 60,
+    ],
+
     // Coordinate system for location data:
     //   GOOGLE — WGS-84 coordinates (standard GPS, default)
     //   GCJ02  — Chinese offset coords (try if devices show ~300m shift;

@@ -8,6 +8,7 @@ use App\Models\DeviceShare;
 use App\Models\TractorGroup;
 use App\Services\Jimi\JimiDeviceService;
 use App\Services\Jimi\JimiTrackingService;
+use App\Services\TractorServiceAreaEstimator;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -43,7 +44,7 @@ class LiveViewController extends Controller
      * Fetch GPS track data from JIMI API with period-based date ranges.
      * Supports chunking for long periods (JIMI max ~2 days per request).
      */
-    public function getTrackData(Request $request, JimiTrackingService $trackingService)
+    public function getTrackData(Request $request, JimiTrackingService $trackingService, TractorServiceAreaEstimator $serviceArea)
     {
         $request->validate([
             'device_id' => 'required|exists:devices,id',
@@ -129,6 +130,7 @@ class LiveViewController extends Controller
                 'parkingAvailable' => $parkingEvents !== null,
                 'parkingEvents' => $parkingEvents ?? [],
                 'parkedDuration' => $this->parkedDuration($parkingEvents ?? []),
+                'serviceArea' => $serviceArea->estimate($formatted['points'], $parkingEvents ?? []),
             ],
         ]);
     }
@@ -586,12 +588,15 @@ class LiveViewController extends Controller
 
             $speed = max((float) ($point['speed'] ?? $point['gpsSpeed'] ?? 0), 0);
             $direction = fmod((float) ($point['course'] ?? $point['direction'] ?? 0), 360);
+            $ignition = $point['ignition'] ?? $point['accStatus'] ?? null;
 
             $normalized[] = [
                 'lat' => $lat,
                 'lng' => $lng,
                 'speed' => $speed,
                 'direction' => $direction < 0 ? $direction + 360 : $direction,
+                'positionType' => isset($point['posType']) ? strtoupper((string) $point['posType']) : null,
+                'ignitionOn' => filled($ignition) ? filter_var($ignition, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : null,
                 'gpsTime' => $time->toIso8601String(),
                 '_timestamp' => $time->getTimestamp(),
             ];
