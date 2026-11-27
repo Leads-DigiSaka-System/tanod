@@ -140,7 +140,7 @@ class JimiTrackingService
 
     /**
      * Fetch track data (GPS points) for a device.
-     * Uses: jimi.device.track.list (API 3.3)
+     * Uses: jimi.device.track.list (API 3.5)
      */
     public function fetchTrackData(string $imei, string $beginTime, string $endTime): array
     {
@@ -280,17 +280,52 @@ class JimiTrackingService
         return $response['result']['url'] ?? null;
     }
 
-    /**
-     * Get parking/idling report from Jimi.
-     */
-    public function getParkingIdlingReport(string $imei, string $beginTime, string $endTime): array
+    /** Get TrackSolid's ACC-off parking report (API 3.7). Times are in UTC. */
+    public function fetchParkingReport(string $imei, string $beginTime, string $endTime): array
     {
-        $response = $this->auth->call('jimi.open.device.parking.info', [
-            'imei' => $imei,
-            'begin_time' => $beginTime,
-            'end_time' => $endTime,
-        ]);
+        $rows = [];
+        $pageSize = 100;
+        $previousPage = null;
+        $endTime = min($endTime, now('UTC')->subSecond()->format('Y-m-d H:i:s'));
 
-        return $response['result'] ?? [];
+        if ($beginTime >= $endTime) {
+            return [];
+        }
+
+        do {
+            try {
+                $response = $this->auth->call('jimi.open.platform.report.parking', [
+                    'account' => (string) config('jimi.user_id'),
+                    'imeis' => $imei,
+                    'start_time' => $beginTime,
+                    'end_time' => $endTime,
+                    'start_row' => (string) count($rows),
+                    'page_size' => (string) $pageSize,
+                    'acc_type' => 'off',
+                ]);
+            } catch (\Exception $exception) {
+                throw new \RuntimeException('TrackSolid parking report unavailable.', previous: $exception);
+            }
+
+            $code = (int) ($response['code'] ?? -1);
+            $page = $response['data']['rows'] ?? [];
+            $totalRows = $response['data']['dataTotalRows'] ?? null;
+
+            if ($code !== 0 || ! is_array($page) || ($page !== [] && $page === $previousPage)) {
+                Log::warning('TrackSolid parking report failed.', ['code' => $code]);
+
+                throw new \RuntimeException('TrackSolid parking report unavailable.');
+            }
+
+            if ($page === [] && is_numeric($totalRows) && count($rows) < (int) $totalRows) {
+                throw new \RuntimeException('TrackSolid parking report returned an incomplete page.');
+            }
+
+            $rows = array_merge($rows, $page);
+            $previousPage = $page;
+            $hasMore = is_numeric($totalRows) ? count($rows) < (int) $totalRows : count($page) === $pageSize;
+        } while ($hasMore);
+
+        return $rows;
     }
 }

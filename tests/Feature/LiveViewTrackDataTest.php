@@ -45,6 +45,7 @@ class LiveViewTrackDataTest extends TestCase
                 ->once()
                 ->with($device->imei, '2026-07-21 16:00:00', '2026-07-22 15:59:59')
                 ->andReturn([]);
+            $mock->shouldReceive('fetchParkingReport')->once()->andReturn([]);
         });
 
         $this->actingAs($user)
@@ -63,6 +64,7 @@ class LiveViewTrackDataTest extends TestCase
         [$user, $device] = $this->createAccessibleDevice();
 
         $this->mock(JimiTrackingService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('fetchParkingReport')->once()->andThrow(new \RuntimeException('TrackSolid parking report unavailable.'));
             $mock->shouldReceive('fetchTrackData')
                 ->once()
                 ->andReturn([
@@ -88,6 +90,7 @@ class LiveViewTrackDataTest extends TestCase
             ->assertJsonPath('track.invalidPointCount', 1)
             ->assertJsonPath('track.duplicatePointCount', 1)
             ->assertJsonPath('track.outlierPointCount', 1)
+            ->assertJsonPath('track.parkingAvailable', false)
             ->assertJsonPath('track.gapCount', 2)
             ->assertJsonPath('track.segmentCount', 2)
             ->assertJsonPath('track.points.0.segment', 0)
@@ -104,6 +107,7 @@ class LiveViewTrackDataTest extends TestCase
         [$user, $device] = $this->createAccessibleDevice();
 
         $this->mock(JimiTrackingService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('fetchParkingReport')->once()->andReturn([]);
             $mock->shouldReceive('fetchTrackData')
                 ->once()
                 ->andReturn([
@@ -126,11 +130,67 @@ class LiveViewTrackDataTest extends TestCase
     }
 
     #[Test]
+    public function tracksolid_parking_replaces_only_a_matching_gap_and_keeps_the_route_segmented(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-23 10:00:00', 'Asia/Manila'));
+        [$user, $device] = $this->createAccessibleDevice();
+        config(['jimi.user_id' => 'test-account']);
+
+        $this->mock(JimiAuthService::class, function (MockInterface $mock) use ($device): void {
+            $mock->shouldReceive('call')->with('jimi.device.track.list', \Mockery::type('array'))->once()->andReturn([
+                'code' => 0,
+                'result' => [
+                    $this->point(14.5, 121.0, '2026-07-22 00:00:00', 3),
+                    $this->point(14.5001, 121.0, '2026-07-22 00:02:00', 0),
+                    $this->point(14.5001, 121.0, '2026-07-22 01:32:00', 0),
+                    $this->point(14.5003, 121.0, '2026-07-22 01:34:00', 4),
+                    $this->point(14.5003, 121.0, '2026-07-22 02:00:00', 0),
+                ],
+            ]);
+
+            foreach (['0' => ['00:02:00', '01:32:00', 14.5001], '1' => ['02:02:00', '02:12:00', 14.5003]] as $row => [$start, $end, $lat]) {
+                $mock->shouldReceive('call')->with('jimi.open.platform.report.parking', [
+                    'account' => 'test-account',
+                    'imeis' => $device->imei,
+                    'start_time' => '2026-07-21 16:00:00',
+                    'end_time' => '2026-07-22 15:59:59',
+                    'start_row' => (string) $row,
+                    'page_size' => '100',
+                    'acc_type' => 'off',
+                ])->once()->andReturn([
+                    'code' => 0,
+                    'data' => ['dataTotalRows' => '2', 'rows' => [[
+                        'imei' => $device->imei,
+                        'startTime' => "2026-07-22T{$start}.000Z",
+                        'endTime' => "2026-07-22T{$end}.000Z",
+                        'lat' => $lat,
+                        'lng' => 121.0,
+                    ]]],
+                ]);
+            }
+        });
+
+        $this->actingAs($user)->getJson(route('live-view.track-data', [
+            'device_id' => $device->id,
+            'period' => 'yesterday',
+        ], false))->assertOk()
+            ->assertJsonPath('track.parkingAvailable', true)
+            ->assertJsonCount(2, 'track.parkingEvents')
+            ->assertJsonPath('track.parkingEvents.0.duration', 5400)
+            ->assertJsonPath('track.parkedDuration', 6000)
+            ->assertJsonPath('track.segmentCount', 3)
+            ->assertJsonPath('track.points.2.segment', 1)
+            ->assertJsonPath('track.gapCount', 1)
+            ->assertJsonPath('track.gaps.0.fromTime', '2026-07-22T01:34:00+00:00');
+    }
+
+    #[Test]
     public function partial_jimi_chunk_failures_are_reported_without_discarding_valid_points(): void
     {
         [$user, $device] = $this->createAccessibleDevice();
 
         $this->mock(JimiTrackingService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('fetchParkingReport')->once()->andReturn([]);
             $call = 0;
             $mock->shouldReceive('fetchTrackData')
                 ->times(4)

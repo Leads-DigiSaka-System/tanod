@@ -20,6 +20,10 @@ class LiveViewController extends Controller
     /** Speed in km/h below which an online device is considered parked (filters GPS drift). */
     private const MOVING_SPEED_THRESHOLD = 3.0;
 
+    private const PARKING_MATCH_SECONDS = 120;
+
+    private const PARKING_MATCH_KM = 0.1;
+
     public function index(Request $request)
     {
         $groups = TractorGroup::query()
@@ -91,9 +95,20 @@ class LiveViewController extends Controller
             }
         }
 
-        // Process and return formatted track data
-        $formatted = $this->formatTrackPoints($trackResult['points']);
         $warnings = $trackResult['warnings'];
+        $parkingEvents = null;
+
+        if ($trackResult['points'] !== [] || $warnings === []) {
+            try {
+                $parkingRows = Cache::remember($cacheKey.'_parking', $cacheSeconds,
+                    fn () => $trackingService->fetchParkingReport($imei, $beginTime, $endTime));
+                $parkingEvents = $this->formatParkingEvents($parkingRows, $imei, $beginTime, $endTime);
+            } catch (\RuntimeException) {
+                // The route can still be displayed when the parking report is unavailable.
+            }
+        }
+
+        $formatted = $this->formatTrackPoints($trackResult['points'], $parkingEvents ?? []);
 
         return response()->json([
             'success' => $formatted['totalPoints'] > 0 || $warnings === [],
@@ -109,7 +124,12 @@ class LiveViewController extends Controller
             'begin_time' => $beginTime,
             'end_time' => $endTime,
             'timezone' => config('jimi.display_timezone', 'Asia/Manila'),
-            'track' => $formatted,
+            'track' => [
+                ...$formatted,
+                'parkingAvailable' => $parkingEvents !== null,
+                'parkingEvents' => $parkingEvents ?? [],
+                'parkedDuration' => $this->parkedDuration($parkingEvents ?? []),
+            ],
         ]);
     }
 
@@ -572,7 +592,7 @@ class LiveViewController extends Controller
     /**
      * Format raw JIMI track points into structured data.
      */
-    private function formatTrackPoints(array $points): array
+    private function formatTrackPoints(array $points, array $parkingEvents): array
     {
         if (empty($points)) {
             return $this->emptyTrackSummary();
@@ -673,17 +693,20 @@ class LiveViewController extends Controller
                     }
                     $idleRunDuration = 0;
                     $segment++;
-                    $gaps[] = [
-                        'reason' => $gapReason,
-                        'fromTime' => $previous['gpsTime'],
-                        'toTime' => $point['gpsTime'],
-                        'toLat' => $point['lat'],
-                        'toLng' => $point['lng'],
-                        'markerLat' => $previous['lat'],
-                        'markerLng' => $previous['lng'],
-                        'duration' => max($elapsedSeconds, 0),
-                        'distance' => round($distance, 2),
-                    ];
+
+                    if (! $this->isConfirmedParkingGap($previous, $point, $parkingEvents)) {
+                        $gaps[] = [
+                            'reason' => $gapReason,
+                            'fromTime' => $previous['gpsTime'],
+                            'toTime' => $point['gpsTime'],
+                            'toLat' => $point['lat'],
+                            'toLng' => $point['lng'],
+                            'markerLat' => $previous['lat'],
+                            'markerLng' => $previous['lng'],
+                            'duration' => $elapsedSeconds,
+                            'distance' => round($distance, 2),
+                        ];
+                    }
                 } else {
                     $totalDist += $distance;
 
@@ -752,6 +775,83 @@ class LiveViewController extends Controller
             'idleDuration' => $idleDuration,
             'stopCount' => $stopCount,
         ];
+    }
+
+    private function formatParkingEvents(array $rows, string $imei, string $beginTime, string $endTime): array
+    {
+        $rangeStart = Carbon::parse($beginTime, 'UTC');
+        $rangeEnd = Carbon::parse($endTime, 'UTC');
+        $events = [];
+
+        foreach ($rows as $row) {
+            if ((string) ($row['imei'] ?? '') !== $imei) {
+                continue;
+            }
+
+            $start = $this->parseTrackTimestamp($row['startTime'] ?? null);
+            $end = $this->parseTrackTimestamp($row['endTime'] ?? null);
+            $lat = filter_var($row['lat'] ?? null, FILTER_VALIDATE_FLOAT);
+            $lng = filter_var($row['lng'] ?? null, FILTER_VALIDATE_FLOAT);
+
+            if ($start === null || $end === null || $lat === false || $lng === false
+                || ! $this->isValidTrackCoordinate($lat, $lng)) {
+                continue;
+            }
+
+            $start = $start->max($rangeStart);
+            $end = $end->min($rangeEnd);
+            $duration = $end->getTimestamp() - $start->getTimestamp();
+
+            if ($duration > 0) {
+                $events[$start->getTimestamp().'|'.$end->getTimestamp()] = [
+                    'lat' => $lat,
+                    'lng' => $lng,
+                    'startTime' => $start->toIso8601String(),
+                    'endTime' => $end->toIso8601String(),
+                    'duration' => $duration,
+                ];
+            }
+        }
+
+        usort($events, fn (array $left, array $right): int => $left['startTime'] <=> $right['startTime']);
+
+        return $events;
+    }
+
+    private function isConfirmedParkingGap(array $previous, array $point, array $events): bool
+    {
+        foreach ($events as $event) {
+            $start = strtotime($event['startTime']);
+            $end = strtotime($event['endTime']);
+
+            if ($start > $previous['_timestamp'] + self::PARKING_MATCH_SECONDS) {
+                break;
+            }
+
+            if ($start < $point['_timestamp'] && $end > $previous['_timestamp']
+                && $end >= $point['_timestamp'] - self::PARKING_MATCH_SECONDS
+                && $this->haversineDistance($previous['lat'], $previous['lng'], $event['lat'], $event['lng']) <= self::PARKING_MATCH_KM
+                && $this->haversineDistance($point['lat'], $point['lng'], $event['lat'], $event['lng']) <= self::PARKING_MATCH_KM) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function parkedDuration(array $events): int
+    {
+        $seconds = 0;
+        $coveredUntil = 0;
+
+        foreach ($events as $event) {
+            $start = strtotime($event['startTime']);
+            $end = strtotime($event['endTime']);
+            $seconds += max(0, $end - max($start, $coveredUntil));
+            $coveredUntil = max($coveredUntil, $end);
+        }
+
+        return $seconds;
     }
 
     private function emptyTrackSummary(): array

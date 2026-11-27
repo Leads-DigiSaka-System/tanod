@@ -230,7 +230,7 @@
           </div>
 
           <!-- Track Info Panel -->
-          <div v-if="trackData && trackData.totalPoints > 0" class="flex-1 overflow-y-auto">
+          <div v-if="trackData && (trackData.totalPoints > 0 || trackData.parkingEvents?.length)" class="flex-1 overflow-y-auto">
             <div v-if="trackWarnings.length" class="border-b border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300" role="status">
               <p class="font-semibold">Partial track data</p>
               <p class="mt-0.5">{{ trackWarnings.length }} JIMI time range{{ trackWarnings.length === 1 ? '' : 's' }} could not be loaded.</p>
@@ -238,9 +238,10 @@
             </div>
 
             <div class="flex flex-wrap gap-x-3 gap-y-1 border-b border-gray-200 bg-white px-3 py-2 text-[11px] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400" aria-label="Track marker legend">
-              <span class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[9px] font-bold text-white">S</span> Start</span>
-              <span class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">E</span> End</span>
-              <span class="inline-flex items-center gap-1" title="Hover, focus, or tap an orange marker on the map for details."><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">!</span> GPS data warning</span>
+              <span v-if="trackData.totalPoints" class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[9px] font-bold text-white">S</span> Start</span>
+              <span v-if="trackData.totalPoints > 1" class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">E</span> End</span>
+              <span v-if="trackData.parkingEvents?.length" class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-sky-600 text-[9px] font-bold text-white">P</span> Parked</span>
+              <span v-if="trackData.gapCount" class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">!</span> GPS data warning</span>
             </div>
 
             <!-- Summary Stats -->
@@ -266,7 +267,7 @@
                 <p class="text-base font-bold text-green-600 dark:text-green-400">{{ formatDuration(trackData.movingDuration) }}</p>
               </div>
               <div class="bg-white dark:bg-gray-800 p-3 text-center">
-                <p class="text-xs text-gray-500 dark:text-gray-400">Idle</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400" title="Low-speed time observed between consecutive GPS fixes.">Observed Idle</p>
                 <p class="text-base font-bold text-amber-600 dark:text-amber-400">{{ formatDuration(trackData.idleDuration) }}</p>
               </div>
               <div class="bg-white dark:bg-gray-800 p-3 text-center">
@@ -281,6 +282,10 @@
 
             <!-- GPS Points count & time -->
             <div class="p-3 border-b border-gray-200 dark:border-gray-700 space-y-1.5">
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Parked (TrackSolid)</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ trackData.parkingAvailable ? formatDuration(trackData.parkedDuration) : 'Unavailable' }}</span>
+              </div>
               <div class="flex justify-between text-sm">
                 <span class="text-gray-500 dark:text-gray-400">GPS Points</span>
                 <span class="font-medium text-gray-900 dark:text-white">{{ trackData.totalPoints.toLocaleString() }}</span>
@@ -304,7 +309,7 @@
             </div>
 
             <!-- Playback Controls -->
-            <div class="p-3 space-y-3 border-b border-gray-200 dark:border-gray-700" tabindex="0" @keydown="handlePlaybackKeydown">
+            <div v-if="trackData.totalPoints > 1" class="p-3 space-y-3 border-b border-gray-200 dark:border-gray-700" tabindex="0" @keydown="handlePlaybackKeydown">
               <div class="flex items-center justify-between">
                 <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Playback</span>
                 <div class="flex items-center gap-1">
@@ -1169,7 +1174,6 @@ function createTrackBadgeMarkerContent(label, fillColor, tooltip = '') {
     shell.tabIndex = 0;
     shell.setAttribute('role', 'button');
     shell.setAttribute('aria-label', tooltip);
-    shell.title = tooltip;
 
     const tooltipBubble = document.createElement('div');
     tooltipBubble.textContent = tooltip;
@@ -1209,6 +1213,10 @@ function createTrackBadgeMarkerContent(label, fillColor, tooltip = '') {
     shell.addEventListener('blur', hideTooltip);
     shell.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') hideTooltip();
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        shell.click();
+      }
     });
     shell.addEventListener('click', (event) => {
       event.stopPropagation();
@@ -1651,7 +1659,7 @@ async function searchTracks() {
     if (data.track) {
       trackData.value = data.track;
       playbackIndex.value = 0;
-      if (data.track.points?.length > 0) drawTrack(data.track.points);
+      drawTrack(data.track.points);
     }
 
     if (!data.success) {
@@ -1666,7 +1674,22 @@ async function searchTracks() {
 }
 
 function drawTrack(points) {
-  if (!map || !points.length || !AdvancedMarkerElementClass) return;
+  if (!map || !AdvancedMarkerElementClass) return;
+
+  (trackData.value.parkingEvents || []).forEach((event) => {
+    const tooltip = `Parked for ${formatDuration(event.duration)} · ${formatDateTime(event.startTime)} to ${formatDateTime(event.endTime)} (PH)`;
+    trackMarkers.push(createAdvancedMarker({
+      position: { lat: event.lat, lng: event.lng },
+      content: createTrackBadgeMarkerContent('P', '#0284c7', tooltip),
+      zIndex: 110,
+    }));
+  });
+
+  if (!points.length) {
+    fitTrackBounds();
+    return;
+  }
+
   const segments = groupTrackPointsBySegment(points);
   const path = points.map(p => new google.maps.LatLng(p.lat, p.lng));
   let pointOffset = 0;
@@ -1709,7 +1732,6 @@ function drawTrack(points) {
     trackMarkers.push(createAdvancedMarker({
       position: { lat: Number(gap.markerLat), lng: Number(gap.markerLng) },
       content: createTrackBadgeMarkerContent('!', '#f59e0b', tooltip),
-      title: tooltip,
       zIndex: 110,
     }));
   });
@@ -1730,9 +1752,11 @@ function drawTrack(points) {
 }
 
 function fitTrackBounds() {
-  if (!trackData.value?.points?.length || !map) return;
+  if (!trackData.value || !map) return;
+  const positions = trackData.value.points.length ? trackData.value.points : trackData.value.parkingEvents || [];
+  if (!positions.length) return;
   const bounds = new google.maps.LatLngBounds();
-  trackData.value.points.forEach(p => bounds.extend(new google.maps.LatLng(p.lat, p.lng)));
+  positions.forEach(p => bounds.extend(new google.maps.LatLng(p.lat, p.lng)));
   map.fitBounds(bounds, 60);
 }
 
@@ -2005,6 +2029,7 @@ function formatDateTime(dt) {
 
 function formatDuration(seconds) {
   if (!seconds) return '0m';
+  if (seconds < 60) return `${Math.floor(seconds)}s`;
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   if (h > 0) return `${h}h ${m}m`;
