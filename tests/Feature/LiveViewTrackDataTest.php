@@ -142,13 +142,13 @@ class LiveViewTrackDataTest extends TestCase
                 'result' => [
                     $this->point(14.5, 121.0, '2026-07-22 00:00:00', 3),
                     $this->point(14.5001, 121.0, '2026-07-22 00:02:00', 0),
-                    $this->point(14.5001, 121.0, '2026-07-22 01:32:00', 0),
-                    $this->point(14.5003, 121.0, '2026-07-22 01:34:00', 4),
-                    $this->point(14.5003, 121.0, '2026-07-22 02:00:00', 0),
+                    $this->point(14.5015, 121.0, '2026-07-22 01:32:00', 4),
+                    $this->point(14.5017, 121.0, '2026-07-22 01:34:00', 4),
+                    $this->point(14.5017, 121.0, '2026-07-22 02:00:00', 0),
                 ],
             ]);
 
-            foreach (['0' => ['00:02:00', '01:32:00', 14.5001], '1' => ['02:02:00', '02:12:00', 14.5003]] as $row => [$start, $end, $lat]) {
+            foreach (['0' => ['00:02:00', '01:32:00', 14.5001], '1' => ['02:02:00', '02:12:00', 14.5017]] as $row => [$start, $end, $lat]) {
                 $mock->shouldReceive('call')->with('jimi.open.platform.report.parking', [
                     'account' => 'test-account',
                     'imeis' => $device->imei,
@@ -181,6 +181,7 @@ class LiveViewTrackDataTest extends TestCase
             ->assertJsonPath('track.segmentCount', 3)
             ->assertJsonPath('track.points.2.segment', 1)
             ->assertJsonPath('track.gapCount', 1)
+            ->assertJsonPath('track.gaps.0.reason', 'time_gap')
             ->assertJsonPath('track.gaps.0.fromTime', '2026-07-22T01:34:00+00:00');
     }
 

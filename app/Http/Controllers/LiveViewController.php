@@ -804,10 +804,15 @@ class LiveViewController extends Controller
                 break;
             }
 
-            if ($start < $point['_timestamp'] && $end > $previous['_timestamp']
-                && $end >= $point['_timestamp'] - self::PARKING_MATCH_SECONDS
-                && $this->haversineDistance($previous['lat'], $previous['lng'], $event['lat'], $event['lng']) <= self::PARKING_MATCH_KM
-                && $this->haversineDistance($point['lat'], $point['lng'], $event['lat'], $event['lng']) <= self::PARKING_MATCH_KM) {
+            if ($start >= $point['_timestamp'] || $end <= $previous['_timestamp']
+                || $end < $point['_timestamp'] - self::PARKING_MATCH_SECONDS) {
+                continue;
+            }
+
+            $distanceBeforeParking = $this->haversineDistance($previous['lat'], $previous['lng'], $event['lat'], $event['lng']);
+            $distanceAfterParking = $this->haversineDistance($point['lat'], $point['lng'], $event['lat'], $event['lng']);
+
+            if (min($distanceBeforeParking, $distanceAfterParking) <= self::PARKING_MATCH_KM) {
                 return true;
             }
         }

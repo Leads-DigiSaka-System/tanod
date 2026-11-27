@@ -1,5 +1,6 @@
 (() => {
   const L = window.L;
+  const sampleMap = document.currentScript?.dataset.sampleMap === 'true';
   const toLatLng = point => {
     if (typeof point.lat === 'function') return L.latLng(point.lat(), point.lng());
     return L.latLng(point.lat, point.lng);
@@ -36,10 +37,12 @@
     constructor(container, options) {
       this.map = L.map(container, { minZoom: 4, maxZoom: 19, zoomControl: false });
       this.map.setView(toLatLng(options.center), options.zoom);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      }).addTo(this.map);
+      if (sampleMap) {
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        }).addTo(this.map);
+      }
       L.control.zoom({ position: 'bottomright' }).addTo(this.map);
       L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(this.map);
     }
