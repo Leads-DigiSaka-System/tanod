@@ -43,15 +43,16 @@ return [
     'track_max_plausible_speed_kph' => env('JIMI_TRACK_MAX_PLAUSIBLE_SPEED_KPH', 120),
     'track_stop_minutes' => env('JIMI_TRACK_STOP_MINUTES', 5),
 
-    // Initial field-work thresholds for the 100 m equal-area grid.
+    // Starting thresholds for detecting adjacent, opposing field passes.
     'service_area' => [
         'max_sample_seconds' => 120,
+        'min_speed_kph' => 0.8,
         'max_speed_kph' => 10,
-        'min_stop_seconds' => 15,
-        'max_stop_seconds' => 180,
-        'min_stops_per_cell' => 2,
-        'min_movement_metres' => 60,
-        'min_moving_seconds' => 60,
+        'min_overlap_metres' => 20,
+        'min_lane_spacing_metres' => 4,
+        'max_lane_spacing_metres' => 45,
+        'max_pass_gap_seconds' => 600,
+        'min_cell_distance_metres' => 60,
     ],
 
     // Coordinate system for location data:

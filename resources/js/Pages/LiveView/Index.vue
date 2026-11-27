@@ -305,12 +305,12 @@
               </div>
               <div v-if="trackData.serviceArea" class="rounded-lg bg-emerald-50 p-2.5 text-xs dark:bg-emerald-950/40">
                 <div class="flex items-center justify-between gap-2 text-emerald-900 dark:text-emerald-300">
-                  <span class="font-medium" title="Estimates field work from short stops and slow turns within 1-hectare cells.">Estimated service area</span>
+                  <span class="font-medium" title="Counts one-hectare cells with repeated slow field passes. A partially worked cell counts as one hectare.">Estimated service area</span>
                   <strong>{{ trackData.serviceArea.available ? `${trackData.serviceArea.hectares.toLocaleString()} ha` : 'Insufficient GPS data' }}</strong>
                 </div>
                 <label v-if="trackData.serviceArea.cells.length" class="mt-1.5 flex items-center gap-2 text-gray-600 dark:text-gray-300">
                   <input v-model="showServiceArea" type="checkbox" class="h-3.5 w-3.5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-900" />
-                  Show 1 ha cells on map
+                  Show likely fieldwork cells (1 ha)
                 </label>
               </div>
               <div class="flex justify-between text-sm">
