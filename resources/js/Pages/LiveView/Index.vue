@@ -174,16 +174,30 @@
         <!-- ═══════════════ TRACKS TAB ═══════════════ -->
         <div v-show="activeTab === 'tracks'" class="flex-1 flex flex-col overflow-hidden">
           <div class="p-3 space-y-3">
-            <!-- Device select -->
-            <div>
-              <label class="block mb-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Device</label>
-              <select v-model="trackDeviceId"
-                class="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 text-xs rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 block w-full p-2.5 shadow-sm transition-all">
-                <option value="" disabled>Select Device</option>
-                <option v-for="d in deviceList" :key="d.id" :value="d.id">
-                  {{ d.tractor?.no_plate || d.device_name || d.imei }}
-                </option>
-              </select>
+            <div class="relative">
+              <label for="track-device-search" class="block mb-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Device</label>
+              <input id="track-device-search" type="search" autocomplete="off" role="combobox" aria-autocomplete="list"
+                :aria-expanded="trackDevicePickerOpen" aria-controls="track-device-options"
+                :aria-activedescendant="trackDevicePickerOpen ? activeTrackDeviceOptionId : undefined"
+                :value="trackDeviceSearch" placeholder="Search name, plate, or IMEI"
+                @focus="openTrackDevicePicker" @click="trackDevicePickerOpen = true" @blur="trackDevicePickerOpen = false"
+                @input="updateTrackDeviceSearch" @keydown="handleTrackDeviceKeydown"
+                class="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 text-xs rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 block w-full p-2.5 shadow-sm transition-all" />
+              <div v-show="trackDevicePickerOpen" class="absolute inset-x-0 top-full z-30 mt-1 rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                <ul id="track-device-options" role="listbox" aria-label="Matching devices" class="max-h-56 overflow-y-auto py-1">
+                  <li v-for="(device, index) in trackDeviceOptions" :id="`track-device-option-${device.id}`" :key="device.id"
+                    role="option" :aria-selected="index === trackDeviceOptionIndex"
+                    class="cursor-pointer px-3 py-2 text-xs hover:bg-indigo-50 dark:hover:bg-indigo-950"
+                    :class="index === trackDeviceOptionIndex ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' : 'text-gray-700 dark:text-gray-200'"
+                    @pointerdown.prevent @click="selectTrackDevice(device)">
+                    <span class="block font-medium">{{ trackDeviceLabel(device) }}</span>
+                    <span v-if="device.imei && device.imei !== trackDeviceLabel(device)" class="text-[11px] text-gray-500 dark:text-gray-400">{{ device.imei }}</span>
+                  </li>
+                </ul>
+                <p v-if="!trackDeviceOptions.length" role="status" class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+                  {{ devicesLoading ? 'Loading devices…' : 'No matching devices.' }}
+                </p>
+              </div>
             </div>
 
             <!-- Period select -->
@@ -706,6 +720,9 @@ const currentMapType = ref('satellite');
 
 // Tracks
 const trackDeviceId = ref('');
+const trackDeviceSearch = ref('');
+const trackDevicePickerOpen = ref(false);
+const trackDeviceOptionIndex = ref(-1);
 const trackPeriod = ref('today');
 const trackFrom = ref('');
 const trackTo = ref('');
@@ -847,15 +864,18 @@ const filteredDevices = computed(() => {
   else if (activeState.value === 'parked') list = list.filter(d => d.status === 'parked');
   else if (activeState.value === 'offline') list = list.filter(d => d.status === 'offline');
   if (selectedGroup.value) list = list.filter(d => d.tractor?.group_id == selectedGroup.value);
-  if (deviceSearch.value) {
-    const q = deviceSearch.value.toLowerCase();
-    list = list.filter(d =>
-      d.imei?.toLowerCase().includes(q) ||
-      d.device_name?.toLowerCase().includes(q) ||
-      d.tractor?.no_plate?.toLowerCase().includes(q)
-    );
-  }
-  return list;
+  const query = deviceSearch.value.trim().toLowerCase();
+  return query ? list.filter(device => deviceMatchesQuery(device, query)) : list;
+});
+
+const trackDeviceOptions = computed(() => {
+  const query = trackDeviceId.value ? '' : trackDeviceSearch.value.trim().toLowerCase();
+  return query ? deviceList.value.filter(device => deviceMatchesQuery(device, query)) : deviceList.value;
+});
+
+const activeTrackDeviceOptionId = computed(() => {
+  const device = trackDeviceOptions.value[trackDeviceOptionIndex.value];
+  return device ? `track-device-option-${device.id}` : undefined;
 });
 
 const currentPlaybackTime = computed(() => {
@@ -1638,6 +1658,56 @@ async function refreshData() {
 }
 
 // ═══════════════ TRACKS ═══════════════
+function deviceMatchesQuery(device, query) {
+  return [device.imei, device.device_name, device.tractor?.no_plate]
+    .some(value => String(value ?? '').toLowerCase().includes(query));
+}
+
+function trackDeviceLabel(device) {
+  return device.tractor?.no_plate || device.device_name || device.imei;
+}
+
+function openTrackDevicePicker(event) {
+  trackDevicePickerOpen.value = true;
+  trackDeviceOptionIndex.value = -1;
+  if (trackDeviceId.value) event.target.select();
+}
+
+function updateTrackDeviceSearch(event) {
+  trackDeviceId.value = '';
+  trackDeviceSearch.value = event.target.value;
+  trackDevicePickerOpen.value = true;
+  trackDeviceOptionIndex.value = 0;
+}
+
+function selectTrackDevice(device) {
+  trackDeviceId.value = device.id;
+  trackDeviceSearch.value = trackDeviceLabel(device);
+  trackDevicePickerOpen.value = false;
+  trackDeviceOptionIndex.value = -1;
+}
+
+function handleTrackDeviceKeydown(event) {
+  if (event.key === 'Escape' && trackDevicePickerOpen.value) {
+    event.preventDefault();
+    trackDevicePickerOpen.value = false;
+  } else if (event.key === 'Enter' && trackDevicePickerOpen.value) {
+    const device = trackDeviceOptions.value[trackDeviceOptionIndex.value];
+    if (device) {
+      event.preventDefault();
+      selectTrackDevice(device);
+    }
+  } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    trackDevicePickerOpen.value = true;
+    const lastIndex = trackDeviceOptions.value.length - 1;
+    if (lastIndex < 0) return;
+    const index = trackDeviceOptionIndex.value;
+    trackDeviceOptionIndex.value = event.key === 'ArrowDown' ? Math.min(index + 1, lastIndex) : (index <= 0 ? lastIndex : index - 1);
+    nextTick(() => document.getElementById(activeTrackDeviceOptionId.value)?.scrollIntoView({ block: 'nearest' }));
+  }
+}
+
 async function searchTracks() {
   if (!trackDeviceId.value) return;
   trackLoading.value = true;
@@ -1815,7 +1885,7 @@ function updateTrackProgress() {
 
 function quickTrack() {
   if (!selectedDevice.value) return;
-  trackDeviceId.value = selectedDevice.value.id;
+  selectTrackDevice(selectedDevice.value);
   trackPeriod.value = 'today';
   activeTab.value = 'tracks';
   showDetailSidebar.value = false;
