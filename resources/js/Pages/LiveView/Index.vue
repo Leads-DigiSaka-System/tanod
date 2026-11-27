@@ -759,6 +759,7 @@ let trackSegmentPaths = [];
 let trackSegmentRanges = [];
 let trackProgressLengths = [];
 let trackMarkers = [];
+let trackRequest = null;
 let playbackMarker = null;
 let playbackMarkerImage = null;
 let playbackAnimationId = null;
@@ -1347,7 +1348,7 @@ function clearRenderedMarkers() {
 }
 
 function createMarkers() {
-  if (!map || !window.google?.maps || !AdvancedMarkerElementClass) return;
+  if (activeTab.value !== 'objects' || !map || !window.google?.maps || !AdvancedMarkerElementClass) return;
   clearRenderedMarkers();
 
   getClusteredDevices().forEach((cluster) => {
@@ -1710,10 +1711,10 @@ function handleTrackDeviceKeydown(event) {
 
 async function searchTracks() {
   if (!trackDeviceId.value) return;
-  trackLoading.value = true;
   clearTracks();
-  trackError.value = '';
-  trackWarnings.value = [];
+  const request = new AbortController();
+  trackRequest = request;
+  trackLoading.value = true;
 
   try {
     const params = { device_id: trackDeviceId.value, period: trackPeriod.value };
@@ -1722,25 +1723,31 @@ async function searchTracks() {
       params.to = trackTo.value;
     }
 
-    const { data } = await axios.get('/live-view/track-data', { params });
+    const { data } = await axios.get('/live-view/track-data', { params, signal: request.signal });
+    if (trackRequest !== request) return;
 
     trackWarnings.value = data.warnings || [];
 
     if (data.track) {
       trackData.value = data.track;
       playbackIndex.value = 0;
-      drawTrack(data.track.points);
+      if (activeTab.value === 'tracks') drawTrack(data.track.points);
     }
 
     if (!data.success) {
       trackError.value = data.warnings?.[0]?.message || 'Track data is temporarily unavailable.';
     }
   } catch (e) {
+    if (trackRequest !== request) return;
     console.error('Failed to load tracks:', e);
     trackError.value = e.response?.data?.message || 'Unable to load track history.';
     trackData.value = { points: [], totalPoints: 0, distance: 0, maxSpeed: 0, avgSpeed: 0, duration: 0, startTime: null, endTime: null };
+  } finally {
+    if (trackRequest === request) {
+      trackRequest = null;
+      trackLoading.value = false;
+    }
   }
-  trackLoading.value = false;
 }
 
 function drawTrack(points) {
@@ -1773,7 +1780,7 @@ function drawTrack(points) {
 
   trackPolylines = trackSegmentPaths.map(segmentPath => new google.maps.Polyline({
     path: segmentPath,
-    geodesic: true, strokeColor: '#6366f1', strokeOpacity: 0.45, strokeWeight: 4, map,
+    geodesic: true, strokeColor: '#6366f1', strokeOpacity: 0.75, strokeWeight: 4, map,
   }));
   trackProgressPolylines = segments.map(() => new google.maps.Polyline({
     path: [], geodesic: true, strokeColor: '#4f46e5', strokeOpacity: 0.95, strokeWeight: 4, map,
@@ -1813,7 +1820,7 @@ function drawTrack(points) {
   });
   playbackMarkerImage = playbackContent.image;
   playbackMarker = createAdvancedMarker({
-    position: path[0],
+    position: path[playbackIndex.value],
     content: playbackContent.element,
     zIndex: 200,
   });
@@ -1827,11 +1834,27 @@ function fitTrackBounds() {
   if (!positions.length) return;
   const bounds = new google.maps.LatLngBounds();
   positions.forEach(p => bounds.extend(new google.maps.LatLng(p.lat, p.lng)));
+  if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
+    map.setCenter(bounds.getCenter());
+    map.setZoom(16);
+    return;
+  }
   map.fitBounds(bounds, 60);
 }
 
 function clearTracks() {
+  trackRequest?.abort();
+  trackRequest = null;
+  trackLoading.value = false;
+  trackError.value = '';
+  trackWarnings.value = [];
   stopPlayback();
+  removeTrackOverlays();
+  trackData.value = null;
+  playbackIndex.value = 0;
+}
+
+function removeTrackOverlays() {
   trackPolylines.forEach(polyline => polyline.setMap(null));
   trackProgressPolylines.forEach(polyline => polyline.setMap(null));
   trackPolylines = [];
@@ -1843,8 +1866,6 @@ function clearTracks() {
   playbackMarkerImage = null;
   trackMarkers.forEach(m => { m.map = null; });
   trackMarkers = [];
-  trackData.value = null;
-  playbackIndex.value = 0;
 }
 
 function groupTrackPointsBySegment(points) {
@@ -1945,7 +1966,7 @@ function playbackTick(timestamp) {
   playbackAnimationId = requestAnimationFrame(playbackTick);
 }
 
-watch(playbackIndex, (idx, oldIdx) => {
+watch(playbackIndex, (idx) => {
   if (!trackData.value?.points?.length || !map) return;
   const point = trackData.value.points[idx];
   if (!point) return;
@@ -1956,9 +1977,18 @@ watch(playbackIndex, (idx, oldIdx) => {
   }
 
   updateTrackProgress();
-  if (isPlaying.value && map) {
-    const bounds = map.getBounds();
-    if (bounds && !bounds.contains(pos)) map.panTo(pos);
+});
+
+watch(activeTab, (tab) => {
+  if (tab === 'tracks') {
+    if (isFollowing.value) stopFollow();
+    showDetailSidebar.value = false;
+    clearRenderedMarkers();
+    if (trackData.value) drawTrack(trackData.value.points);
+  } else {
+    stopPlayback();
+    removeTrackOverlays();
+    createMarkers();
   }
 });
 
@@ -2127,7 +2157,7 @@ onUnmounted(() => {
   if (mapErrorPoll) window.clearInterval(mapErrorPoll);
   if (mapIdleListener) google.maps.event.removeListener(mapIdleListener);
   stopFollow({ resumePolling: false });
-  stopPlayback();
+  clearTracks();
 });
 </script>
 
