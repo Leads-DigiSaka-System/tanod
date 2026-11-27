@@ -15,7 +15,9 @@
             </div>
             <div>
               <h2 class="text-base font-bold text-gray-900 dark:text-white">Live View</h2>
-              <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ deviceList.length }} devices tracked</p>
+              <p class="text-[11px] text-gray-500 dark:text-gray-400">
+                {{ stagingFleetMode === 'unconfigured' ? 'TrackSolid connection required' : `${deviceList.length} devices tracked` }}
+              </p>
             </div>
           </div>
         </div>
@@ -255,7 +257,7 @@
               <span v-if="trackData.totalPoints" class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[9px] font-bold text-white">S</span> Start</span>
               <span v-if="trackData.totalPoints > 1" class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">E</span> End</span>
               <span v-if="trackData.parkingEvents?.length" class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-sky-600 text-[9px] font-bold text-white">P</span> Parked</span>
-              <span v-if="trackData.gapCount" class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">!</span> GPS data warning</span>
+              <span v-if="trackData.outlierPointCount" class="inline-flex items-center gap-1"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">!</span> GPS spike</span>
             </div>
 
             <!-- Summary Stats -->
@@ -331,6 +333,17 @@
                 <span class="text-gray-500 dark:text-gray-400" title="Invalid coordinates, exact duplicates, and impossible GPS jumps are excluded from route totals.">Cleaned points</span>
                 <span class="text-right text-xs font-medium text-gray-900 dark:text-white">{{ trackData.invalidPointCount }} invalid, {{ trackData.duplicatePointCount }} duplicate, {{ trackData.outlierPointCount }} spike</span>
               </div>
+              <details v-if="reportingGaps.length" class="rounded-lg bg-gray-50 p-2.5 text-xs dark:bg-gray-900/50">
+                <summary class="cursor-pointer font-medium text-gray-700 dark:text-gray-200">
+                  GPS reporting gaps ({{ reportingGaps.length }})
+                </summary>
+                <ul class="mt-2 space-y-1.5">
+                  <li v-for="gap in reportingGaps" :key="gap.fromTime + gap.toTime" class="flex justify-between gap-2">
+                    <span class="font-medium text-gray-700 dark:text-gray-200">{{ formatDuration(gap.duration) }}</span>
+                    <span class="text-right text-gray-500 dark:text-gray-400">Resumed {{ formatDateTime(gap.toTime) }} (PH)</span>
+                  </li>
+                </ul>
+              </details>
             </div>
 
             <!-- Playback Controls -->
@@ -707,13 +720,14 @@ const props = defineProps({
   devices: Array,
   groups: Array,
   googleMapKey: String,
+  stagingFleetMode: String,
 });
 
 // ═══════════════ STATE ═══════════════
 const mapContainer = ref(null);
 const mapReady = ref(false);
 const mapError = ref('');
-const devicesLoading = ref((props.devices?.length ?? 0) === 0);
+const devicesLoading = ref(props.stagingFleetMode !== 'unconfigured' && !props.devices?.length);
 const activeTab = ref('objects');
 const activeState = ref('all');
 const deviceSearch = ref('');
@@ -742,6 +756,7 @@ const trackData = ref(null);
 const trackError = ref('');
 const trackWarnings = ref([]);
 const showServiceArea = ref(true);
+let carryObjectSelection = false;
 
 // Playback
 const isPlaying = ref(false);
@@ -891,6 +906,8 @@ const activeTrackDeviceOptionId = computed(() => {
   const device = trackDeviceOptions.value[trackDeviceOptionIndex.value];
   return device ? `track-device-option-${device.id}` : undefined;
 });
+
+const reportingGaps = computed(() => (trackData.value?.gaps || []).filter(gap => gap.reason === 'time_gap'));
 
 const currentPlaybackTime = computed(() => {
   if (!trackData.value?.points?.length) return '--:--:--';
@@ -1382,14 +1399,8 @@ function createMarkers() {
       });
 
       addAdvancedMarkerClickListener(marker, () => {
-        map.setZoom(16);
-        map.panTo(marker.position);
         const found = deviceList.value.find((item) => item.imei === device.imei);
-        if (found) {
-          selectedDevice.value = found;
-          showDetailSidebar.value = true;
-          reverseGeocode(corrected.lat, corrected.lng);
-        }
+        if (found) selectDevice(found);
       });
 
       markers[`marker_${device.imei}`] = marker;
@@ -1478,6 +1489,7 @@ function reverseGeocode(lat, lng) {
 
 function selectDevice(device) {
   selectedDevice.value = device;
+  carryObjectSelection = true;
   showDetailSidebar.value = true;
   if (device.lat && device.lng) {
     const corrected = correctCoords(parseFloat(device.lat), parseFloat(device.lng));
@@ -1634,6 +1646,7 @@ function stopFollow({ resumePolling = true } = {}) {
 
 // ═══════════════ DATA REFRESH ═══════════════
 async function refreshData() {
+  if (props.stagingFleetMode === 'unconfigured') return;
   const requestId = ++latestRefreshRequestId;
   devicesLoading.value = true;
 
@@ -1695,6 +1708,7 @@ function updateTrackDeviceSearch(event) {
 }
 
 function selectTrackDevice(device) {
+  if (device.id !== trackDeviceId.value && (trackData.value || trackLoading.value)) clearTracks();
   trackDeviceId.value = device.id;
   trackDeviceSearch.value = trackDeviceLabel(device);
   trackDevicePickerOpen.value = false;
@@ -1782,7 +1796,7 @@ function drawTrack(points) {
     trackMarkers.push(createAdvancedMarker({
       position: { lat: event.lat, lng: event.lng },
       content: createTrackBadgeMarkerContent('P', '#0284c7', tooltip),
-      zIndex: 110,
+      zIndex: 210,
     }));
   });
 
@@ -1828,11 +1842,11 @@ function drawTrack(points) {
   }
 
   (trackData.value?.gaps || []).forEach((gap) => {
+    if (gap.reason !== 'implausible_jump') return;
     if (!Number.isFinite(Number(gap.markerLat)) || !Number.isFinite(Number(gap.markerLng))) return;
-    const tooltip = trackGapTooltip(gap);
     trackMarkers.push(createAdvancedMarker({
       position: { lat: Number(gap.markerLat), lng: Number(gap.markerLng) },
-      content: createTrackBadgeMarkerContent('!', '#f59e0b', tooltip),
+      content: createTrackBadgeMarkerContent('!', '#f59e0b', trackSpikeTooltip(gap)),
       zIndex: 110,
     }));
   });
@@ -1910,13 +1924,8 @@ function groupTrackPointsBySegment(points) {
   return Array.from(groups.values());
 }
 
-function trackGapTooltip(gap) {
+function trackSpikeTooltip(gap) {
   const duration = formatDuration(Number(gap.duration) || 0);
-  const resumedAt = formatDateTime(gap.toTime);
-  if (gap.reason === 'time_gap') {
-    return `Reporting gap: no GPS points were received for ${duration}. The route resumes at ${resumedAt} and is shown as a new segment.`;
-  }
-
   const distance = Number(gap.distance) || 0;
   return `GPS spike removed: this point implied an impossible ${distance.toFixed(1)} km jump in ${duration}, so it was excluded from the route and totals.`;
 }
@@ -2013,6 +2022,8 @@ watch(playbackIndex, (idx) => {
 
 watch(activeTab, (tab) => {
   if (tab === 'tracks') {
+    if (carryObjectSelection && selectedDevice.value) selectTrackDevice(selectedDevice.value);
+    carryObjectSelection = false;
     if (isFollowing.value) stopFollow();
     showDetailSidebar.value = false;
     clearRenderedMarkers();

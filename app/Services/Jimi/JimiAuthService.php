@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Log;
  */
 class JimiAuthService
 {
-    private Client $client;
+    protected Client $client;
 
     public function __construct()
     {
