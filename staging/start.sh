@@ -32,7 +32,20 @@ php staging/seed.php
 if [ "$TANOD_STAGING_FLEET_MODE" = 'sample' ]; then
     php -S 127.0.0.1:18143 staging/jimi.php > storage/logs/staging-jimi.log 2>&1 &
     jimi_process=$!
-    trap 'kill "$jimi_process" 2>/dev/null || true' EXIT HUP INT TERM
+fi
+
+if [ "$TANOD_STAGING_FLEET_MODE" != 'unconfigured' ]; then
+    (
+        while :; do
+            php staging/sync-service-area.php || true
+            sleep 300
+        done
+    ) &
+    service_area_process=$!
+fi
+
+if [ "$TANOD_STAGING_FLEET_MODE" = 'sample' ]; then
+    trap 'kill "$jimi_process" "$service_area_process" 2>/dev/null || true' EXIT HUP INT TERM
     php -S "0.0.0.0:${PORT:-8142}" -t public staging/server.php
 else
     exec php -S "0.0.0.0:${PORT:-8142}" -t public staging/server.php

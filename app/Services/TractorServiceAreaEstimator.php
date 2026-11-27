@@ -4,7 +4,11 @@ namespace App\Services;
 
 class TractorServiceAreaEstimator
 {
-    private const CELL_METRES = 100;
+    private const CELL_METRES = 50;
+
+    public const CELL_HECTARES = self::CELL_METRES * self::CELL_METRES / 10000;
+
+    private const ALGORITHM_VERSION = 2;
 
     private const WGS84_SEMI_MAJOR_AXIS = 6378137.0;
 
@@ -13,21 +17,60 @@ class TractorServiceAreaEstimator
     /** EPSG:6933 easting scale at the 30-degree standard parallel. */
     private const EASTING_METRES_PER_RADIAN = 5528256.639292835;
 
-    private const MIN_STEP_METRES = 5;
+    private const MIN_STEP_METRES = 3;
 
     private const MAX_STEP_METRES = 150;
 
     /** Limit comparisons to nearby passes in track order. */
     private const NEARBY_PASSES = 12;
 
-    /** Cosine of 30 degrees, used for heading changes and opposing lanes. */
-    private const HEADING_ALIGNMENT = 0.8660254037844386;
+    /** Cosine of 35 degrees, used for heading changes and opposing lanes. */
+    private const HEADING_ALIGNMENT = 0.8191520442889918;
+
+    public function version(): string
+    {
+        return substr(hash('sha256', serialize([
+            self::ALGORITHM_VERSION,
+            config('jimi.service_area'),
+            config('jimi.map_type'),
+            config('jimi.display_timezone'),
+            config('jimi.track_gap_minutes'),
+            config('jimi.track_max_plausible_speed_kph'),
+        ])), 0, 16);
+    }
+
+    public function estimate(array $points): array
+    {
+        $result = $this->detectCells($points);
+        $cells = [];
+        $latitudes = [];
+
+        foreach ($result['cellIds'] as $cell) {
+            [$column, $row] = array_map('intval', explode(':', $cell));
+            $west = $column * self::CELL_METRES;
+            $cells[] = ['bounds' => [
+                'south' => $latitudes[$row] ??= $this->latitude($row * self::CELL_METRES),
+                'north' => $latitudes[$row + 1] ??= $this->latitude(($row + 1) * self::CELL_METRES),
+                'west' => rad2deg($west / self::EASTING_METRES_PER_RADIAN),
+                'east' => rad2deg(($west + self::CELL_METRES) / self::EASTING_METRES_PER_RADIAN),
+            ]];
+        }
+
+        return [
+            'available' => $result['available'],
+            'hectares' => count($cells) * self::CELL_HECTARES,
+            'cellHectares' => self::CELL_HECTARES,
+            'cells' => $cells,
+        ];
+    }
 
     /**
-     * Count 1 ha cells with repeated slow passes in a continuous GPS track.
+     * Find 0.25 ha cells with repeated slow passes in a continuous GPS track.
      * Points come from the cleaned track in chronological order.
+     *
+     * @return array{available: bool, cellIds: list<string>}
      */
-    public function estimate(array $points): array
+    public function detectCells(array $points): array
     {
         $settings = config('jimi.service_area');
         $latitude = deg2rad($points[0]['lat'] ?? 0);
@@ -44,18 +87,10 @@ class TractorServiceAreaEstimator
             $this->addPassDistance($passes[$index], $intervals, $cellDistances, $eastScale);
         }
 
-        $cells = [];
-
-        foreach ($cellDistances as $cell => $distance) {
-            if ($distance < $settings['min_cell_distance_metres']) {
-                continue;
-            }
-
-            [$column, $row] = explode(':', $cell);
-            $cells[] = ['bounds' => $this->cellBounds((int) $column, (int) $row)];
-        }
-
-        return ['available' => $hasObservations, 'hectares' => count($cells), 'cells' => $cells];
+        return [
+            'available' => $hasObservations,
+            'cellIds' => array_keys(array_filter($cellDistances, fn (float $distance): bool => $distance >= $settings['min_cell_distance_metres'])),
+        ];
     }
 
     private function movingPasses(array $points, array $settings, float $eastScale): array
@@ -86,7 +121,7 @@ class TractorServiceAreaEstimator
             $moving = $distance >= self::MIN_STEP_METRES;
 
             if (! $usablePair || $stepSeconds > $settings['max_sample_seconds'] || $distance > self::MAX_STEP_METRES
-                || max($previousSpeed, $current['speed']) > $settings['max_speed_kph']
+                || min($previousSpeed, $current['speed']) > $settings['max_speed_kph']
                 || ($moving && ($speed < $settings['min_speed_kph'] || $speed > $settings['max_speed_kph']))) {
                 $this->finishPass($passes, $path, $run, $settings['min_overlap_metres']);
                 $path = [];
@@ -255,6 +290,7 @@ class TractorServiceAreaEstimator
             }
         }
 
+        $intervalIndex = 0;
         $from = $pass['start'];
         $previousProgress = 0.0;
 
@@ -262,7 +298,12 @@ class TractorServiceAreaEstimator
             $progress = $this->dot($this->vector($pass['start'], $to), $pass['heading']) / $pass['length'];
             $span = $progress - $previousProgress;
 
-            foreach ($merged as [$start, $end]) {
+            while (isset($merged[$intervalIndex]) && $merged[$intervalIndex][1] <= $previousProgress) {
+                $intervalIndex++;
+            }
+
+            for ($i = $intervalIndex; isset($merged[$i]) && $merged[$i][0] < $progress; $i++) {
+                [$start, $end] = $merged[$i];
                 $coveredFrom = max($start, $previousProgress);
                 $coveredTo = min($end, $progress);
                 if ($coveredTo > $coveredFrom) {
@@ -352,15 +393,5 @@ class TractorServiceAreaEstimator
         }
 
         return ($south + $north) / 2;
-    }
-
-    private function cellBounds(int $column, int $row): array
-    {
-        return [
-            'south' => $this->latitude($row * self::CELL_METRES),
-            'north' => $this->latitude(($row + 1) * self::CELL_METRES),
-            'west' => rad2deg($column * self::CELL_METRES / self::EASTING_METRES_PER_RADIAN),
-            'east' => rad2deg(($column + 1) * self::CELL_METRES / self::EASTING_METRES_PER_RADIAN),
-        ];
     }
 }

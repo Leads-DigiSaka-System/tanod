@@ -47,12 +47,12 @@ return [
     'service_area' => [
         'max_sample_seconds' => 120,
         'min_speed_kph' => 0.8,
-        'max_speed_kph' => 10,
-        'min_overlap_metres' => 20,
-        'min_lane_spacing_metres' => 4,
-        'max_lane_spacing_metres' => 45,
+        'max_speed_kph' => 12,
+        'min_overlap_metres' => 12,
+        'min_lane_spacing_metres' => 2.5,
+        'max_lane_spacing_metres' => 30,
         'max_pass_gap_seconds' => 600,
-        'min_cell_distance_metres' => 60,
+        'min_cell_distance_metres' => 25,
     ],
 
     // Coordinate system for location data:

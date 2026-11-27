@@ -8,6 +8,7 @@ use App\Models\Tractor;
 use App\Models\User;
 use App\Services\Jimi\JimiAuthService;
 use App\Services\Jimi\JimiTrackingService;
+use App\Services\TractorServiceAreaEstimator;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -155,8 +156,33 @@ class LiveViewTrackDataTest extends TestCase
             ->assertJsonPath('track.parkingAvailable', false)
             ->assertJsonPath('track.stopCount', 0)
             ->assertJsonPath('track.serviceArea.available', true)
-            ->assertJsonPath('track.serviceArea.hectares', 1)
-            ->assertJsonCount(1, 'track.serviceArea.cells');
+            ->assertJsonPath('track.serviceArea.hectares', 0.5)
+            ->assertJsonPath('track.serviceArea.cellHectares', 0.25)
+            ->assertJsonCount(2, 'track.serviceArea.cells');
+    }
+
+    #[Test]
+    public function repeated_today_searches_reuse_history_and_area_within_the_same_minute(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-11-27 13:42:15', 'Asia/Manila'));
+        [$user, $device] = $this->createAccessibleDevice();
+
+        $tracking = $this->mock(JimiTrackingService::class);
+        $tracking->shouldReceive('fetchTrackData')->once()
+            ->with($device->imei, '2026-11-26 16:00:00', '2026-11-27 05:41:59')
+            ->andReturn([]);
+        $tracking->shouldReceive('fetchParkingReport')->once()->andReturn([]);
+
+        $area = $this->mock(TractorServiceAreaEstimator::class);
+        $area->shouldReceive('version')->andReturn('test-area');
+        $area->shouldReceive('estimate')->once()->with([])
+            ->andReturn(['available' => false, 'hectares' => 0, 'cellHectares' => 0.25, 'cells' => []]);
+
+        $url = route('live-view.track-data', ['device_id' => $device->id, 'period' => 'today'], false);
+        $this->actingAs($user)->getJson($url)->assertOk()->assertJsonPath('track.serviceArea.available', false);
+
+        Carbon::setTestNow(Carbon::parse('2026-11-27 13:42:40', 'Asia/Manila'));
+        $this->getJson($url)->assertOk()->assertJsonPath('track.serviceArea.available', false);
     }
 
     #[Test]
