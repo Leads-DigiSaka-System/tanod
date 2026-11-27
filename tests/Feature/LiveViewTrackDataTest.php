@@ -130,6 +130,36 @@ class LiveViewTrackDataTest extends TestCase
     }
 
     #[Test]
+    public function continuous_field_passes_estimate_service_area_when_parking_is_unavailable(): void
+    {
+        [$user, $device] = $this->createAccessibleDevice();
+
+        $this->mock(JimiTrackingService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('fetchParkingReport')->once()->andThrow(new \RuntimeException('Parking report unavailable.'));
+            $mock->shouldReceive('fetchTrackData')->once()->andReturn([
+                $this->point(14.49975, 120.99975, '2026-07-22 00:00:00', 4),
+                $this->point(14.50024, 120.99975, '2026-07-22 00:00:49', 4),
+                $this->point(14.50024, 120.99984, '2026-07-22 00:00:58', 4),
+                $this->point(14.49975, 120.99984, '2026-07-22 00:01:47', 4),
+                $this->point(14.49975, 120.99993, '2026-07-22 00:01:56', 4),
+                $this->point(14.50024, 120.99993, '2026-07-22 00:02:45', 4),
+            ]);
+        });
+
+        $this->actingAs($user)->getJson(route('live-view.track-data', [
+            'device_id' => $device->id,
+            'period' => 'custom',
+            'from' => '2026-07-22',
+            'to' => '2026-07-22',
+        ], false))->assertOk()
+            ->assertJsonPath('track.parkingAvailable', false)
+            ->assertJsonPath('track.stopCount', 0)
+            ->assertJsonPath('track.serviceArea.available', true)
+            ->assertJsonPath('track.serviceArea.hectares', 1)
+            ->assertJsonCount(1, 'track.serviceArea.cells');
+    }
+
+    #[Test]
     public function tracksolid_parking_replaces_only_a_matching_gap_and_keeps_the_route_segmented(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-07-23 10:00:00', 'Asia/Manila'));

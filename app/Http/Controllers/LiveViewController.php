@@ -130,7 +130,7 @@ class LiveViewController extends Controller
                 'parkingAvailable' => $parkingEvents !== null,
                 'parkingEvents' => $parkingEvents ?? [],
                 'parkedDuration' => $this->parkedDuration($parkingEvents ?? []),
-                'serviceArea' => $serviceArea->estimate($formatted['points'], $parkingEvents ?? []),
+                'serviceArea' => $serviceArea->estimate($formatted['points']),
             ],
         ]);
     }
