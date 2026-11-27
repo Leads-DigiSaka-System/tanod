@@ -34,53 +34,55 @@
             </div>
             <div class="min-w-0 flex-1">
               <p class="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Tractors</p>
-              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ Number(stats.totalTractors).toLocaleString() }}</p>
+              <p class="text-xl font-bold text-gray-900 dark:text-white">{{ liveStatus.totalTractors.toLocaleString() }}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ liveStatus.trackedTractors.toLocaleString() }} tracked in Live View</p>
             </div>
           </div>
-          <div class="flex-1 flex flex-col justify-center gap-1.5 text-xs">
+          <div v-if="liveStatus.available" class="flex-1 flex flex-col justify-center gap-1.5 text-xs">
             <div class="flex items-center justify-between py-0.5">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-green-500"></span>
                 <span class="font-medium text-gray-600 dark:text-gray-300">Online now</span>
               </div>
-              <span class="font-bold text-green-600 dark:text-green-400">{{ stats.onlineTractors }}</span>
+              <span class="font-bold text-green-600 dark:text-green-400">{{ liveStatus.onlineTractors }}</span>
             </div>
             <div class="flex items-center justify-between py-0.5">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-red-400"></span>
                 <span class="font-medium text-gray-600 dark:text-gray-300">&lt; 1 day offline</span>
               </div>
-              <span class="font-bold text-red-500 dark:text-red-400">{{ stats.offlineLessThanDay }}</span>
+              <span class="font-bold text-red-500 dark:text-red-400">{{ liveStatus.offlineBreakdown.lessThanDay }}</span>
             </div>
             <div class="flex items-center justify-between py-0.5">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-                <span class="font-medium text-gray-600 dark:text-gray-300">1 &ndash; 7 days</span>
+                <span class="font-medium text-gray-600 dark:text-gray-300">1 &ndash; 6 days</span>
               </div>
-              <span class="font-bold text-amber-500 dark:text-amber-400">{{ stats.offline1to7Days }}</span>
+              <span class="font-bold text-amber-500 dark:text-amber-400">{{ liveStatus.offlineBreakdown.oneToSevenDays }}</span>
             </div>
             <div class="flex items-center justify-between py-0.5">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
-                <span class="font-medium text-gray-600 dark:text-gray-300">1 week &ndash; 1 month</span>
+                <span class="font-medium text-gray-600 dark:text-gray-300">7 &ndash; 29 days</span>
               </div>
-              <span class="font-bold text-yellow-600 dark:text-yellow-400">{{ stats.offline7to30Days }}</span>
+              <span class="font-bold text-yellow-600 dark:text-yellow-400">{{ liveStatus.offlineBreakdown.sevenToThirtyDays }}</span>
             </div>
             <div class="flex items-center justify-between py-0.5">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-orange-400"></span>
-                <span class="font-medium text-gray-600 dark:text-gray-300">1 &ndash; 3 months</span>
+                <span class="font-medium text-gray-600 dark:text-gray-300">30 &ndash; 99 days</span>
               </div>
-              <span class="font-bold text-orange-500 dark:text-orange-400">{{ stats.offline30to100Days }}</span>
+              <span class="font-bold text-orange-500 dark:text-orange-400">{{ liveStatus.offlineBreakdown.thirtyToHundredDays }}</span>
             </div>
             <div class="flex items-center justify-between py-0.5">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-gray-400"></span>
-                <span class="font-medium text-gray-600 dark:text-gray-300">3+ months</span>
+                <span class="font-medium text-gray-600 dark:text-gray-300">100+ days</span>
               </div>
-              <span class="font-bold text-gray-500">{{ stats.offlineMoreThan100Days }}</span>
+              <span class="font-bold text-gray-500">{{ liveStatus.offlineBreakdown.moreThanHundredDays }}</span>
             </div>
           </div>
+          <p v-else role="status" class="text-xs text-gray-500 dark:text-gray-400">Live GPS status temporarily unavailable.</p>
         </div>
 
         <!-- Usage (HW Data) -->
@@ -162,30 +164,29 @@
         <!-- Tractor Status -->
         <div class="rounded-2xl bg-gray-100 dark:bg-gray-800/60 p-6 border border-gray-200/70 dark:border-gray-700/50 shadow-[3px_3px_8px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-[3px_3px_8px_rgba(0,0,0,0.2),-1px_-1px_4px_rgba(255,255,255,0.02)]">
           <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-6">Tractor Status</h3>
-          <div class="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-0 sm:divide-x divide-gray-200 dark:divide-gray-700">
-            <!-- Activated -->
+          <div v-if="liveStatus.available" class="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-0 sm:divide-x divide-gray-200 dark:divide-gray-700">
             <div class="flex-1 flex flex-col items-center px-3">
-              <span class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Activated</span>
+              <span class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Online</span>
               <div class="relative w-full max-w-[160px] mx-auto flex justify-center mb-3">
-                <apexchart type="donut" height="120" :options="activatedDonutOptions" :series="activatedDonutSeries" />
+                <apexchart type="donut" height="120" :options="onlineDonutOptions" :series="onlineDonutSeries" />
               </div>
               <div class="flex items-center gap-2 mt-1">
-                <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Activated {{ deviceActivation.activated.toLocaleString() }}</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Online {{ liveStatus.onlineTractors.toLocaleString() }}</span>
               </div>
             </div>
-            <!-- Inactive -->
             <div class="flex-1 flex flex-col items-center px-3">
-              <span class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Inactive</span>
+              <span class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Offline</span>
               <div class="relative w-full max-w-[160px] mx-auto flex justify-center mb-3">
-                <apexchart type="donut" height="120" :options="inactivatedDonutOptions" :series="inactivatedDonutSeries" />
+                <apexchart type="donut" height="120" :options="offlineDonutOptions" :series="offlineDonutSeries" />
               </div>
               <div class="flex items-center gap-2 mt-1">
                 <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
-                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Inactive {{ deviceActivation.inactivated.toLocaleString() }}</span>
+                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Offline {{ liveStatus.offlineTractors.toLocaleString() }}</span>
               </div>
             </div>
           </div>
+          <p v-else class="text-sm text-gray-500 dark:text-gray-400">Live GPS status temporarily unavailable.</p>
         </div>
 
         <!-- PMS Schedule -->
@@ -271,7 +272,7 @@
 
 <script setup>
 import { computed, ref, onMounted, watch, nextTick } from 'vue'
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, usePoll } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import StatCard from '@/Components/StatCard.vue'
 import StatusBadge from '@/Components/StatusBadge.vue'
@@ -281,10 +282,12 @@ Chart.register(...registerables)
 const apexchart = VueApexCharts
 
 const props = defineProps({
-  stats: Object, charts: Object, recentAlerts: Array, recentBookings: Array,
+  stats: Object, charts: Object, liveStatus: Object, recentAlerts: Array, recentBookings: Array,
   maintenanceDueList: Array, pendingBookings: Array, myTractors: Array,
   pendingTasks: Array, myBookings: Array, availableTractors: Array, recentFeedback: Array,
 })
+
+usePoll(10_000, { only: ['liveStatus'] }, { autoStart: Boolean(props.liveStatus) })
 
 const todayDate = computed(() => new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }))
 const formatTitle = (key) => key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim()
@@ -296,13 +299,8 @@ const getStatColor = (key) => {
 }
 
 
-// Activation
-const deviceActivation = computed(() => props.charts?.deviceActivation || { total: 0, activated: 0, inactivated: 0 })
-const activationActivatedPercent = computed(() => deviceActivation.value.total > 0 ? Math.round((deviceActivation.value.activated / deviceActivation.value.total) * 100 * 100) / 100 : 0)
-const activationInactivatedPercent = computed(() => deviceActivation.value.total > 0 ? Math.round((deviceActivation.value.inactivated / deviceActivation.value.total) * 100 * 100) / 100 : 0)
-
 // Tractor Status donut charts
-const buildStatusDonut = (percent, color) => ({
+const buildStatusDonut = (color) => ({
   chart: { type: 'donut', sparkline: { enabled: true } },
   plotOptions: { pie: { donut: { size: '70%', labels: { show: true, name: { show: false }, value: { show: true, fontSize: '16px', fontWeight: 700, color, offsetY: -2 }, total: { show: false } } } } },
   colors: [color, '#e5e7eb'],
@@ -311,10 +309,11 @@ const buildStatusDonut = (percent, color) => ({
   legend: { show: false },
   tooltip: { enabled: false },
 })
-const activatedDonutSeries = computed(() => [activationActivatedPercent.value, 100 - activationActivatedPercent.value])
-const activatedDonutOptions = computed(() => buildStatusDonut(activationActivatedPercent.value, '#3b82f6'))
-const inactivatedDonutSeries = computed(() => [activationInactivatedPercent.value, 100 - activationInactivatedPercent.value])
-const inactivatedDonutOptions = computed(() => buildStatusDonut(activationInactivatedPercent.value, '#f43f5e'))
+const trackedCount = computed(() => props.liveStatus?.trackedTractors ?? 0)
+const onlineDonutSeries = computed(() => [props.liveStatus?.onlineTractors ?? 0, props.liveStatus?.offlineTractors || (trackedCount.value ? 0 : 1)])
+const offlineDonutSeries = computed(() => [props.liveStatus?.offlineTractors ?? 0, props.liveStatus?.onlineTractors || (trackedCount.value ? 0 : 1)])
+const onlineDonutOptions = buildStatusDonut('#22c55e')
+const offlineDonutOptions = buildStatusDonut('#f43f5e')
 
 // PMS Schedule
 const pmsSchedule = computed(() => props.charts?.pmsScheduleBreakdown || { finished: 0, upcoming: 0, due: 0 })

@@ -2,11 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Device;
+use App\Models\DeviceLocation;
 use App\Models\Tractor;
 use App\Models\User;
 use App\Services\Jimi\JimiDeviceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
@@ -22,6 +26,11 @@ class DashboardLiveStatusTest extends TestCase
         parent::setUp();
 
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        if (DB::getDriverName() === 'sqlite') {
+            DB::connection()->getPdo()->sqliteCreateFunction('DATE_FORMAT',
+                fn (string $date, string $format): string => substr($date, 0, 7), 2);
+        }
     }
 
     #[Test]
@@ -78,9 +87,13 @@ class DashboardLiveStatusTest extends TestCase
             'is_active' => true,
         ]);
 
+        foreach ([$onlineDevice, $offlineDevice, $inactiveDevice] as $device) {
+            $this->recordLocation($device);
+        }
+
         $this->mock(JimiDeviceService::class, function (MockInterface $mock): void {
             $mock->shouldReceive('fetchLiveLocations')
-                ->once()
+                ->twice()
                 ->andReturn([
                     '869066063771901' => [
                         'hbTime' => now()->utc()->subMinutes(4)->toIso8601String(),
@@ -121,17 +134,22 @@ class DashboardLiveStatusTest extends TestCase
                 ->where('charts.pmsBreakdown.due', 1)
                 ->where('charts.pmsBreakdown.ok', 1)
                 ->where('charts.pmsBreakdown.noData', 1)
-                // Offline breakdown: no heartbeat ever → >100 days
-                ->where('stats.offlineLessThanDay', 0)
+                // Offline durations use the live provider heartbeat ahead of the stored one.
+                ->where('stats.offlineLessThanDay', 1)
                 ->where('stats.offline1to7Days', 0)
                 ->where('stats.offline7to30Days', 0)
                 ->where('stats.offline30to100Days', 0)
-                ->where('stats.offlineMoreThan100Days', 1)
-                ->where('charts.offlineBreakdown.lessThanDay', 0)
+                ->where('stats.offlineMoreThan100Days', 0)
+                ->where('charts.offlineBreakdown.lessThanDay', 1)
                 ->where('charts.offlineBreakdown.oneToSevenDays', 0)
                 ->where('charts.offlineBreakdown.sevenToThirtyDays', 0)
                 ->where('charts.offlineBreakdown.thirtyToHundredDays', 0)
-                ->where('charts.offlineBreakdown.moreThanHundredDays', 1));
+                ->where('charts.offlineBreakdown.moreThanHundredDays', 0)
+                ->where('liveStatus.trackedTractors', 2));
+
+        $devices = collect($this->getJson(route('live-view.locations', [], false))->assertOk()->json('devices'));
+        $this->assertCount(2, $devices);
+        $this->assertCount(1, $devices->where('status', '!=', 'offline'));
     }
 
     #[Test]
@@ -172,6 +190,9 @@ class DashboardLiveStatusTest extends TestCase
             'is_active' => true,
         ]);
 
+        $this->recordLocation($deviceA);
+        $this->recordLocation($deviceB);
+
         $this->mock(JimiDeviceService::class, function (MockInterface $mock): void {
             $mock->shouldReceive('fetchLiveLocations')
                 ->once()
@@ -179,12 +200,12 @@ class DashboardLiveStatusTest extends TestCase
                     '869066063771910' => [
                         'hbTime' => now()->utc()->subMinutes(2)->toIso8601String(),
                         'speed' => 0,
-                        'status' => 0, // JIMI says offline despite recent heartbeat
+                        'status' => '0', // JIMI says offline despite recent heartbeat
                     ],
                     '869066063771911' => [
                         'hbTime' => now()->utc()->subMinutes(15)->toIso8601String(),
                         'speed' => 5,
-                        'status' => 1, // JIMI says online despite stale heartbeat
+                        'status' => '1', // JIMI says online despite stale heartbeat
                     ],
                 ]);
         });
@@ -203,8 +224,38 @@ class DashboardLiveStatusTest extends TestCase
                 ->where('charts.tractorStatus.online', 1)
                 ->where('charts.tractorStatus.offline', 1)
                 ->where('charts.tractorStatus.inactive', 0)
-                // Offline breakdown: Device A has no heartbeat record → >100 days
-                ->where('stats.offlineMoreThan100Days', 1)
-                ->where('charts.offlineBreakdown.moreThanHundredDays', 1));
+                ->where('stats.offlineLessThanDay', 1)
+                ->where('charts.offlineBreakdown.lessThanDay', 1));
+    }
+
+    #[Test]
+    public function a_live_status_refresh_reports_an_unavailable_snapshot_without_zero_online_counts(): void
+    {
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole(Role::findOrCreate('super-admin'));
+        $this->mock(JimiDeviceService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('fetchLiveLocations')->once()->andReturn([]);
+        });
+
+        $this->actingAs($admin)->get(route('dashboard', [], false), [
+            'X-Inertia' => 'true',
+            'X-Inertia-Version' => app(HandleInertiaRequests::class)->version(Request::create('/')) ?? '',
+            'X-Inertia-Partial-Component' => 'Dashboard',
+            'X-Inertia-Partial-Data' => 'liveStatus',
+        ])->assertOk()
+            ->assertJsonMissingPath('props.stats')
+            ->assertJsonPath('props.liveStatus.available', false)
+            ->assertJsonPath('props.liveStatus.onlineTractors', null)
+            ->assertJsonPath('props.liveStatus.offlineTractors', null);
+    }
+
+    private function recordLocation(Device $device): void
+    {
+        $device->locations()->save(new DeviceLocation([
+            'imei' => $device->imei,
+            'lat' => 14.5,
+            'lng' => 121.0,
+            'heartbeat_at' => now('UTC')->subDays(110),
+        ]));
     }
 }

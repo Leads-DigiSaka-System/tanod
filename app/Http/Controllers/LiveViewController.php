@@ -286,7 +286,7 @@ class LiveViewController extends Controller
         $minutesAgo = $heartbeatAt
             ? (int) floor($heartbeatAt->diffInMinutes(now()->utc()))
             : 999;
-        $gpsAt = $this->parseHeartbeat(data_get($loc?->raw_data, 'gpsTime'));
+        $gpsAt = JimiDeviceService::parseLocationTime(data_get($loc?->raw_data, 'gpsTime'));
         $gpsMinutesAgo = $gpsAt
             ? max((int) floor($gpsAt->diffInMinutes(now()->utc())), 0)
             : null;
@@ -294,7 +294,7 @@ class LiveViewController extends Controller
         $status = $loc
             ? $this->resolveDeviceStatus(
                 (int) $loc->status,
-                $minutesAgo,
+                $heartbeatAt,
                 (float) ($loc->speed ?? 0),
                 (bool) $loc->acc_status,
                 $gpsMinutesAgo ?? $minutesAgo,
@@ -366,12 +366,12 @@ class LiveViewController extends Controller
         $mileage = null;
 
         if ($apiData) {
-            $parsedHeartbeatAt = $this->parseHeartbeat($apiData['hbTime'] ?? null);
+            $parsedHeartbeatAt = JimiDeviceService::parseLocationTime($apiData['hbTime'] ?? null);
             $heartbeatAt = $parsedHeartbeatAt?->toIso8601String();
             $minutesAgo = $heartbeatAt
                 ? (int) floor($parsedHeartbeatAt->diffInMinutes(now()->utc()))
                 : 999;
-            $parsedGpsAt = $this->parseHeartbeat($apiData['gpsTime'] ?? null);
+            $parsedGpsAt = JimiDeviceService::parseLocationTime($apiData['gpsTime'] ?? null);
             $gpsTime = $parsedGpsAt?->toIso8601String();
             $gpsMinutesAgo = $parsedGpsAt
                 ? max((int) floor($parsedGpsAt->diffInMinutes(now()->utc())), 0)
@@ -381,19 +381,14 @@ class LiveViewController extends Controller
             $lng = $apiData['lng'] ?? null;
             $speed = (float) ($apiData['speed'] ?? 0);
             $direction = (float) ($apiData['direction'] ?? 0);
-            $accStatus = (bool) ($apiData['accStatus'] ?? false);
+            $accStatus = filter_var($apiData['accStatus'] ?? false, FILTER_VALIDATE_BOOLEAN);
             $posType = $apiData['posType'] ?? null;
             $gpsNum = (int) ($apiData['gpsNum'] ?? 0);
             $mileage = $apiData['mileage'] ?? null;
 
-            // Prefer JIMI's own online/offline determination (status=1 → online).
-            // Fall back to heartbeat-age threshold only when the status field
-            // is missing from the API response, which can happen with older devices.
-            $jimiStatus = array_key_exists('status', $apiData) ? (int) $apiData['status'] : null;
-
             $status = $this->resolveDeviceStatus(
-                $jimiStatus,
-                $minutesAgo,
+                $apiData['status'] ?? null,
+                $parsedHeartbeatAt,
                 $speed,
                 $accStatus,
                 $gpsMinutesAgo ?? $minutesAgo,
@@ -443,43 +438,19 @@ class LiveViewController extends Controller
         return $base;
     }
 
-    private function parseHeartbeat(?string $heartbeatAt): ?Carbon
-    {
-        if (blank($heartbeatAt)) {
-            return null;
-        }
-
-        try {
-            return Carbon::parse($heartbeatAt, 'UTC')->utc();
-        } catch (\Throwable) {
-            return null;
-        }
-    }
-
-    private function onlineThresholdMinutes(): int
-    {
-        return max((int) config('jimi.online_threshold_minutes', 10), 1);
-    }
-
     private function movementFreshnessMinutes(): int
     {
         return max((int) config('jimi.movement_freshness_minutes', 5), 1);
     }
 
     private function resolveDeviceStatus(
-        ?int $jimiStatus,
-        int $minutesAgo,
+        mixed $jimiStatus,
+        ?Carbon $heartbeatAt,
         float $speed,
         bool $accStatus,
         int $gpsMinutesAgo,
     ): string {
-        $isOnline = match ($jimiStatus) {
-            1 => true,
-            0 => false,
-            default => $minutesAgo <= $this->onlineThresholdMinutes(),
-        };
-
-        if (! $isOnline) {
+        if (! JimiDeviceService::isLocationOnline($jimiStatus, $heartbeatAt)) {
             return 'offline';
         }
 

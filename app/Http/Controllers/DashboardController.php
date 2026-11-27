@@ -12,7 +12,6 @@ use App\Models\Ticket;
 use App\Models\Tractor;
 use App\Models\User;
 use App\Services\Jimi\JimiDeviceService;
-use App\Services\Jimi\JimiTrackingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +20,6 @@ use Inertia\Inertia;
 class DashboardController extends Controller
 {
     public function __construct(
-        private JimiTrackingService $jimiTracking,
         private JimiDeviceService $jimiDeviceService,
     ) {}
 
@@ -32,7 +30,16 @@ class DashboardController extends Controller
         $data = [];
 
         if ($user->hasAnyRole(['super-admin', 'sub-admin'])) {
-            $data = $this->adminDashboard();
+            $liveStatus = fn () => once(fn () => $this->liveTractorStatusSummary());
+            $dashboard = fn () => once(fn () => $this->adminDashboard($liveStatus()));
+            $data = [
+                'stats' => fn () => $dashboard()['stats'],
+                'charts' => fn () => $dashboard()['charts'],
+                'recentAlerts' => fn () => $dashboard()['recentAlerts'],
+                'recentBookings' => fn () => $dashboard()['recentBookings'],
+                'maintenanceDueList' => fn () => $dashboard()['maintenanceDueList'],
+                'liveStatus' => $liveStatus,
+            ];
         } elseif ($user->hasRole('tsr')) {
             $data = $this->tsrDashboard($user);
         } elseif ($user->hasRole('fca')) {
@@ -44,12 +51,10 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', $data);
     }
 
-    private function adminDashboard(): array
+    private function adminDashboard(array $tractorStatus): array
     {
         // ── Tractor status breakdown ──
-        $totalTractors = Tractor::whereHas('device', fn ($q) => $q->notStale())->count();
-        $liveLocations = $this->jimiDeviceService->fetchLiveLocations();
-        $tractorStatus = $this->liveTractorStatusSummary($totalTractors, $liveLocations);
+        $totalTractors = $tractorStatus['totalTractors'];
         $onlineTractors = $tractorStatus['onlineTractors'];
         $offlineTractors = $tractorStatus['offlineTractors'];
         $inactiveTractors = $tractorStatus['inactiveTractors'];
@@ -205,7 +210,7 @@ class DashboardController extends Controller
         $totalMachineHours = (float) \Illuminate\Support\Facades\Cache::get('jimi_total_machine_hours', 0);
 
         // ── Offline breakdown by duration ──
-        $offlineBreakdown = $this->offlineBreakdown($liveLocations);
+        $offlineBreakdown = $tractorStatus['offlineBreakdown'];
 
         return [
             'stats' => [
@@ -299,43 +304,67 @@ class DashboardController extends Controller
         ];
     }
 
-    /**
-     * @return array{onlineTractors:int, offlineTractors:int, inactiveTractors:int, onlineDevices:int}
-     */
-    private function liveTractorStatusSummary(int $totalTractors, array $liveLocations): array
+    private function liveTractorStatusSummary(): array
     {
+        $liveLocations = $this->jimiDeviceService->fetchLiveLocations();
+        $available = $liveLocations !== [];
+        $totalTractors = Tractor::whereHas('device', fn ($query) => $query->notStale())->count();
         $activeDevices = Device::query()
             ->select(['id', 'imei'])
-            ->with('tractor:id,device_id')
+            ->withExists('tractor')
+            ->with('latestLocation:device_locations.id,device_locations.device_id,device_locations.heartbeat_at')
             ->where('is_active', true)
             ->notStale()
             ->get();
 
-        $activeTractorCount = 0;
+        $trackedTractors = 0;
         $onlineTractors = 0;
         $onlineDevices = 0;
+        $offlineBreakdown = [
+            'lessThanDay' => 0,
+            'oneToSevenDays' => 0,
+            'sevenToThirtyDays' => 0,
+            'thirtyToHundredDays' => 0,
+            'moreThanHundredDays' => 0,
+        ];
 
         foreach ($activeDevices as $device) {
-            if ($device->tractor !== null) {
-                $activeTractorCount++;
-            }
+            $trackedTractors += (int) $device->tractor_exists;
 
-            if (! $this->isLiveLocationOnline($liveLocations[$device->imei] ?? null)) {
+            if (! $available) {
                 continue;
             }
 
-            $onlineDevices++;
+            $location = $liveLocations[$device->imei] ?? [];
+            $heartbeat = JimiDeviceService::parseLocationTime($location['hbTime'] ?? null);
 
-            if ($device->tractor !== null) {
-                $onlineTractors++;
+            if (JimiDeviceService::isLocationOnline($location['status'] ?? null, $heartbeat)) {
+                $onlineDevices++;
+                $onlineTractors += (int) $device->tractor_exists;
+            } elseif ($device->tractor_exists) {
+                $lastHeartbeat = $heartbeat ?? $device->latestLocation?->heartbeat_at;
+                $daysAgo = $lastHeartbeat?->diffInDays(now('UTC')) ?? INF;
+
+                $bucket = match (true) {
+                    $daysAgo < 1 => 'lessThanDay',
+                    $daysAgo < 7 => 'oneToSevenDays',
+                    $daysAgo < 30 => 'sevenToThirtyDays',
+                    $daysAgo < 100 => 'thirtyToHundredDays',
+                    default => 'moreThanHundredDays',
+                };
+                $offlineBreakdown[$bucket]++;
             }
         }
 
         return [
-            'onlineTractors' => $onlineTractors,
-            'offlineTractors' => max($activeTractorCount - $onlineTractors, 0),
-            'inactiveTractors' => max($totalTractors - $activeTractorCount, 0),
-            'onlineDevices' => $onlineDevices,
+            'available' => $available,
+            'totalTractors' => $totalTractors,
+            'trackedTractors' => $trackedTractors,
+            'onlineTractors' => $available ? $onlineTractors : null,
+            'offlineTractors' => $available ? $trackedTractors - $onlineTractors : null,
+            'inactiveTractors' => max($totalTractors - $trackedTractors, 0),
+            'onlineDevices' => $available ? $onlineDevices : null,
+            'offlineBreakdown' => $offlineBreakdown,
         ];
     }
 
@@ -420,105 +449,6 @@ class DashboardController extends Controller
             'totalMaintenanceRecords' => Maintenance::count(),
             'pmsDueList' => $pmsDueList,
         ];
-    }
-
-    /**
-     * Categorize offline tractors by how long since their last heartbeat.
-     *
-     * @return array{lessThanDay:int, oneToSevenDays:int,
-     *               sevenToThirtyDays:int, thirtyToHundredDays:int,
-     *               moreThanHundredDays:int}
-     */
-    private function offlineBreakdown(array $liveLocations): array
-    {
-        $result = [
-            'lessThanDay' => 0,
-            'oneToSevenDays' => 0,
-            'sevenToThirtyDays' => 0,
-            'thirtyToHundredDays' => 0,
-            'moreThanHundredDays' => 0,
-        ];
-
-        $activeDevices = Device::query()
-            ->select(['id', 'imei'])
-            ->with(['tractor:id,device_id', 'latestLocation'])
-            ->where('is_active', true)
-            ->notStale()
-            ->get();
-
-        foreach ($activeDevices as $device) {
-            if (! $device->tractor) {
-                continue;
-            }
-
-            // Already counted as online? Skip.
-            if ($this->isLiveLocationOnline($liveLocations[$device->imei] ?? null)) {
-                continue;
-            }
-
-            $heartbeatAt = $device->latestLocation?->heartbeat_at;
-
-            if (! $heartbeatAt) {
-                // No heartbeat ever recorded — treat as long-term offline (>100 days)
-                $result['moreThanHundredDays']++;
-
-                continue;
-            }
-
-            $daysAgo = (int) $heartbeatAt->diffInDays(now()->utc());
-
-            if ($daysAgo < 1) {
-                $result['lessThanDay']++;
-            } elseif ($daysAgo < 7) {
-                $result['oneToSevenDays']++;
-            } elseif ($daysAgo < 30) {
-                $result['sevenToThirtyDays']++;
-            } elseif ($daysAgo < 100) {
-                $result['thirtyToHundredDays']++;
-            } else {
-                $result['moreThanHundredDays']++;
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * @param  array<string, mixed>|null  $apiData
-     */
-    private function isLiveLocationOnline(?array $apiData): bool
-    {
-        if (! $apiData) {
-            return false;
-        }
-
-        // Prefer JIMI's own online/offline determination (status=1 → online).
-        // Fall back to heartbeat-age threshold only when status is missing.
-        if (array_key_exists('status', $apiData)) {
-            return (int) $apiData['status'] === 1;
-        }
-
-        $heartbeatAt = $this->parseHeartbeat($apiData['hbTime'] ?? null);
-
-        if (! $heartbeatAt) {
-            return false;
-        }
-
-        return $heartbeatAt->diffInMinutes(now()->utc()) <= $this->onlineThresholdMinutes();
-    }
-
-    private function parseHeartbeat(?string $heartbeatAt): ?Carbon
-    {
-        if (blank($heartbeatAt)) {
-            return null;
-        }
-
-        return Carbon::parse($heartbeatAt, 'UTC')->utc();
-    }
-
-    private function onlineThresholdMinutes(): int
-    {
-        return max((int) config('jimi.online_threshold_minutes', 10), 1);
     }
 
     private function tsrDashboard(User $user): array

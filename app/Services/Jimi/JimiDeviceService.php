@@ -5,6 +5,7 @@ namespace App\Services\Jimi;
 use App\Models\Device;
 use App\Models\DeviceLocation;
 use App\Models\Tractor;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -114,6 +115,29 @@ class JimiDeviceService
         return Cache::remember('jimi_live_locations', 10, function () {
             return $this->fetchLocationsRealtime();
         });
+    }
+
+    public static function parseLocationTime(mixed $timestamp): ?Carbon
+    {
+        if (! is_string($timestamp) || blank($timestamp)) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($timestamp, 'UTC')->utc();
+        } catch (\Exception) {
+            return null;
+        }
+    }
+
+    public static function isLocationOnline(mixed $status, ?Carbon $heartbeat): bool
+    {
+        return match ($status) {
+            '1', 1, true => true,
+            '0', 0, false => false,
+            default => $heartbeat !== null && $heartbeat->diffInMinutes(now('UTC'), true)
+                <= max((int) config('jimi.online_threshold_minutes', 8), 1),
+        };
     }
 
     /**
