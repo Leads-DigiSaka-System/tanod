@@ -9,21 +9,33 @@ use Tests\TestCase;
 class TractorServiceAreaEstimatorTest extends TestCase
 {
     #[Test]
-    public function continuous_field_passes_count_a_single_hectare_per_cell(): void
+    public function continuous_field_passes_count_each_quarter_hectare_cell_once(): void
     {
         $points = $this->track($this->fieldPasses());
         $secondVisit = $this->track($this->fieldPasses(), offset: 3600, segment: 1);
         $estimate = (new TractorServiceAreaEstimator)->estimate([...$points, ...$secondVisit]);
 
         $this->assertTrue($estimate['available']);
-        $this->assertSame(1, $estimate['hectares']);
-        $this->assertCount(1, $estimate['cells']);
+        $this->assertSame(0.5, $estimate['hectares']);
+        $this->assertSame(0.25, $estimate['cellHectares']);
+        $this->assertCount(2, $estimate['cells']);
 
-        $bounds = $estimate['cells'][0]['bounds'];
-        $this->assertLessThan(14.49975, $bounds['south']);
-        $this->assertGreaterThan(14.50017, $bounds['north']);
-        $this->assertLessThan(120.99975, $bounds['west']);
-        $this->assertGreaterThan(121.00000, $bounds['east']);
+        $bounds = array_column($estimate['cells'], 'bounds');
+        $this->assertLessThan(14.49975, min(array_column($bounds, 'south')));
+        $this->assertGreaterThan(14.50017, max(array_column($bounds, 'north')));
+        $this->assertLessThan(120.99975, min(array_column($bounds, 'west')));
+        $this->assertGreaterThan(121.00000, max(array_column($bounds, 'east')));
+    }
+
+    #[Test]
+    public function short_narrow_field_passes_can_populate_one_quarter_hectare_cell(): void
+    {
+        $path = [[0, 0], [0, 16], [3.5, 16], [3.5, 0], [7, 0], [7, 16]];
+
+        $estimate = (new TractorServiceAreaEstimator)->estimate($this->track($path));
+
+        $this->assertSame(0.25, $estimate['hectares']);
+        $this->assertCount(1, $estimate['cells']);
     }
 
     #[Test]
@@ -31,7 +43,7 @@ class TractorServiceAreaEstimatorTest extends TestCase
     {
         $points = $this->track($this->fieldPasses(), sampleMetres: 2);
 
-        $this->assertSame(1, (new TractorServiceAreaEstimator)->estimate($points)['hectares']);
+        $this->assertSame(0.5, (new TractorServiceAreaEstimator)->estimate($points)['hectares']);
     }
 
     #[Test]
@@ -43,7 +55,7 @@ class TractorServiceAreaEstimatorTest extends TestCase
             [21, 11], [19, 24], [19, 39], [22, 57],
         ];
 
-        $this->assertSame(1, (new TractorServiceAreaEstimator)->estimate($this->track($path))['hectares']);
+        $this->assertSame(0.5, (new TractorServiceAreaEstimator)->estimate($this->track($path))['hectares']);
     }
 
     #[Test]
@@ -56,11 +68,10 @@ class TractorServiceAreaEstimatorTest extends TestCase
         ];
         $estimate = (new TractorServiceAreaEstimator)->estimate($this->track($path));
 
-        $this->assertSame(2, $estimate['hectares']);
-        $cells = array_column($estimate['cells'], 'bounds');
-        usort($cells, fn (array $left, array $right) => $left['west'] <=> $right['west']);
-        $this->assertSame($cells[0]['south'], $cells[1]['south']);
-        $this->assertGreaterThan($cells[0]['east'], $cells[1]['west']);
+        $this->assertSame(1.0, $estimate['hectares']);
+        $columns = array_unique(array_column(array_column($estimate['cells'], 'bounds'), 'west'));
+        $this->assertCount(2, $columns);
+        $this->assertGreaterThan(0.002, max($columns) - min($columns));
     }
 
     #[Test]
@@ -70,8 +81,8 @@ class TractorServiceAreaEstimatorTest extends TestCase
         $crossing = $estimator->estimate($this->track($this->fieldPasses(length: 140)));
         $smallOverlap = $estimator->estimate($this->track($this->fieldPasses(length: 85)));
 
-        $this->assertSame(2, $crossing['hectares']);
-        $this->assertSame(1, $smallOverlap['hectares']);
+        $this->assertSame(1.0, $crossing['hectares']);
+        $this->assertSame(0.5, $smallOverlap['hectares']);
     }
 
     #[Test]
@@ -88,11 +99,11 @@ class TractorServiceAreaEstimatorTest extends TestCase
         foreach ($paths as $description => $path) {
             $estimate = $estimator->estimate($this->track($path));
             $this->assertTrue($estimate['available'], $description);
-            $this->assertSame(0, $estimate['hectares'], $description);
+            $this->assertSame(0.0, $estimate['hectares'], $description);
         }
 
         $fast = array_map(fn (array $point): array => [...$point, 'speed' => 18], $this->track($this->fieldPasses()));
-        $this->assertSame(0, $estimator->estimate($fast)['hectares']);
+        $this->assertSame(0.0, $estimator->estimate($fast)['hectares']);
     }
 
     #[Test]
@@ -107,8 +118,8 @@ class TractorServiceAreaEstimatorTest extends TestCase
         ], $points, array_keys($points));
         $estimator = new TractorServiceAreaEstimator;
 
-        $this->assertSame(0, $estimator->estimate($splitSegments)['hectares']);
-        $this->assertSame(0, $estimator->estimate($reportingGap)['hectares']);
+        $this->assertSame(0.0, $estimator->estimate($splitSegments)['hectares']);
+        $this->assertSame(0.0, $estimator->estimate($reportingGap)['hectares']);
     }
 
     #[Test]
@@ -121,8 +132,8 @@ class TractorServiceAreaEstimatorTest extends TestCase
         ], $points, array_keys($points));
         $estimator = new TractorServiceAreaEstimator;
 
-        $this->assertSame(['available' => false, 'hectares' => 0, 'cells' => []], $estimator->estimate($lbs));
-        $this->assertSame(['available' => false, 'hectares' => 0, 'cells' => []], $estimator->estimate($sparse));
+        $this->assertSame(['available' => false, 'hectares' => 0.0, 'cellHectares' => 0.25, 'cells' => []], $estimator->estimate($lbs));
+        $this->assertSame(['available' => false, 'hectares' => 0.0, 'cellHectares' => 0.25, 'cells' => []], $estimator->estimate($sparse));
     }
 
     private function fieldPasses(int $east = 0, int $length = 54): array

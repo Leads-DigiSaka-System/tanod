@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Log;
  */
 class JimiTrackingService
 {
+    public const TRACK_QUOTA_CODE = 1006;
+
     public function __construct(
         private JimiAuthService $auth,
     ) {}
@@ -163,9 +165,10 @@ class JimiTrackingService
             ]);
 
             throw new \RuntimeException(
-                $code === 1006
+                $code === self::TRACK_QUOTA_CODE
                     ? 'JIMI daily track quota has been reached.'
-                    : 'JIMI track data is temporarily unavailable.'
+                    : 'JIMI track data is temporarily unavailable.',
+                $code,
             );
         }
 

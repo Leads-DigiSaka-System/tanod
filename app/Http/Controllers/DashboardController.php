@@ -12,6 +12,7 @@ use App\Models\Ticket;
 use App\Models\Tractor;
 use App\Models\User;
 use App\Services\Jimi\JimiDeviceService;
+use App\Services\SeasonalServiceArea;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,7 @@ class DashboardController extends Controller
 {
     public function __construct(
         private JimiDeviceService $jimiDeviceService,
+        private SeasonalServiceArea $seasonalServiceArea,
     ) {}
 
     public function __invoke(Request $request)
@@ -39,6 +41,7 @@ class DashboardController extends Controller
                 'recentBookings' => fn () => $dashboard()['recentBookings'],
                 'maintenanceDueList' => fn () => $dashboard()['maintenanceDueList'],
                 'liveStatus' => $liveStatus,
+                'seasonalServiceArea' => fn () => $this->seasonalServiceArea->summary(),
             ];
         } elseif ($user->hasRole('tsr')) {
             $data = $this->tsrDashboard($user);

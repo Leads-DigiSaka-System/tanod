@@ -40,6 +40,8 @@ Schedule::job(new CheckMaintenanceDue)->dailyAt('06:00');
 // Full JIMI sync (devices + locations) every 20 minutes
 Schedule::command('jimi:sync-daily')->cron('*/20 * * * *')->withoutOverlapping();
 
+Schedule::command('jimi:sync-service-area')->everyFiveMinutes()->withoutOverlapping(10)->runInBackground();
+
 // Warm the Jimi total machine hours cache every hour
 Schedule::call(function () {
     app(\App\Services\Jimi\JimiTrackingService::class)->getTotalMachineHours(forceRefresh: true);

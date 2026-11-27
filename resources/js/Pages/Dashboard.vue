@@ -158,6 +158,39 @@
         </div>
       </div>
 
+      <section v-if="seasonalServiceArea" class="mb-6 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-5 dark:border-emerald-800/40 dark:bg-emerald-950/25">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 class="text-base font-bold text-gray-900 dark:text-white">Dry-season service area</h2>
+            <p class="mt-0.5 text-sm text-gray-600 dark:text-gray-400">{{ seasonalServiceArea.label }} · Estimated from GPS field passes</p>
+          </div>
+          <p v-if="seasonalServiceArea.hectares !== null" class="text-2xl font-bold leading-tight text-emerald-800 dark:text-emerald-300">
+            {{ formatServiceArea(seasonalServiceArea.hectares) }}
+          </p>
+        </div>
+        <p v-if="seasonalServiceArea.hectares === null" class="mt-3 text-sm text-gray-700 dark:text-gray-300">
+          {{ seasonalServiceArea.checkedTractorDays ? 'No usable GPS yet in the processed histories.' : 'Awaiting processed GPS histories.' }}
+        </p>
+        <dl class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="New estimated coverage first detected in each month">
+          <div v-for="month in seasonalServiceArea.months" :key="month.key" class="rounded-lg bg-white/70 px-3 py-2.5 dark:bg-gray-800/60">
+            <dt class="text-xs font-medium text-gray-600 dark:text-gray-400">{{ month.label }}</dt>
+            <dd class="mt-0.5 text-sm font-semibold text-gray-800 dark:text-gray-200">
+              {{ month.upcoming ? 'Upcoming' : month.hectares === null ? 'Awaiting GPS' : formatServiceArea(month.hectares) }}
+            </dd>
+          </div>
+        </dl>
+        <p class="mt-3 text-xs text-gray-600 dark:text-gray-400">
+          {{ seasonalServiceArea.cellHectares }} ha cells, counted once where first detected in the season.
+          <template v-if="seasonalServiceArea.tractorsWithGps">
+            GPS from {{ seasonalServiceArea.tractorsWithGps.toLocaleString() }} tractors.
+          </template>
+          <template v-if="seasonalServiceArea.expectedTractorDays">
+            {{ seasonalServiceArea.checkedTractorDays.toLocaleString() }} of {{ seasonalServiceArea.expectedTractorDays.toLocaleString() }} tractor-days checked.
+          </template>
+          <template v-if="seasonalServiceArea.closed">Next season starts {{ formatSeasonDate(seasonalServiceArea.nextStartsOn) }}.</template>
+        </p>
+      </section>
+
       <!-- Status Row: Activation + PMS Schedule (Neumorphic cards) -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
 
@@ -283,13 +316,19 @@ const apexchart = VueApexCharts
 
 const props = defineProps({
   stats: Object, charts: Object, liveStatus: Object, recentAlerts: Array, recentBookings: Array,
+  seasonalServiceArea: Object,
   maintenanceDueList: Array, pendingBookings: Array, myTractors: Array,
   pendingTasks: Array, myBookings: Array, availableTractors: Array, recentFeedback: Array,
 })
 
 usePoll(10_000, { only: ['liveStatus'] }, { autoStart: Boolean(props.liveStatus) })
+usePoll(60_000, { only: ['seasonalServiceArea'] }, { autoStart: Boolean(props.seasonalServiceArea) })
 
 const todayDate = computed(() => new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }))
+const formatServiceArea = hectares => `${hectares.toLocaleString(undefined, { maximumFractionDigits: 2 })} ha`
+const formatSeasonDate = date => new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', {
+  month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+})
 const formatTitle = (key) => key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim()
 const getStatColor = (key) => {
   if (key.includes('pending')) return 'yellow'
